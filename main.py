@@ -114,7 +114,7 @@ class TerminalUI:
         curses.curs_set(0)
         self.status_bar = StatusBar()
         self.update_dimensions()
-        self.stdscr.timeout(500)
+        # Removed timeout from initialization
 
     def setup_colors(self):
         curses.start_color()
@@ -123,6 +123,14 @@ class TerminalUI:
         curses.init_pair(3, curses.COLOR_GREEN, curses.COLOR_BLACK)
         curses.init_pair(4, curses.COLOR_RED, curses.COLOR_BLACK)
         curses.init_pair(5, curses.COLOR_YELLOW, curses.COLOR_BLACK)
+
+    def enter_input_mode(self):
+        # Disable timeout for input operations
+        self.stdscr.timeout(-1)
+
+    def enter_display_mode(self):
+        # Enable timeout for display updates
+        self.stdscr.timeout(500)
 
     def update_dimensions(self):
         self.height, self.width = self.stdscr.getmaxyx()
@@ -251,7 +259,9 @@ class TerminalUI:
         self.center_text(self.height // 2, message, color_pair=3)
         self.stdscr.refresh()
         if wait:
+            self.enter_input_mode()  # Switch to input mode for waiting
             self.stdscr.getch()
+            self.enter_display_mode()  # Switch back to display mode
 
 def main(stdscr):
     ui = TerminalUI(stdscr)
@@ -265,6 +275,9 @@ def main(stdscr):
         scroll_offset = 0
         visible_range = ui.height - 10
 
+        # Enter input mode when handling assignments
+        ui.enter_input_mode()
+
         while True:
             if curses.is_term_resized(ui.height, ui.width):
                 ui.update_dimensions()
@@ -274,8 +287,8 @@ def main(stdscr):
             ui.draw_assignment_list(day_name, assignments, selected_index, scroll_offset)
             key = stdscr.getch()
 
-            if key == -1:
-                continue
+            if key == ord('q'):
+                break
             elif key == curses.KEY_UP:
                 if selected_index > 0:
                     selected_index -= 1
@@ -290,7 +303,11 @@ def main(stdscr):
                 if assignments:
                     week.toggle_assignment_completion(day_index, selected_index)
             elif key == ord('a'):
+                # Temporarily switch back to display mode for input screen
+                ui.enter_display_mode()
                 name = ui.get_input(f"Enter assignment for {day_name}:", 8)
+                # Switch back to input mode after getting input
+                ui.enter_input_mode()
                 if name:
                     week.add_assignment(day_index, name)
                     selected_index = len(assignments) - 1
@@ -299,8 +316,9 @@ def main(stdscr):
                     assignments.pop(selected_index)
                     if selected_index >= len(assignments):
                         selected_index = max(0, len(assignments) - 1)
-            elif key == ord('q'):
-                break
+
+        # Return to display mode when exiting
+        ui.enter_display_mode()
 
     def handle_main_menu():
         options = ["Add Semester", "View Schedule", "Exit ROBCO Terminal"]
