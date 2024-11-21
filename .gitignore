@@ -1,20 +1,91 @@
-# Ignore binary files
-bin/
-*.exe
-*.out
+# Virtual Environment
+venv/
+env/
+ENV/
+.env
+.venv
+env.bak/
+venv.bak/
 
-# Ignore Python cache (if using Python)
+# Python
 __pycache__/
 *.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
 
-# Ignore Node.js files (if applicable)
-node_modules/
-
-# Ignore temporary files
-*.tmp
+# IDEs and editors
+.idea/
+.vscode/
 *.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+.DS_Store
 
-# Ignore logs
-logs/
+# Logs and databases
 *.log
+*.sqlite
+*.db
 
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Distribution / packaging
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info
+dist
+build
+eggs
+parts
+bin
+var
+sdist
+develop-eggs
+.installed.cfg
+lib
+lib64
