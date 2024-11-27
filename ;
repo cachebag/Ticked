@@ -1,9 +1,0 @@
-~/Desktop/tick/..
-⏵ .git
-⏵ .venv
-⏵ ✗ src
-  .gitignore
-  main.py
-  README.md
-  requirements.txt
-  ✗ setup.py
