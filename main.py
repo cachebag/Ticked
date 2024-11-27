@@ -1,4 +1,3 @@
-# main.py
 import curses
 from src.models.schedule import ClassSchedule
 from src.ui.terminal import TerminalUI

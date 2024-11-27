@@ -1,4 +1,3 @@
-# src/models/schedule.py
 import datetime
 from typing import Dict, List
 from .semester import Semester

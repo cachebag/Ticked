@@ -1,4 +1,3 @@
-# src/models/semester.py
 import datetime
 from typing import Dict
 from .week import Week
