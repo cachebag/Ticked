@@ -1,4 +1,3 @@
-# src/ui/status_bar.py
 import time
 from ..utils.constants import ACTIVE_DOT, CURSOR
 from ..utils.system_monitor import SystemMonitor

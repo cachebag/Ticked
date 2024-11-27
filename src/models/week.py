@@ -1,4 +1,3 @@
-# src/models/week.py
 from typing import List
 from .assignment import Assignment
 

@@ -1,4 +1,3 @@
-# src/models/assignment.py
 class Assignment:
     def __init__(self, name: str):
         self.name = name

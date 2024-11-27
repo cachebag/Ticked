@@ -1,4 +1,3 @@
-# src/ui/terminal.py
 import curses
 from typing import List
 from .status_bar import StatusBar

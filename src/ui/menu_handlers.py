@@ -1,4 +1,3 @@
-# src/ui/menu_handlers.py
 import curses
 import datetime
 import time

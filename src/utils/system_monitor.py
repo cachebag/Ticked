@@ -1,4 +1,3 @@
-# src/utils/system_monitor.py
 import time
 import psutil
 import socket

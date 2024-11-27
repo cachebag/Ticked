@@ -1,11 +1,9 @@
-# src/utils/constants.py
 CHECK_MARK = "*"
 CROSS_MARK = " "
 BULLET = ">"
 CURSOR = "_"
 ACTIVE_DOT = "●"
 
-# Menu state enum
 from enum import Enum
 
 class MenuState(Enum):
@@ -15,7 +13,6 @@ class MenuState(Enum):
     DAY = 4
     ASSIGNMENTS = 5
 
-# Startup and shutdown messages
 STARTUP_MESSAGES = [
     "ROBCO INDUSTRIES UNIFIED OPERATING SYSTEM v1.0",
     "COPYRIGHT 2024-2025 ROBCO INDUSTRIES",
