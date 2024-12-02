@@ -203,7 +203,7 @@ class MenuHandlers:
         return True
     
 
-    # What I want to do here is instead of having this fake loading screen, have a generated quote or welcome
+    # What I want to do here is instead of having this fake loading screen, to have a generated quote or welcome
     # message.
     def show_startup_sequence(self):
         def center_text_fullscreen(y, text, color_pair=1):
@@ -223,8 +223,8 @@ class MenuHandlers:
             self.ui.stdscr.refresh()
             time.sleep(0.1)
         time.sleep(0)
-    # Same for here. Maybe changes constants.py and not have all these unnecessary messages despite them being 
-    # accompanied by the Fallout theme I'm going for.
+    # Same for here. Maybe change constants.py and not have all these unnecessary messages despite them being 
+    # accompanied by the Fallout theme I'm going for. Changing/adding different themes would be nice too
     def show_shutdown_sequence(self):
         self.ui.current_draw_function = None
     
