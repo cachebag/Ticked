@@ -1,5 +1,8 @@
+#terminal 
+
 import curses
-from typing import List
+import time
+from typing import List, Optional, Callable
 from .status_bar import StatusBar
 from ..utils.constants import ACTIVE_DOT, CURSOR, BULLET
 
@@ -10,6 +13,11 @@ class TerminalUI:
         curses.curs_set(0)
         self.status_bar = StatusBar()
         self.update_dimensions()
+        self.sidebar_width = 30
+        self.last_refresh = 0
+        self.refresh_interval = 1.0  # Refresh every 500ms
+        self.current_draw_function: Optional[Callable] = None
+        self.current_draw_args: tuple = ()
 
     def setup_colors(self):
         curses.start_color()
@@ -27,10 +35,27 @@ class TerminalUI:
 
     def update_dimensions(self):
         self.height, self.width = self.stdscr.getmaxyx()
+        self.sidebar_width = min(30, self.width // 3)
+
+    def schedule_refresh(self, draw_function: Callable, *args):
+        """Schedule a drawing function to be called on refresh"""
+        self.current_draw_function = draw_function
+        self.current_draw_args = args
+
+    def check_refresh(self):
+        """Check if it's time to refresh and update if needed"""
+        current_time = time.time()
+        if current_time - self.last_refresh >= self.refresh_interval:
+            self.last_refresh = current_time
+            if self.current_draw_function:
+                self.current_draw_function(*self.current_draw_args)
+            else:
+                self.stdscr.refresh()
 
     def draw_status_bar(self):
         sys_info = self.status_bar.system_monitor.get_system_info()
         
+        # Top status bar
         user_info = f"USER: {sys_info['user']}"
         size_info = f"TERMINAL: {self.width}x{self.height}"
         connection = f"CONNECTION: {ACTIVE_DOT} ACTIVE" if self.status_bar.should_blink_cursor() else "CONNECTION: ○ ACTIVE"
@@ -38,6 +63,7 @@ class TerminalUI:
         self.safe_addstr(0, len(user_info) + 4, size_info, curses.color_pair(1) | curses.A_DIM)
         self.safe_addstr(0, self.width - len(connection) - 2, connection, curses.color_pair(1) | curses.A_DIM)
 
+        # System info
         mem_info = f"MEM: {sys_info['mem']}"
         cpu_temp = f"CPU TEMP: {sys_info['cpu_temp']}"
         load_avg = f"LOAD: {sys_info['load']}"
@@ -45,6 +71,7 @@ class TerminalUI:
         self.safe_addstr(1, len(mem_info) + 4, cpu_temp, curses.color_pair(1) | curses.A_DIM)
         self.safe_addstr(1, len(mem_info) + len(cpu_temp) + 6, load_avg, curses.color_pair(1) | curses.A_DIM)
 
+        # Network and uptime
         net_info = f"NET ↑: {sys_info['net_send']} ↓: {sys_info['net_recv']}"
         uptime = f"UPTIME: {self.status_bar.get_uptime()}"
         self.safe_addstr(2, 2, net_info, curses.color_pair(1) | curses.A_DIM)
@@ -65,46 +92,67 @@ class TerminalUI:
     def draw_border(self):
         try:
             for x in range(self.width - 1):
-                self.safe_addstr(3, x, "-", curses.color_pair(1))
-                self.safe_addstr(self.height - 1, x, "-", curses.color_pair(1))
+                self.safe_addstr(3, x, "-", curses.color_pair(1))  # Top border
+                self.safe_addstr(self.height - 1, x, "-", curses.color_pair(1))  # Bottom border
+
             for y in range(3, self.height):
-                self.safe_addstr(y, 0, "|", curses.color_pair(1))
-                self.safe_addstr(y, self.width - 1, "|", curses.color_pair(1))
+                self.safe_addstr(y, 0, "|", curses.color_pair(1))  # Left border
+                self.safe_addstr(y, self.sidebar_width, "|", curses.color_pair(1))  # Sidebar separator
+                self.safe_addstr(y, self.width - 1, "|", curses.color_pair(1))  # Right border
         except curses.error:
             pass
 
-    def center_text(self, y, text, color_pair=1, highlight=False):
+    def center_text(self, y, text, color_pair=1, highlight=False, main_content=True):
         if y >= self.height:
             return
-        x = max(1, (self.width - len(text)) // 2)
+        
+        if main_content:
+            content_width = self.width - self.sidebar_width - 2
+            x = self.sidebar_width + 1 + (content_width - len(text)) // 2
+        else:
+            x = 1 + (self.sidebar_width - len(text)) // 2
+            
         attr = curses.A_BOLD if highlight else curses.A_NORMAL
         self.safe_addstr(y, x, text, curses.color_pair(color_pair) | attr)
 
-    def draw_menu(self, title, options, selected_index, start_y=7):
+    def draw_menu(self, title: str, options: List[str], selected_index: int, start_y: int = 7):
+        self.schedule_refresh(self.draw_menu, title, options, selected_index, start_y)
+        
         self.stdscr.clear()
         self.draw_border()
         self.draw_status_bar()
         
-        title_text = f"[ {title} ]"
-        self.center_text(5, title_text, color_pair=3, highlight=True)
+        sidebar_title = "[ MENU ]"
+        self.center_text(5, sidebar_title, color_pair=3, highlight=True, main_content=False)
         
         for i, option in enumerate(options):
             if start_y + i * 2 >= self.height - 1:
                 break
             color = 2 if i == selected_index else 1
             text = f"{BULLET} {option}"
-            # src/ui/terminal.py (continued)
-            self.center_text(start_y + i * 2, text, color_pair=color)
+            if len(text) > self.sidebar_width - 4:
+                text = text[:self.sidebar_width - 7] + "..."
+            self.center_text(start_y + i * 2, text, color_pair=color, main_content=False)
 
-        self.center_text(self.height - 2, "[ UP/DOWN: Navigate | ENTER: Select | Q: Back ]", color_pair=3)
+        title_text = f"[ {title} ]"
+        self.center_text(5, title_text, color_pair=3, highlight=True)
+        
+        controls = "[ UP/DOWN: Navigate | ENTER: Select | Q: Back ]"
+        self.center_text(self.height - 2, controls, color_pair=3)
+        
         self.stdscr.refresh()
 
-    def draw_assignment_list(self, day_name, assignments, selected_index, scroll_offset=0):
+    def draw_assignment_list(self, day_name: str, assignments: List[str], selected_index: int, scroll_offset: int = 0):
+        self.schedule_refresh(self.draw_assignment_list, day_name, assignments, selected_index, scroll_offset)
+        
         self.stdscr.clear()
         self.draw_border()
         self.draw_status_bar()
         
-        title = f"[ {day_name} Assignments ]"
+        sidebar_title = "[ ASSIGNMENTS ]"
+        self.center_text(5, sidebar_title, color_pair=3, highlight=True, main_content=False)
+        
+        title = f"[ {day_name} ]"
         self.center_text(5, title, color_pair=3, highlight=True)
         
         visible_range = self.height - 10
@@ -127,33 +175,83 @@ class TerminalUI:
         
         self.stdscr.refresh()
 
-    def get_input(self, prompt, y_pos):
+    def get_input(self, prompt: str, y_pos: int) -> str:
+        prev_draw_function = self.current_draw_function
+        prev_draw_args = self.current_draw_args
+        self.current_draw_function = None
+    
         self.stdscr.clear()
         self.draw_border()
         self.draw_status_bar()
+    
         self.center_text(y_pos, prompt, color_pair=3)
-        
-        curses.echo()
+    
         input_y = min(y_pos + 2, self.height - 2)
-        input_x = (self.width - 30) // 2
-        self.stdscr.move(input_y, input_x)
-        
+        main_content_center = self.sidebar_width + (self.width - self.sidebar_width) // 2
+        input_x = main_content_center - 15
+    
+        curses.curs_set(1)
+        curses.echo()
+    
+        self.stdscr.nodelay(0)
+    
         try:
-            input_str = self.stdscr.getstr(input_y, input_x, 30).decode("utf-8")
+            self.stdscr.move(input_y, input_x)
+            input_str = self.stdscr.getstr(input_y, input_x, 30).decode('utf-8')
         except curses.error:
             input_str = ""
         finally:
+            curses.curs_set(0)
             curses.noecho()
-        
-        return input_str
+            self.stdscr.nodelay(1)
+            self.current_draw_function = prev_draw_function
+            self.current_draw_args = prev_draw_args
+    
+        return input_str.strip()
 
-    def display_message(self, message, wait=True):
+    def display_message(self, message: str, wait: bool = True):
+        if wait:
+            prev_draw_function = self.current_draw_function
+            prev_draw_args = self.current_draw_args
+            self.current_draw_function = None
+        
         self.stdscr.clear()
         self.draw_border()
         self.draw_status_bar()
-        self.center_text(self.height // 2, message, color_pair=3)
-        self.stdscr.refresh()
+
+        lines = message.split('\n')
+        start_y = (self.height - len(lines)) // 2
+
+        for i, line in enumerate(lines):
+            self.center_text(start_y + i, line, color_pair=3, main_content=True)
+
         if wait:
             self.enter_input_mode()
             self.stdscr.getch()
             self.enter_display_mode()
+            self.current_draw_function = prev_draw_function
+            self.current_draw_args = prev_draw_args
+
+    def main_loop(self):
+        """Main event loop that handles both user input and refresh"""
+        try:
+            current_time = time.time()
+        
+            if current_time - self.last_refresh >= self.refresh_interval:
+                self.check_refresh()
+                self.last_refresh = current_time
+        
+            self.stdscr.nodelay(1)
+            key = self.stdscr.getch()
+        
+            if key != curses.ERR:
+                return key  
+        
+            time.sleep(0.01)
+        
+            return None
+        
+        except KeyboardInterrupt:
+            return ord('q')  
+        except curses.error:
+            return None
