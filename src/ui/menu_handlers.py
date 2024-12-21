@@ -1,179 +1,31 @@
 import curses
-import datetime
 import time
-from typing import List
-from ..models.schedule import ClassSchedule
-from ..models.week import Week
-from ..utils.constants import BULLET, DAYS_OF_WEEK, STARTUP_MESSAGES, SHUTDOWN_MESSAGES
+import datetime
 from .terminal import TerminalUI
+from typing import List, Optional
+from ..utils.constants import (
+    STARTUP_MESSAGES, 
+    SHUTDOWN_MESSAGES,
+    BULLET
+)
+from ..models.task import Task, TaskType
+from ..models.calendar import CalendarView
 
 class MenuHandlers:
-    def __init__(self, ui: TerminalUI, schedule: ClassSchedule):
+    def __init__(self, ui: TerminalUI):
         self.ui = ui
-        self.schedule = schedule
-
-    def handle_assignments_view(self, week: Week, day_index: int):
-        day_name = DAYS_OF_WEEK[day_index]
-        assignments = week.assignments[day_index]
-        selected_index = 0
-        scroll_offset = 0
-        visible_range = self.ui.height - 10
-
-        while True:
-            if curses.is_term_resized(self.ui.height, self.ui.width):
-                self.ui.update_dimensions()
-                curses.resize_term(self.ui.height, self.ui.width)
-
-            self.ui.draw_assignment_list(day_name, assignments, selected_index, scroll_offset)
-            
-            key = self.ui.main_loop()
-            if key is None:
-                continue
-
-            if key == ord('q'):
-                self.ui.current_draw_function = None
-                break
-            elif key == curses.KEY_UP:
-                if selected_index > 0:
-                    selected_index -= 1
-                    if selected_index < scroll_offset:
-                        scroll_offset = selected_index
-            elif key == curses.KEY_DOWN:
-                if selected_index < len(assignments) - 1:
-                    selected_index += 1
-                    if selected_index >= scroll_offset + visible_range:
-                        scroll_offset = selected_index - visible_range + 1
-            elif key == ord(' '):
-                if assignments:
-                    week.toggle_assignment_completion(day_index, selected_index)
-            elif key == ord('a'):
-                self.ui.current_draw_function = None
-                name = self.ui.get_input(f"Enter assignment for {day_name}:", 8)
-                if name:
-                    week.add_assignment(day_index, name)
-                    selected_index = len(assignments) - 1
-            elif key == ord('d'):
-                if assignments and 0 <= selected_index < len(assignments):
-                    assignments.pop(selected_index)
-                    if selected_index >= len(assignments):
-                        selected_index = max(0, len(assignments) - 1)
-
-    def handle_day_menu(self, week: Week):
-        day_index = 0
-    
-        def draw_day_menu():
-            """Helper function to draw the day menu without clearing"""
-            self.ui.stdscr.clear()
-
-            self.ui.draw_border()
-            self.ui.draw_status_bar()
-
-            self.ui.center_text(5, f"[ Week {week.week_number} ]", color_pair=3, highlight=True)
-        
-            for i, day in enumerate(DAYS_OF_WEEK):
-                if 7 + i * 2 >= self.ui.height - 3:
-                    break
-                color = 2 if i == day_index else 1
-                day_text = f"{BULLET} {day}"
-                assignment_count = len(week.assignments[i])
-                if assignment_count > 0:
-                    completed = sum(1 for a in week.assignments[i] if a.completed)
-                    day_text += f" ({completed}/{assignment_count} completed)"
-                self.ui.center_text(7 + i * 2, day_text, color_pair=color)
-        
-            self.ui.center_text(self.ui.height - 2, "[ ENTER: View Assignments | Q: Back ]", color_pair=3)
-        
-            self.ui.stdscr.refresh()
-
-        self.ui.schedule_refresh(draw_day_menu)
-    
-        while True:
-            if curses.is_term_resized(self.ui.height, self.ui.width):
-                self.ui.update_dimensions()
-                curses.resize_term(self.ui.height, self.ui.width)
-
-            draw_day_menu()
-        
-            key = self.ui.main_loop()
-            if key is None:
-                continue
-
-            if key == curses.KEY_UP:
-                day_index = (day_index - 1) % 7
-            elif key == curses.KEY_DOWN:
-                day_index = (day_index + 1) % 7
-            elif key in [curses.KEY_ENTER, 10, 13]:
-                self.handle_assignments_view(week, day_index)
-            elif key == ord('q'):
-                self.ui.current_draw_function = None
-                break
-
-    def handle_week_menu(self, semester):
-        week_index = 0
-        options = [f"Week {i+1}" for i in range(14)]
-        
-        while True:
-            if curses.is_term_resized(self.ui.height, self.ui.width):
-                self.ui.update_dimensions()
-                curses.resize_term(self.ui.height, self.ui.width)
-
-            self.ui.draw_menu(f"Select Week - {semester.name}", options, week_index)
-            
-            key = self.ui.main_loop()
-            if key is None:
-                continue
-
-            if key == curses.KEY_UP:
-                week_index = (week_index - 1) % 14
-            elif key == curses.KEY_DOWN:
-                week_index = (week_index + 1) % 14
-            elif key in [curses.KEY_ENTER, 10, 13]:
-                selected_week = semester.enter_week(week_index + 1)
-                self.handle_day_menu(selected_week)
-            elif key == ord('q'):
-                self.ui.current_draw_function = None
-                break
-
-    def handle_semester_menu(self):
-        semester_list = self.schedule.view_schedule()
-        if not semester_list:
-            self.ui.display_message("No semesters found. Please add a semester first.")
-            return
-
-        index = 0
-        while True:
-            if curses.is_term_resized(self.ui.height, self.ui.width):
-                self.ui.update_dimensions()
-                curses.resize_term(self.ui.height, self.ui.width)
-
-            self.ui.draw_menu("Select Semester", semester_list, index)
-            
-            key = self.ui.main_loop()
-            if key is None:
-                continue
-
-            if key == curses.KEY_UP:
-                index = (index - 1) % len(semester_list)
-            elif key == curses.KEY_DOWN:
-                index = (index + 1) % len(semester_list)
-            elif key in [curses.KEY_ENTER, 10, 13]:
-                selected_semester = self.schedule.semesters[semester_list[index]]
-                self.handle_week_menu(selected_semester)
-            elif key == ord('q'):
-                self.ui.current_draw_function = None
-                break
 
     def handle_main_menu(self) -> bool:
-        options = ["Add Semester", "View Schedule", "Exit ROBCO Terminal"]
+        options = ["add event", "notes", "pomodoro", "youtube", "spotify", "exit"]
         index = 0
-        
+    
         while True:
             if curses.is_term_resized(self.ui.height, self.ui.width):
                 self.ui.update_dimensions()
                 curses.resize_term(self.ui.height, self.ui.width)
 
-            self.ui.draw_menu("ROBCO INDUSTRIES UNIFIED OPERATING SYSTEM", options, index)
-            
+            self.ui.draw_menu("TICK", options, index)
+        
             key = self.ui.main_loop()
             if key is None:
                 continue
@@ -183,28 +35,24 @@ class MenuHandlers:
             elif key == curses.KEY_DOWN:
                 index = (index + 1) % len(options)
             elif key in [curses.KEY_ENTER, 10, 13]:
-                if index == 0:
-                    self.ui.current_draw_function = None
-                    semester_name = self.ui.get_input("Enter Semester Designation:", 8)
-                    self.ui.enter_display_mode()
-
-                    if semester_name:
-                        start_date = datetime.date(2024, 1, 1)
-                        self.schedule.add_semester(semester_name, start_date)
-                        self.ui.display_message("Semester added successfully!")
-                elif index == 1:
-                    self.handle_semester_menu()
-                elif index == 2:
+                if index == 0:  # add event
+                    self.add_task()
+                elif index == 1:  # notes
+                    self.ui.display_message("Feature coming soon!")
+                elif index == 2:  # pomodoro
+                    self.ui.display_message("Feature coming soon!")
+                elif index == 3:  # youtube
+                    self.ui.display_message("Feature coming soon!")
+                elif index == 4:  # spotify
+                    self.ui.display_message("Feature coming soon!")
+                elif index == 5:  # exit
                     return False
             elif key == ord('q'):
                 self.ui.current_draw_function = None
                 return False
-        
-        return True
     
+        return True
 
-    # What I want to do here is instead of having this fake loading screen, to have a generated quote or welcome
-    # message.
     def show_startup_sequence(self):
         def center_text_fullscreen(y, text, color_pair=1):
             if y >= self.ui.height:
@@ -223,8 +71,7 @@ class MenuHandlers:
             self.ui.stdscr.refresh()
             time.sleep(0.1)
         time.sleep(0)
-    # Same for here. Maybe change constants.py and not have all these unnecessary messages despite them being 
-    # accompanied by the Fallout theme I'm going for. Changing/adding different themes would be nice too
+
     def show_shutdown_sequence(self):
         self.ui.current_draw_function = None
     
@@ -241,3 +88,153 @@ class MenuHandlers:
         
             self.ui.stdscr.refresh()
             time.sleep(0.1)
+
+    def add_task(self) -> None:
+        """Handle task creation interface"""
+        # First, let user select a date from calendar if they haven't already
+        selected_date = None
+        
+        # Save previous state
+        prev_draw_function = self.ui.current_draw_function
+        prev_draw_args = self.ui.current_draw_args
+        
+        while selected_date is None:
+            self.ui.stdscr.clear()
+            self.ui.draw_border()
+            self.ui.draw_status_bar()
+            
+            # Draw instructions at the top of the window
+            instructions = [
+                "[ Calendar Navigation ]",
+                "↑/↓/←/→: Move selection",
+                "Enter: Select date",
+                "Q: Cancel"
+            ]
+            
+            # Draw each instruction line
+            for i, instruction in enumerate(instructions):
+                self.ui.center_text(4 + i, instruction, 
+                                  color_pair=3 if i == 0 else 1, 
+                                  highlight=(i == 0))
+            
+            # Draw calendar with more space at the top for instructions
+            self.ui.calendar_view.draw(
+                self.ui, 
+                self.ui.sidebar_width + 1,
+                4 + len(instructions) + 1,
+                self.ui.width - self.ui.sidebar_width - 1,
+                self.ui.height - (4 + len(instructions) + 1)
+            )
+            
+            self.ui.stdscr.refresh()
+            
+            # Get input without nodelay
+            self.ui.stdscr.nodelay(0)
+            key = self.ui.stdscr.getch()
+            self.ui.stdscr.nodelay(1)
+            
+            if key is None:
+                continue
+            
+            continue_calendar, date = self.ui.calendar_view.handle_input(key)
+            if not continue_calendar:
+                if date is None:  # User pressed Q to quit
+                    # Restore previous state
+                    self.ui.current_draw_function = prev_draw_function
+                    self.ui.current_draw_args = prev_draw_args
+                    return
+                selected_date = date
+                break
+        
+        # Restore previous state
+        self.ui.current_draw_function = prev_draw_function
+        self.ui.current_draw_args = prev_draw_args
+        
+        if selected_date is None:
+            return
+            
+        # Continue with rest of task creation...
+        title = self.ui.get_input("Enter task title:", 6)
+        if not title:
+            return
+            
+        # Task type selection
+        type_options = ["Assignment", "Exam", "Appointment", "Meeting", "Deadline", "Other"]
+        selected_type = self.get_selection("Select task type:", type_options)
+        if selected_type is None:
+            return
+        task_type = TaskType.from_string(type_options[selected_type])
+            
+        # Time input (optional)
+        time_str = self.ui.get_input("Enter time (HH:MM) or leave blank:", 10)
+        task_time = None
+        if time_str:
+            try:
+                hour, minute = map(int, time_str.split(':'))
+                task_time = datetime.time(hour, minute)
+            except (ValueError, TypeError):
+                self.ui.display_message("Invalid time format. Using no time.", wait=True)
+            
+        # Description (optional)
+        description = self.ui.get_input("Enter description (optional):", 12)
+            
+        # Create task
+        task = Task(
+            title=title,
+            date=datetime.datetime.combine(selected_date, task_time or datetime.time()),
+            task_type=task_type,
+            time=task_time,
+            description=description
+        )
+            
+        # Add task and confirm
+        if hasattr(self.ui.calendar_view, 'add_task'):
+            self.ui.calendar_view.add_task(task)
+        self.ui.display_message("Task added successfully!", wait=True)
+
+    def get_selection(self, prompt: str, options: List[str]) -> Optional[int]:
+        """Get user selection from a list of options"""
+        selected = 0
+        
+        # Save previous state
+        prev_draw_function = self.ui.current_draw_function
+        prev_draw_args = self.ui.current_draw_args
+        
+        while True:
+            self.ui.stdscr.clear()
+            self.ui.draw_border()
+            self.ui.draw_status_bar()
+            
+            # Draw prompt
+            self.ui.center_text(5, f"[ {prompt} ]", color_pair=3, highlight=True)
+            
+            # Draw options
+            for i, option in enumerate(options):
+                if 7 + i >= self.ui.height - 1:
+                    break
+                color = 2 if i == selected else 1
+                self.ui.center_text(7 + i, f"{BULLET} {option}", color_pair=color)
+            
+            self.ui.stdscr.refresh()
+            
+            # Get input without nodelay
+            self.ui.stdscr.nodelay(0)
+            key = self.ui.stdscr.getch()
+            self.ui.stdscr.nodelay(1)
+            
+            if key == curses.KEY_UP:
+                selected = (selected - 1) % len(options)
+            elif key == curses.KEY_DOWN:
+                selected = (selected + 1) % len(options)
+            elif key in [curses.KEY_ENTER, 10, 13]:
+                # Restore previous state
+                self.ui.current_draw_function = prev_draw_function
+                self.ui.current_draw_args = prev_draw_args
+                return selected
+            elif key == ord('q'):
+                # Restore previous state
+                self.ui.current_draw_function = prev_draw_function
+                self.ui.current_draw_args = prev_draw_args
+                return None
+            
+            self.ui.stdscr.refresh()
