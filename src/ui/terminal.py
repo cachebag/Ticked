@@ -5,6 +5,7 @@ import time
 from typing import List, Optional, Callable
 from .status_bar import StatusBar
 from ..utils.constants import ACTIVE_DOT, CURSOR, BULLET
+from ..models.calendar import CalendarView
 
 class TerminalUI:
     def __init__(self, stdscr):
@@ -18,6 +19,7 @@ class TerminalUI:
         self.refresh_interval = 1.0  # Refresh every 500ms
         self.current_draw_function: Optional[Callable] = None
         self.current_draw_args: tuple = ()
+        self.calendar_view = CalendarView()
 
     def setup_colors(self):
         curses.start_color()
@@ -26,6 +28,7 @@ class TerminalUI:
         curses.init_pair(3, curses.COLOR_GREEN, curses.COLOR_BLACK)
         curses.init_pair(4, curses.COLOR_RED, curses.COLOR_BLACK)
         curses.init_pair(5, curses.COLOR_YELLOW, curses.COLOR_BLACK)
+        curses.init_pair(6, curses.COLOR_WHITE, curses.COLOR_BLACK)
 
     def enter_input_mode(self):
         self.stdscr.nodelay(0)
@@ -71,10 +74,8 @@ class TerminalUI:
         self.safe_addstr(1, len(mem_info) + 4, cpu_temp, curses.color_pair(1) | curses.A_DIM)
         self.safe_addstr(1, len(mem_info) + len(cpu_temp) + 6, load_avg, curses.color_pair(1) | curses.A_DIM)
 
-        # Network and uptime
-        net_info = f"NET ↑: {sys_info['net_send']} ↓: {sys_info['net_recv']}"
+        # Uptime
         uptime = f"UPTIME: {self.status_bar.get_uptime()}"
-        self.safe_addstr(2, 2, net_info, curses.color_pair(1) | curses.A_DIM)
         self.safe_addstr(2, self.width - len(uptime) - 2, uptime, curses.color_pair(1) | curses.A_DIM)
 
         if self.status_bar.should_blink_cursor():
@@ -117,14 +118,15 @@ class TerminalUI:
 
     def draw_menu(self, title: str, options: List[str], selected_index: int, start_y: int = 7):
         self.schedule_refresh(self.draw_menu, title, options, selected_index, start_y)
-        
+    
         self.stdscr.clear()
         self.draw_border()
         self.draw_status_bar()
-        
+    
+        # Draw sidebar menu
         sidebar_title = "[ MENU ]"
         self.center_text(5, sidebar_title, color_pair=3, highlight=True, main_content=False)
-        
+    
         for i, option in enumerate(options):
             if start_y + i * 2 >= self.height - 1:
                 break
@@ -133,13 +135,17 @@ class TerminalUI:
             if len(text) > self.sidebar_width - 4:
                 text = text[:self.sidebar_width - 7] + "..."
             self.center_text(start_y + i * 2, text, color_pair=color, main_content=False)
-
-        title_text = f"[ {title} ]"
-        self.center_text(5, title_text, color_pair=3, highlight=True)
-        
-        controls = "[ UP/DOWN: Navigate | ENTER: Select | Q: Back ]"
+    
+        # Draw calendar in main content area
+        main_x = self.sidebar_width + 1
+        main_width = self.width - main_x - 1
+        main_height = self.height - 4  # Account for borders
+        self.calendar_view.draw(self, main_x, 4, main_width, main_height)
+    
+        # Draw controls
+        controls = "[ ↑/↓: Navigate | ENTER: Select | Q: Exit ]"
         self.center_text(self.height - 2, controls, color_pair=3)
-        
+    
         self.stdscr.refresh()
 
     def draw_assignment_list(self, day_name: str, assignments: List[str], selected_index: int, scroll_offset: int = 0):
@@ -235,23 +241,27 @@ class TerminalUI:
     def main_loop(self):
         """Main event loop that handles both user input and refresh"""
         try:
+            # Set a shorter sleep time
+            time.sleep(0.001)
+            
+            # Only refresh if needed
             current_time = time.time()
-        
-            if current_time - self.last_refresh >= self.refresh_interval:
-                self.check_refresh()
+            if current_time - self.last_refresh >= 0.1:  # Reduce refresh interval to 100ms
+                if self.current_draw_function:
+                    self.current_draw_function(*self.current_draw_args)
                 self.last_refresh = current_time
-        
-            self.stdscr.nodelay(1)
+            
+            # Check for input
             key = self.stdscr.getch()
-        
             if key != curses.ERR:
-                return key  
-        
-            time.sleep(0.01)
-        
+                # Force refresh on key press
+                if self.current_draw_function:
+                    self.current_draw_function(*self.current_draw_args)
+                return key
+            
             return None
-        
+            
         except KeyboardInterrupt:
-            return ord('q')  
+            return ord('q')
         except curses.error:
             return None

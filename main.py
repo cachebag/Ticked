@@ -1,7 +1,6 @@
 import curses
 import signal
 import sys
-from src.models.schedule import ClassSchedule
 from src.ui.terminal import TerminalUI
 from src.ui.menu_handlers import MenuHandlers
 
@@ -13,8 +12,7 @@ def main(stdscr):
     signal.signal(signal.SIGINT, signal_handler)
     
     ui = TerminalUI(stdscr)
-    schedule = ClassSchedule()
-    menu_handlers = MenuHandlers(ui, schedule)
+    menu_handlers = MenuHandlers(ui)
 
     try:
         menu_handlers.show_startup_sequence()
