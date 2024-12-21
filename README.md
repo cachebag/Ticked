@@ -41,8 +41,11 @@ python main.py
 
 ## TODO
 - ~~Fix timeout issues when adding assignments/tasks within weeks.~~
-- ~~Refactor code and clean up the mess I have made in `main.py`.~~
-- Currently, data is stored in memory and doesn't persist between sessions. This comes after refactoring the code.
+- ~~Implement Calendar View as main hub~~
+- ~~Allow ability to add "events" or "tasks" to dates and view them persistently~~
+- Find cleaner formatting for all text within calendar/day views
+- Fix flickering (currently only an issue on macOS in iTerm2)
+- (FUTURE) Currently, data is stored in memory and doesn't persist between sessions. This comes after refactoring the code.
 
 ## Contributing
 
