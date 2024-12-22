@@ -64,7 +64,7 @@ class MenuHandlers:
                 pass
 
         for i, msg in enumerate(STARTUP_MESSAGES):
-            self.ui.stdscr.clear()
+            self.ui.stdscr.erase()
             start_y = self.ui.height//2 - len(STARTUP_MESSAGES)//2
             for j, line in enumerate(STARTUP_MESSAGES[:i+1]):
                 center_text_fullscreen(start_y + j, line, color_pair=1)
@@ -76,7 +76,7 @@ class MenuHandlers:
         self.ui.current_draw_function = None
     
         for i, msg in enumerate(SHUTDOWN_MESSAGES):
-            self.ui.stdscr.clear()
+            self.ui.stdscr.erase()
             start_y = self.ui.height//2 - len(SHUTDOWN_MESSAGES)//2
         
             for j, line in enumerate(SHUTDOWN_MESSAGES[:i+1]):
@@ -99,7 +99,7 @@ class MenuHandlers:
         prev_draw_args = self.ui.current_draw_args
         
         while selected_date is None:
-            self.ui.stdscr.clear()
+            self.ui.stdscr.erase()
             self.ui.draw_border()
             self.ui.draw_status_bar()
             
@@ -201,7 +201,7 @@ class MenuHandlers:
         prev_draw_args = self.ui.current_draw_args
         
         while True:
-            self.ui.stdscr.clear()
+            self.ui.stdscr.erase()
             self.ui.draw_border()
             self.ui.draw_status_bar()
             

@@ -119,7 +119,7 @@ class TerminalUI:
     def draw_menu(self, title: str, options: List[str], selected_index: int, start_y: int = 7):
         self.schedule_refresh(self.draw_menu, title, options, selected_index, start_y)
     
-        self.stdscr.clear()
+        self.stdscr.erase()
         self.draw_border()
         self.draw_status_bar()
     
@@ -151,7 +151,7 @@ class TerminalUI:
     def draw_assignment_list(self, day_name: str, assignments: List[str], selected_index: int, scroll_offset: int = 0):
         self.schedule_refresh(self.draw_assignment_list, day_name, assignments, selected_index, scroll_offset)
         
-        self.stdscr.clear()
+        self.stdscr.erase()
         self.draw_border()
         self.draw_status_bar()
         
@@ -186,7 +186,7 @@ class TerminalUI:
         prev_draw_args = self.current_draw_args
         self.current_draw_function = None
     
-        self.stdscr.clear()
+        self.stdscr.erase()
         self.draw_border()
         self.draw_status_bar()
     
@@ -221,7 +221,7 @@ class TerminalUI:
             prev_draw_args = self.current_draw_args
             self.current_draw_function = None
         
-        self.stdscr.clear()
+        self.stdscr.erase()
         self.draw_border()
         self.draw_status_bar()
 
