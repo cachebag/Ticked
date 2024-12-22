@@ -1,7 +1,8 @@
 #terminal 
 
 import curses
-import time
+import time 
+from datetime import datetime, time as dt_time 
 from typing import List, Optional, Callable
 from .status_bar import StatusBar
 from ..utils.constants import ACTIVE_DOT, CURSOR, BULLET
@@ -22,13 +23,32 @@ class TerminalUI:
         self.calendar_view = CalendarView()
 
     def setup_colors(self):
+        """Setup Gruvbox-inspired color pairs"""
         curses.start_color()
-        curses.init_pair(1, curses.COLOR_GREEN, curses.COLOR_BLACK)
-        curses.init_pair(2, curses.COLOR_BLACK, curses.COLOR_GREEN)
-        curses.init_pair(3, curses.COLOR_GREEN, curses.COLOR_BLACK)
-        curses.init_pair(4, curses.COLOR_RED, curses.COLOR_BLACK)
-        curses.init_pair(5, curses.COLOR_YELLOW, curses.COLOR_BLACK)
-        curses.init_pair(6, curses.COLOR_WHITE, curses.COLOR_BLACK)
+    
+        # Define base colors
+        curses.init_color(10, 689, 666, 564)  # Gruvbox Light (fg)
+        curses.init_color(11, 156, 156, 156)  # Gruvbox Dark (bg)
+    
+        # Define themed colors
+        curses.init_color(20, 718, 796, 537)  # Soft Green
+        curses.init_color(21, 980, 286, 203)  # Soft Red
+        curses.init_color(22, 980, 741, 184)  # Soft Yellow
+        curses.init_color(23, 513, 647, 960)  # Soft Blue
+        curses.init_color(24, 847, 572, 913)  # Soft Purple
+        curses.init_color(25, 521, 796, 772)  # Soft Aqua
+    
+        # Setup color pairs
+        curses.init_pair(1, 20, curses.COLOR_BLACK)  # Green on black
+        curses.init_pair(2, 21, curses.COLOR_BLACK)  # Red on black
+        curses.init_pair(3, 22, curses.COLOR_BLACK)  # Yellow on black
+        curses.init_pair(4, 23, curses.COLOR_BLACK)  # Blue on black
+        curses.init_pair(5, 24, curses.COLOR_BLACK)  # Purple on black
+        curses.init_pair(6, 25, curses.COLOR_BLACK)  # Aqua on black
+    
+        # Special pairs for UI elements
+        curses.init_pair(7, 10, curses.COLOR_BLACK)  # Light on black (normal text)
+        curses.init_pair(8, curses.COLOR_BLACK, 10)  # Inverse for selections
 
     def enter_input_mode(self):
         self.stdscr.nodelay(0)
@@ -235,6 +255,72 @@ class TerminalUI:
             self.enter_input_mode()
             self.stdscr.getch()
             self.enter_display_mode()
+            self.current_draw_function = prev_draw_function
+            self.current_draw_args = prev_draw_args
+
+    def get_time_input(self, prompt: str, y_pos: int) -> Optional[dt_time]:
+        with open("debug.log", "a") as f:
+            f.write("\nStarting time input method\n")
+    
+        prev_draw_function = self.current_draw_function
+        prev_draw_args = self.current_draw_args
+        self.current_draw_function = None
+
+        self.stdscr.erase()
+        self.draw_border()
+        self.draw_status_bar()
+    
+        self.center_text(y_pos, prompt, color_pair=3)
+        self.center_text(y_pos + 1, "(Format: HH:MM, press ENTER after each part)", color_pair=1)
+    
+        input_y = min(y_pos + 3, self.height - 2)
+        main_content_center = self.sidebar_width + (self.width - self.sidebar_width) // 2
+        input_x = main_content_center - 2
+    
+        curses.curs_set(1)
+        curses.echo()
+    
+        try:
+            with open("debug.log", "a") as f:
+                f.write("About to get hours\n")
+        
+            # Get hours
+            self.stdscr.addstr(input_y, input_x, "  :  ", curses.color_pair(1))
+            self.stdscr.move(input_y, input_x)
+            self.stdscr.nodelay(0)  # Add this line
+            hours = self.stdscr.getstr(2)
+        
+            with open("debug.log", "a") as f:
+                f.write(f"Got hours: {hours}\n")
+            
+            if not hours:
+                with open("debug.log", "a") as f:
+                    f.write("Hours was empty\n")
+                return None
+            
+            # Show hours and get minutes
+            self.stdscr.addstr(input_y, input_x, f"{hours}:  ", curses.color_pair(1))
+            self.stdscr.move(input_y, input_x + 3)
+            minutes = self.stdscr.getstr(2)
+            if not minutes:
+                return None
+            
+            minutes = minutes.decode('utf-8').strip().zfill(2)
+            if not minutes.isdigit() or not (0 <= int(minutes) <= 59):
+                self.display_message("Invalid minutes! Please enter a number between 0-59", wait=True)
+                return None
+            
+            # Show complete time
+            self.stdscr.addstr(input_y, input_x, f"{hours}:{minutes}", curses.color_pair(1))
+        
+            return dt_time(int(hours), int(minutes))
+        
+        except curses.error:
+            return None
+        finally:
+            curses.curs_set(0)
+            curses.noecho()
+            self.stdscr.nodelay(1)
             self.current_draw_function = prev_draw_function
             self.current_draw_args = prev_draw_args
 

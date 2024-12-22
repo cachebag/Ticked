@@ -33,19 +33,22 @@ class Task:
     
     def format_for_display(self) -> str:
         """Format task for display in calendar cell"""
-        time_str = f"{self.time.strftime('%H:%M')} " if self.time else ""
-        type_indicator = self.task_type.name[0]  # First letter of type
-        return f"{time_str}{type_indicator}: {self.title}"
+        time_str = self.time.strftime('%H:%M') if self.time else '--:--'
         
+        if self.task_type in [TaskType.MEETING, TaskType.OTHER, TaskType.EXAM]:
+            return f"{self.title} @ {time_str}"
+        else:
+            return f"{self.title} due at {time_str}"
+    
     @property
     def color_pair(self) -> int:
-        """Return the appropriate color pair for this task type"""
+        """Return the appropriate color pair based on Gruvbox-inspired theme"""
         color_map = {
-            TaskType.ASSIGNMENT: 1,  # Green
-            TaskType.EXAM: 4,        # Red
-            TaskType.APPOINTMENT: 5,  # Yellow
-            TaskType.MEETING: 3,     # Default
-            TaskType.DEADLINE: 4,    # Red
-            TaskType.OTHER: 1,       # Green
+            TaskType.ASSIGNMENT: 1,  # Soft Green
+            TaskType.EXAM: 2,        # Soft Red
+            TaskType.APPOINTMENT: 3,  # Soft Yellow
+            TaskType.MEETING: 4,     # Soft Blue
+            TaskType.DEADLINE: 5,    # Soft Purple
+            TaskType.OTHER: 6,       # Soft Aqua
         }
         return color_map.get(self.task_type, 1)
