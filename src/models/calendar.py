@@ -82,7 +82,7 @@ class DayView:
             
         if key == ord('a'):
             if self.add_task_callback:
-                self.add_task_callback(self.date)
+                return False, self.date
             return True
             
         if not self.tasks:
@@ -142,6 +142,8 @@ class CalendarView:
         self.weekday_abbr = ['M', 'T', 'W', 'Th', 'F', 'Sa', 'Su']
         self.tasks: Dict[datetime.date, List[Task]] = {}
         self.day_view: Optional[DayView] = None
+        self.return_to_day_view = False
+        self.last_viewed_date = None
 
     def draw(self, ui, start_x: int, start_y: int, width: int, height: int):
         """Draw either the calendar grid or day view"""
@@ -238,7 +240,12 @@ class CalendarView:
         """Handle calendar navigation input"""
         # If in day view, handle that first
         if self.day_view is not None:
-            if not self.day_view.handle_input(key):
+            result = self.day_view.handle_input(key)
+            if isinstance(result, tuple):
+                self.day_view = None
+                self.return_to_day_view = True
+                return result
+            if not result:
                 self.day_view = None
             return True, None
 
@@ -255,10 +262,14 @@ class CalendarView:
             self.selected_day = min(last_day, self.selected_day + 7)
         elif key in [curses.KEY_ENTER, 10, 13]:  # Enter key
             selected_date = self.get_selected_date()
+            self.last_viewed_date = selected_date
             if selected_date in self.tasks:
                 # Create day view with callback for adding tasks
                 def add_task_on_date(date):
+                    self.last_viewed_date = date
+                    self.return_to_day_view = True
                     return False, date
+
                 self.day_view = DayView(selected_date, self.tasks[selected_date], add_task_callback=add_task_on_date)
                 return True, None
             return False, selected_date
@@ -274,6 +285,19 @@ class CalendarView:
         self.tasks[task_date].append(task)
         # Sort tasks by time
         self.tasks[task_date].sort(key=lambda t: (t.time or datetime.time(23, 59)))
+        
+        # If we should return to day view, create it and return True to indicate we want to stay in expanded view
+        if self.return_to_day_view and self.last_viewed_date:
+            def add_task_on_date(date):
+                self.last_viewed_date = date
+                self.return_to_day_view = True
+                return False, date
+                
+            self.day_view = DayView(task_date, self.tasks[task_date], add_task_callback=add_task_on_date)
+            self.return_to_day_view = False
+            return True  # Signal to stay in expanded view
+        return False
+
 
     def get_selected_date(self) -> datetime.date:
         """Get the currently selected date"""

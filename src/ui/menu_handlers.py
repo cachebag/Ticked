@@ -103,27 +103,19 @@ class MenuHandlers:
             self.ui.draw_border()
             self.ui.draw_status_bar()
             
-            # Draw instructions at the top of the window
-            instructions = [
-                "[ Calendar Navigation ]",
-                "↑/↓/←/→: Move selection",
-                "Enter: Select date",
-                "Q: Cancel"
-            ]
+            # Create a single line of instructions
+            instructions = "[ Calendar Navigation | ↑/↓/←/→: Move | Enter: Select | Q: Cancel ]"
             
-            # Draw each instruction line
-            for i, instruction in enumerate(instructions):
-                self.ui.center_text(4 + i, instruction, 
-                                  color_pair=3 if i == 0 else 1, 
-                                  highlight=(i == 0))
+            # Draw instructions centered above the border
+            self.ui.center_text(1, instructions, color_pair=3, highlight=True)
             
-            # Draw calendar with more space at the top for instructions
+            # Draw calendar normally starting after the border
             self.ui.calendar_view.draw(
                 self.ui, 
                 self.ui.sidebar_width + 1,
-                4 + len(instructions) + 1,
+                4,  # Start right after the border
                 self.ui.width - self.ui.sidebar_width - 1,
-                self.ui.height - (4 + len(instructions) + 1)
+                self.ui.height - 4
             )
             
             self.ui.stdscr.refresh()
@@ -140,6 +132,8 @@ class MenuHandlers:
             if not continue_calendar:
                 if date is None:  # User pressed Q to quit
                     # Restore previous state
+                    today = datetime.date.today()
+                    self.ui.calendar_view.selected_day = today.day
                     self.ui.current_draw_function = prev_draw_function
                     self.ui.current_draw_args = prev_draw_args
                     return
