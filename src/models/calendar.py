@@ -2,7 +2,7 @@ import calendar
 import datetime
 from typing import Dict, List, Optional, Tuple, Callable
 import curses
-from ..models.task import Task, TaskType
+from .task import Task, TaskType
 
 class DayView:
     def __init__(self, date: datetime.date, tasks: List[Task], add_task_callback: Optional[Callable] = None):
@@ -55,9 +55,12 @@ class DayView:
                 title = f"[ ] {title}"
 
             # Draw task header (time, type, and title)
-            task_header = f"{time_str} - {task.task_type.name}: {title}"
-            ui.safe_addstr(task_start_y + i*3, start_x + 2, task_header, 
-                          curses.color_pair(color) | attr)
+            task_header = task.format_for_display()
+            if hasattr(task, 'completed') and task.completed:
+                task_header = f"[✓] {task_header}"
+            else:
+                task_header = f"[ ] {task_header}"
+            ui.safe_addstr(task_start_y + i*3, start_x + 2, task_header, curses.color_pair(color) | attr)
 
             # Draw description if it exists
             if task.description:
@@ -208,28 +211,15 @@ class CalendarView:
             if y + i >= ui.height - 1:  # Prevent drawing outside screen
                 break
 
-            # Format task time
-            time_str = task.time.strftime("%H:%M") if task.time else "--:--"
-            
-            # Format type indicator
-            type_indicator = task.task_type.name[0]
-            
-            # Format title (truncate if necessary)
-            max_title_len = width - len(time_str) - 4  # Account for time and type
-            title = task.title[:max_title_len] + ('...' if len(task.title) > max_title_len else '')
-            
-            # Add completion status
-            if hasattr(task, 'completed') and task.completed:
-                title = f"✓{title}"
-            
-            # Combine everything
-            task_text = f"{time_str} {type_indicator}:{title}"
-            task_text = task_text[:width]  # Ensure it fits within cell width
-            
-            # Draw with appropriate color and strike-through if completed
-            attr = curses.A_NORMAL
-            if hasattr(task, 'completed') and task.completed:
-                attr |= curses.A_DIM
+            # Use the task's format_for_display method
+            task_text = task.format_for_display()
+        
+            # Ensure it fits within cell width
+            if len(task_text) > width:
+                task_text = task_text[:width-3] + "..."
+        
+            # Draw with appropriate color
+            attr = curses.A_DIM if getattr(task, 'completed', False) else curses.A_NORMAL
             ui.safe_addstr(y + i, x, task_text, curses.color_pair(task.color_pair) | attr)
 
         # If there are more tasks than can fit, show indicator

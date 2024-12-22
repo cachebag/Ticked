@@ -1,6 +1,7 @@
 import curses
 import time
 import datetime
+from datetime import time as dt_time
 from .terminal import TerminalUI
 from typing import List, Optional
 from ..utils.constants import (
@@ -16,7 +17,7 @@ class MenuHandlers:
         self.ui = ui
 
     def handle_main_menu(self) -> bool:
-        options = ["add event", "notes", "pomodoro", "youtube", "spotify", "exit"]
+        options = ["Add/View Commitment", "Notes", "Pomodoro", "YouTube", "Spotify", "Exit"]
         index = 0
     
         while True:
@@ -93,98 +94,93 @@ class MenuHandlers:
         """Handle task creation interface"""
         # First, let user select a date from calendar if they haven't already
         selected_date = None
-        
+    
         # Save previous state
         prev_draw_function = self.ui.current_draw_function
         prev_draw_args = self.ui.current_draw_args
-        
+    
         while selected_date is None:
             self.ui.stdscr.erase()
             self.ui.draw_border()
             self.ui.draw_status_bar()
-            
-            # Create a single line of instructions
+        
             instructions = "[ Calendar Navigation | ↑/↓/←/→: Move | Enter: Select | Q: Cancel ]"
-            
-            # Draw instructions centered above the border
-            self.ui.center_text(1, instructions, color_pair=3, highlight=True)
-            
-            # Draw calendar normally starting after the border
+            self.ui.center_text(1, instructions, color_pair=7, highlight=True)
+        
             self.ui.calendar_view.draw(
                 self.ui, 
                 self.ui.sidebar_width + 1,
-                4,  # Start right after the border
+                4,
                 self.ui.width - self.ui.sidebar_width - 1,
                 self.ui.height - 4
             )
-            
+        
             self.ui.stdscr.refresh()
-            
-            # Get input without nodelay
+        
             self.ui.stdscr.nodelay(0)
             key = self.ui.stdscr.getch()
             self.ui.stdscr.nodelay(1)
-            
+        
             if key is None:
                 continue
-            
+        
             continue_calendar, date = self.ui.calendar_view.handle_input(key)
             if not continue_calendar:
-                if date is None:  # User pressed Q to quit
-                    # Restore previous state
-                    today = datetime.date.today()
-                    self.ui.calendar_view.selected_day = today.day
+                if date is None:
                     self.ui.current_draw_function = prev_draw_function
                     self.ui.current_draw_args = prev_draw_args
                     return
                 selected_date = date
                 break
-        
-        # Restore previous state
-        self.ui.current_draw_function = prev_draw_function
-        self.ui.current_draw_args = prev_draw_args
-        
-        if selected_date is None:
-            return
-            
-        # Continue with rest of task creation...
+    
+        # Get task details
         title = self.ui.get_input("Enter task title:", 6)
         if not title:
             return
-            
+        
         # Task type selection
         type_options = ["Assignment", "Exam", "Appointment", "Meeting", "Deadline", "Other"]
         selected_type = self.get_selection("Select task type:", type_options)
         if selected_type is None:
             return
         task_type = TaskType.from_string(type_options[selected_type])
-            
-        # Time input (optional)
-        time_str = self.ui.get_input("Enter time (HH:MM) or leave blank:", 10)
-        task_time = None
-        if time_str:
-            try:
-                hour, minute = map(int, time_str.split(':'))
-                task_time = datetime.time(hour, minute)
-            except (ValueError, TypeError):
-                self.ui.display_message("Invalid time format. Using no time.", wait=True)
-            
+        
+        # Time input using new method
+        try:
+            print("About to get time input")  # Debug print
+            task_time = self.ui.get_time_input("Enter time:", 10)
+            print(f"Got time input: {task_time}")  # Debug print
+            if task_time is None:
+                with open("debug.log", "a") as f:  # Debug log
+                    f.write("Time input returned None\n")
+                self.ui.display_message("No time set, using default", wait=True)
+        except Exception as e:
+            with open("debug.log", "a") as f:  # Debug log
+                f.write(f"Error getting time input: {str(e)}\n")
+            task_time = None
+            self.ui.display_message(f"Error setting time: {str(e)}", wait=True)
+        
         # Description (optional)
         description = self.ui.get_input("Enter description (optional):", 12)
-            
+        
         # Create task
-        task = Task(
-            title=title,
-            date=datetime.datetime.combine(selected_date, task_time or datetime.time()),
-            task_type=task_type,
-            time=task_time,
-            description=description
-        )
+        try:
+            task = Task(
+                title=title,
+                date=datetime.datetime.combine(selected_date, task_time or dt_time()),
+                task_type=task_type,
+                time=task_time,
+                description=description
+            )
             
-        # Add task and confirm
-        if hasattr(self.ui.calendar_view, 'add_task'):
-            self.ui.calendar_view.add_task(task)
-        self.ui.display_message("Task added successfully!", wait=True)
+            # Add task and confirm
+            if hasattr(self.ui.calendar_view, 'add_task'):
+                self.ui.calendar_view.add_task(task)
+            self.ui.display_message("Task added successfully!", wait=True)
+        except Exception as e:
+            with open("debug.log", "a") as f:  # Debug log
+                f.write(f"Error creating task: {str(e)}\n")
+            self.ui.display_message(f"Error creating task: {str(e)}", wait=True)
 
     def get_selection(self, prompt: str, options: List[str]) -> Optional[int]:
         """Get user selection from a list of options"""
