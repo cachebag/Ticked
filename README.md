@@ -44,7 +44,7 @@ python main.py
 - ~~Implement Calendar View as main hub~~
 - ~~Allow ability to add "events" or "tasks" to dates and view them persistently~~
 - Find cleaner formatting for all text within calendar/day views
-- Fix flickering (currently only an issue on macOS)
+- ~~Fix flickering (currently only an issue on macOS)~~
 - (FUTURE) Currently, data is stored in memory and doesn't persist between sessions. This comes after refactoring the code.
 
 ## Contributing
