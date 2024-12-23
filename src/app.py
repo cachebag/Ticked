@@ -24,7 +24,6 @@ class ProductivityApp(App):
 
     def on_screen_resume(self) -> None:
         """Called when a screen is resumed (after mount)."""
-        # Set initial focus after screen is mounted
         try:
             first_menu_item = self.screen.query_one("MenuItem")
             if first_menu_item:
@@ -43,7 +42,7 @@ class ProductivityApp(App):
     def action_focus_next(self) -> None:
         """Focus the next focusable widget."""
         current = self.focused
-        menu_items = list(self.screen.query("MenuItem"))  # Convert generator to list
+        menu_items = list(self.screen.query("MenuItem"))
         if menu_items and current in menu_items:
             index = menu_items.index(current)
             next_index = (index + 1) % len(menu_items)
@@ -52,7 +51,7 @@ class ProductivityApp(App):
     def action_focus_previous(self) -> None:
         """Focus the previous focusable widget."""
         current = self.focused
-        menu_items = list(self.screen.query("MenuItem"))  # Convert generator to list
+        menu_items = list(self.screen.query("MenuItem"))
         if menu_items and current in menu_items:
             index = menu_items.index(current)
             prev_index = (index - 1) % len(menu_items)

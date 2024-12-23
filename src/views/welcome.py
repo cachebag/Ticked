@@ -35,6 +35,7 @@ class WelcomeView(Container):
         yield WelcomeMessage("Navigation:")
         yield WelcomeMessage("• Use ↑/↓ arrows to navigate the menu")
         yield WelcomeMessage("• Press Enter to select a menu item")
-        yield WelcomeMessage("• Press Ctrl+Q or ESC to quit")
+        yield WelcomeMessage("• Press Ctrl+Q to quit")
+        yield WelcomeMessage("• Press Esc to toggle the menu")
         yield WelcomeMessage("")
         yield WelcomeMessage("Select an option from the menu to begin (you can use your mouse too, we don't judge.)")

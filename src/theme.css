@@ -194,3 +194,40 @@ MainMenu.hidden {
     display: none;
     border-right: none;
 }
+
+/* Add this to your existing theme.css */
+
+SystemStats {
+    background: #2d2d2d;
+    color: $accent;
+    padding: 0 1;
+    width: 80%;
+    height: 100%;
+    content-align: right middle;
+}
+
+/* Modify existing Header styling to accommodate system stats */
+Header {
+    background: #2d2d2d;
+    color: $accent;
+    height: 3;
+    dock: top;
+    width: 20%;
+}
+
+/* Add these styles to your theme.css */
+
+CustomHeader {
+    width: 100%;
+    height: auto;
+    background: #2d2d2d;
+}
+
+SystemStatsHeader {
+    width: 100%;
+    height: 2;
+    color: $accent;
+    text-align: center;
+    background: #2d2d2d;
+    padding: 0 1;
+}
