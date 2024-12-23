@@ -1,6 +1,6 @@
-# tick 📼
+# Tick 📼
 
-**Tick** is a lightweight, command-line-based task and productivity manager built in Python. It's been developed for my personal use throughout my University courses. 
+**Tick** is a lightweight, TUI task and productivity manager built in Python over the Textual library. It's been developed for my personal use throughout my University courses, but is intended to work as an all around productivy manager for personal and professional use.
 
 # Installation (Python 3.7+)
 
@@ -28,9 +28,9 @@ git clone git@github.com:your-username/tick.git
 cd tick
 ```
 
-2. Install curses for Windows and other requirements
+2. Install requirements
 ```bash
-pip install windows-curses
+
 pip install -r requirements.txt
 ```
 
@@ -38,14 +38,6 @@ pip install -r requirements.txt
 ```bash
 python main.py
 ```
-
-## TODO
-- ~~Fix timeout issues when adding assignments/tasks within weeks.~~
-- ~~Implement Calendar View as main hub~~
-- ~~Allow ability to add "events" or "tasks" to dates and view them persistently~~
-- Find cleaner formatting for all text within calendar/day views
-- ~~Fix flickering (currently only an issue on macOS)~~
-- (FUTURE) Currently, data is stored in memory and doesn't persist between sessions. This comes after refactoring the code.
 
 ## Contributing
 
