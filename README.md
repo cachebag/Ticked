@@ -39,6 +39,33 @@ pip install -r requirements.txt
 python main.py
 ```
 
+## TODO
+
+- [ ] Calendar
+  - [ ] Integrate third-party calendars API (e.g., Google Calendar, Outlook)
+  - [ ] Support recurring events and reminders
+  - [ ] Implement a responsive calendar view (monthly, weekly, daily) (TENTATIVE)
+
+- [ ] Notes
+  - [ ] Develop a markdown editor with live preview 
+  - [ ] Support rich text formatting and embedding images/files
+  - [ ] Implement a folder/tagging system for better organization
+
+- [ ] YouTube Integration
+  - [ ] _Not sure how this will work yet_
+
+- [ ] Spotify Integration
+  - [ ] OAuth  
+  - [ ] Add music search and playback
+  - [ ] Enable playlist access
+  - [ ] Allow integration with external devices (e.g., Spotify Connect)
+
+- [ ] Settings
+  - [ ] Create user profile customization options
+  - [ ] Implement data export/import functionality
+
+
+
 ## Contributing
 
 Contributions are welcome. Please fork the repository, make your changes, and submit a pull request.
