@@ -1,3 +1,4 @@
+# theme.css
 /* Theme styling for TICK application */
 
 /* Define accent color */
@@ -82,4 +83,114 @@ WelcomeMessage {
     text-align: center;
     padding: 1;
     color: $accent;
+}
+
+/* Calendar specific styling */
+CalendarView {
+    width: 100%;
+    height: 100%;
+    background: #1a1a1a;
+    padding: 1;
+}
+
+/* Navigation bar styling */
+NavBar {
+    width: 100%;
+    height: 5;
+    padding: 1;
+    align: center middle;
+}
+
+CalendarHeader {
+    width: 100%;
+    height: 5;
+    content-align: center middle;
+    color: $accent;
+    text-style: bold;
+    padding: 1;
+}
+
+CalendarGrid {
+    width: 100%;
+    height: 85%;
+    grid-size: 7 7;
+    grid-gutter: 1;
+    padding: 1;
+    align: center middle;
+}
+
+/* Base styles for all calendar cells */
+.calendar-weekday, CalendarDayButton, .calendar-empty-day {
+    width: 1fr;
+    height: 1fr;
+    min-height: 3;
+    content-align: center middle;
+}
+
+.calendar-weekday {
+    color: $accent;
+    text-align: center;
+    text-style: bold;
+    background: #2d2d2d;
+}
+
+CalendarDayButton {
+    background: #363636;
+    color: #ffffff;
+    border: none;
+    content-align: center middle;
+}
+
+CalendarDayButton:hover {
+    background: #404040;
+}
+
+CalendarDayButton:focus {
+    background: #505050;
+    border: tall $accent;
+    color: $accent;
+}
+
+CalendarDayButton.current-day {
+    background: #505050;
+    color: $accent;
+    border: tall $accent;
+}
+
+.calendar-empty-day {
+    background: #2a2a2a;
+}
+
+.calendar-nav-left, .calendar-nav-right {
+    width: 4;
+    height: 3;
+    background: #363636;
+    color: $accent;
+    margin: 1;
+    content-align: center middle;
+    text-align: center;
+}
+
+.calendar-nav-left {
+    dock: left;
+}
+
+.calendar-nav-right {
+    dock: right;
+}
+
+.calendar-nav-left:hover, .calendar-nav-right:hover {
+    background: #404040;
+}
+
+.calendar-nav-left:focus, .calendar-nav-right:focus {
+    background: #505050;
+    border: tall $accent;
+}
+
+/* Hidden menu state */
+MainMenu.hidden {
+    width: 0 !important;
+    display: none;
+    border-right: none;
 }
