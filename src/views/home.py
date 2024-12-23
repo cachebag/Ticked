@@ -6,6 +6,7 @@ from textual.widgets import Header, Button, Static, Footer
 from textual.binding import Binding
 from .welcome import WelcomeView
 from .calendar import CalendarView
+from .system_stats import SystemStatsHeader
 
 class MenuItem(Button):
     """A custom button for menu items with specific styling."""
@@ -24,6 +25,12 @@ class MainMenu(Container):
         yield MenuItem("SETTINGS", id="menu_settings")
         yield MenuItem("EXIT", id="menu_exit")
 
+class CustomHeader(Container):
+    """Custom header with system stats and clock."""
+    def compose(self) -> ComposeResult:
+        yield SystemStatsHeader()
+        yield Header(show_clock=True)
+
 class HomeScreen(Screen):
     """The main home screen of the application."""
     
@@ -33,21 +40,22 @@ class HomeScreen(Screen):
     ]
     
     def compose(self) -> ComposeResult:
-        yield Header(show_clock=True)
-
-        content_container = Container(
-            WelcomeView(),
-            id="content",
-        )
-        content_container.styles.expand = True
+        """Compose the initial layout."""
+        yield CustomHeader()
+        
+        # Create the main container for menu and content
         yield Horizontal(
             MainMenu(),
-            content_container
+            Container(
+                WelcomeView(),
+                id="content"
+            )
         )
-    
+        
         yield Footer()
 
     def action_quit_app(self) -> None:
+        """Quit the application."""
         self.app.exit()
 
     def action_toggle_menu(self) -> None:
@@ -62,32 +70,40 @@ class HomeScreen(Screen):
             menu.styles.width = "0"
             menu.styles.display = "none"
 
+    def on_mount(self) -> None:
+        """Handle screen mount."""
+        menu = self.query_one("MainMenu")
+        menu.add_class("hidden")
+        menu.styles.width = "0"
+        menu.styles.display = "none"
+
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button presses in the menu."""
         content_container = self.query_one("#content")
-        menu = self.query_one("MainMenu")
         button_id = event.button.id
-    
-        # Clear existing content
+        
+        # Remove existing content
         content_container.remove_children()
-    
-        if button_id == "menu_calendar":
-            # Hide menu when entering calendar
-            menu.add_class("hidden")
-            calendar_view = CalendarView()
-            calendar_view.styles.expand = True
-            content_container.mount(calendar_view)
-        elif button_id == "menu_notes":
-            menu.remove_class("hidden")
-            self.notify("Notes - Coming Soon")
-        elif button_id == "menu_youtube":
-            menu.remove_class("hidden")
-            self.notify("YouTube - Coming Soon")
-        elif button_id == "menu_spotify":
-            menu.remove_class("hidden")
-            self.notify("Spotify - Coming Soon")
-        elif button_id == "menu_settings":
-            menu.remove_class("hidden")
-            self.notify("Settings - Coming Soon")
-        elif button_id == "menu_exit":
-            self.action_quit_app()
+        
+        try:
+            if button_id == "menu_calendar":
+                # Create and mount new calendar view
+                calendar_view = CalendarView()
+                content_container.mount(calendar_view)
+                # Hide menu after selection
+                menu = self.query_one("MainMenu")
+                menu.add_class("hidden")
+                menu.styles.width = "0"
+                menu.styles.display = "none"
+            elif button_id == "menu_notes":
+                content_container.mount(Static("Notes - Coming Soon"))
+            elif button_id == "menu_youtube":
+                content_container.mount(Static("YouTube - Coming Soon"))
+            elif button_id == "menu_spotify":
+                content_container.mount(Static("Spotify - Coming Soon"))
+            elif button_id == "menu_settings":
+                content_container.mount(Static("Settings - Coming Soon"))
+            elif button_id == "menu_exit":
+                self.action_quit_app()
+        except Exception as e:
+            self.notify(f"Error: {str(e)}")
