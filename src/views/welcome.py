@@ -30,7 +30,7 @@ class WelcomeView(Container):
     def compose(self):
         yield WelcomeMessage("║       Welcome to TICK        ║")
         yield WelcomeMessage("")
-        yield WelcomeMessage("For detailed instructions, reference the docs on the GitHub: ")
+        yield WelcomeMessage("For detailed instructions, reference the docs on the GitHub | https://github.com/cachebag/tick ")
         yield WelcomeMessage("")
         yield WelcomeMessage("Navigation:")
         yield WelcomeMessage("• Use ↑/↓ arrows to navigate the menu")
