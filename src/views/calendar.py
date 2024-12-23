@@ -1,4 +1,3 @@
-# calendar.py
 from textual.containers import Container, Grid, Horizontal
 from textual.widgets import Button, Static
 from textual.app import ComposeResult
@@ -6,7 +5,6 @@ from datetime import datetime
 import calendar
 
 class NavBar(Horizontal):
-    """Navigation bar container with month controls."""
     def __init__(self, current_date: datetime):
         super().__init__()
         self.current_date = current_date
@@ -19,14 +17,13 @@ class NavBar(Horizontal):
         next_btn = Button("►", id="next_month", classes="calendar-nav-right")
         header = CalendarHeader(self.current_date)
         header.styles.width = "100%"
-        header.styles.margin = (0, 4)
+        header.styles.margin = (0, 5)
         
         yield prev_btn
         yield header
         yield next_btn
 
 class CalendarDayButton(Button):
-    """A custom button for calendar days."""
     def __init__(self, day: int, is_current: bool = False) -> None:
         super().__init__(str(day))
         self.day = day
@@ -38,7 +35,6 @@ class CalendarDayButton(Button):
             self.add_class("current-day")
 
 class CalendarHeader(Static):
-    """Header showing current month and year."""
     def __init__(self, current_date: datetime):
         month_year = current_date.strftime('%B %Y')
         super().__init__(month_year)
@@ -47,7 +43,6 @@ class CalendarHeader(Static):
         self.styles.text_style = "bold"
 
 class CalendarGrid(Grid):
-    """Grid container for the calendar."""
     def __init__(self, current_date: datetime = None):
         super().__init__()
         self.current_date = current_date or datetime.now()
@@ -59,7 +54,6 @@ class CalendarGrid(Grid):
         self.styles.padding = 1
         
     def compose(self) -> ComposeResult:
-        # Add weekday headers
         weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
         for day in weekdays:
             header = Static(day, classes="calendar-weekday")
@@ -68,13 +62,11 @@ class CalendarGrid(Grid):
             header.styles.content_align = ("center", "middle")
             yield header
             
-        # Calculate calendar days
         month_calendar = calendar.monthcalendar(
             self.current_date.year,
             self.current_date.month
         )
         
-        # Add calendar days
         today = datetime.now()
         
         for week in month_calendar:
@@ -92,19 +84,15 @@ class CalendarGrid(Grid):
                     yield day_btn
 
 class CalendarView(Container):
-    """Main calendar view."""
     def compose(self) -> ComposeResult:
-        """Create the initial calendar view."""
         self.current_date = datetime.now()
         yield NavBar(self.current_date)
         yield CalendarGrid(self.current_date)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        """Handle button press events."""
         button_id = event.button.id
         
         if button_id == "prev_month":
-            # Update current_date for previous month
             year = self.current_date.year
             month = self.current_date.month - 1
             if month < 1:
@@ -112,10 +100,9 @@ class CalendarView(Container):
                 month = 12
             self.current_date = self.current_date.replace(year=year, month=month, day=1)
             self._refresh_calendar()
-            event.stop()  # Prevent event bubbling
+            event.stop()  
         
         elif button_id == "next_month":
-            # Update current_date for next month
             year = self.current_date.year
             month = self.current_date.month + 1
             if month > 12:
@@ -123,17 +110,14 @@ class CalendarView(Container):
                 month = 1
             self.current_date = self.current_date.replace(year=year, month=month, day=1)
             self._refresh_calendar()
-            event.stop()  # Prevent event bubbling
+            event.stop()  
         
         elif isinstance(event.button, CalendarDayButton):
             self.notify(f"Selected {self.current_date.strftime('%B')} {event.button.day}, {self.current_date.year}")
     
     def _refresh_calendar(self) -> None:
-        """Internal method to refresh the calendar view."""
-        # Remove existing children
         self.query("NavBar").first().remove()
         self.query("CalendarGrid").first().remove()
         
-        # Mount new components
         self.mount(NavBar(self.current_date))
         self.mount(CalendarGrid(self.current_date))

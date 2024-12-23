@@ -18,12 +18,10 @@ class ProductivityApp(App):
     ]
     
     def on_mount(self) -> None:
-        """Handle app mount event."""
         self.push_screen("home")
-        self.disable_mouse()  # Disable mouse interactions
+        self.disable_mouse()  
 
     def on_screen_resume(self) -> None:
-        """Called when a screen is resumed (after mount)."""
         try:
             first_menu_item = self.screen.query_one("MenuItem")
             if first_menu_item:
@@ -32,7 +30,6 @@ class ProductivityApp(App):
             pass
 
     def disable_mouse(self) -> None:
-        """Disable mouse interactions for all widgets."""
         for widget in self.query("*"):
             if hasattr(widget, "can_focus"):
                 widget.can_focus = False
@@ -40,7 +37,6 @@ class ProductivityApp(App):
                 widget.show_cursor = False
 
     def action_focus_next(self) -> None:
-        """Focus the next focusable widget."""
         current = self.focused
         menu_items = list(self.screen.query("MenuItem"))
         if menu_items and current in menu_items:
@@ -49,7 +45,6 @@ class ProductivityApp(App):
             menu_items[next_index].focus()
 
     def action_focus_previous(self) -> None:
-        """Focus the previous focusable widget."""
         current = self.focused
         menu_items = list(self.screen.query("MenuItem"))
         if menu_items and current in menu_items:
@@ -58,7 +53,6 @@ class ProductivityApp(App):
             menu_items[prev_index].focus()
 
     def action_select_item(self) -> None:
-        """Handle enter key press on focused menu item."""
         if self.focused and isinstance(self.focused, Button):
             self.focused.press()
 

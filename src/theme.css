@@ -1,10 +1,6 @@
-# theme.css
-/* Theme styling for TICK application */
 
-/* Define accent color */
 $accent: orange;
 
-/* Header styling */
 Header {
     background: #2d2d2d;
     color: $accent;
@@ -12,14 +8,12 @@ Header {
     dock: top;
 }
 
-/* Footer styling */
 Footer {
     background: #2d2d2d;
     color: #ffffff;
     dock: bottom;
 }
 
-/* Mainmenu container styling */
 MainMenu {
     width: 25;
     background: #2d2d2d;
@@ -27,7 +21,6 @@ MainMenu {
     border-right: solid #404040;
 }
 
-/* Menu header styling */
 .menu-header {
     padding: 1 1;
     background: transparent;
@@ -35,7 +28,6 @@ MainMenu {
     text-align: center;
 }
 
-/* Menu item styling */
 MenuItem {
     margin: 1 2;
     height: 3;
@@ -46,12 +38,10 @@ MenuItem {
     min-width: 20;
 }
 
-/* Menu item hover state */
 MenuItem:hover {
     background: #4a4a4a;
 }
 
-/* Menu item focus state */
 MenuItem:focus {
     background: #505050;
     border: tall #696969;
@@ -59,14 +49,12 @@ MenuItem:focus {
     text-style: none;
 }
 
-/* Content area styling */
 #content {
     background: #1a1a1a;
     height: 100%;
     width: 100%;
 }
 
-/* Welcome view styling */
 WelcomeView {
     width: 100%;
     height: 100%;
@@ -75,7 +63,6 @@ WelcomeView {
     padding: 2;
 }
 
-/* Welcome message styling */
 WelcomeMessage {
     width: 100%;
     height: auto;
@@ -85,7 +72,6 @@ WelcomeMessage {
     color: $accent;
 }
 
-/* Calendar specific styling */
 CalendarView {
     width: 100%;
     height: 100%;
@@ -93,7 +79,6 @@ CalendarView {
     padding: 1;
 }
 
-/* Navigation bar styling */
 NavBar {
     width: 100%;
     height: 5;
@@ -119,7 +104,6 @@ CalendarGrid {
     align: center middle;
 }
 
-/* Base styles for all calendar cells */
 .calendar-weekday, CalendarDayButton, .calendar-empty-day {
     width: 1fr;
     height: 1fr;
@@ -167,7 +151,6 @@ CalendarDayButton.current-day {
     background: #363636;
     color: $accent;
     margin: 1;
-    content-align: center middle;
     text-align: center;
 }
 
@@ -188,14 +171,12 @@ CalendarDayButton.current-day {
     border: tall $accent;
 }
 
-/* Hidden menu state */
 MainMenu.hidden {
     width: 0 !important;
     display: none;
     border-right: none;
 }
 
-/* Add this to your existing theme.css */
 
 SystemStats {
     background: #2d2d2d;
@@ -206,7 +187,6 @@ SystemStats {
     content-align: right middle;
 }
 
-/* Modify existing Header styling to accommodate system stats */
 Header {
     background: #2d2d2d;
     color: $accent;
@@ -215,7 +195,6 @@ Header {
     width: 20%;
 }
 
-/* Add these styles to your theme.css */
 
 CustomHeader {
     width: 100%;
