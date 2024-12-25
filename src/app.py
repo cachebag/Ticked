@@ -4,7 +4,7 @@ from views.home import HomeScreen
 from textual.binding import Binding
 from textual.widgets import Button
 
-class ProductivityApp(App):
+class Tick(App):
     CSS_PATH = "theme.css"
     SCREENS = {"home": HomeScreen}
     TITLE = "TICK"
@@ -57,5 +57,5 @@ class ProductivityApp(App):
             self.focused.press()
 
 if __name__ == "__main__":
-    app = ProductivityApp()
+    app = Tick()
     app.run()

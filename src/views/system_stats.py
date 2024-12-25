@@ -27,4 +27,4 @@ class SystemStatsHeader(Static):
         memory = psutil.virtual_memory()
         mem = f"{memory.percent}%"
         
-        self.update(f"UPTIME: {uptime} | CPU% {cpu} | MEM%: {mem} | user: {self.user_name}")
+        self.update(f"UPTIME: {uptime} | CPU% {cpu} \n           MEM%: {mem} | user: {self.user_name}")
