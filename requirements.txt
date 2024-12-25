@@ -1,3 +1,5 @@
-textual==0.52.1
-psutil==5.9.8
-python-dateutil==2.8.2
+textual
+textual-dev
+psutil
+python-dateutil
+
