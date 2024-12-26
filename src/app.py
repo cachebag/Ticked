@@ -18,7 +18,6 @@ class Tick(App):
     
     def on_mount(self) -> None:
         self.push_screen("home")
-        self.disable_mouse()
         self.theme = "gruvbox"
 
     def on_screen_resume(self) -> None:
@@ -28,13 +27,6 @@ class Tick(App):
                 first_menu_item.focus()
         except Exception:
             pass
-
-    def disable_mouse(self) -> None:
-        for widget in self.query("*"):
-            if hasattr(widget, "can_focus"):
-                widget.can_focus = False
-            if hasattr(widget, "show_cursor"):
-                widget.show_cursor = False
 
     def action_focus_next(self) -> None:
         current = self.focused
