@@ -5,11 +5,10 @@ from textual.binding import Binding
 from textual.widgets import Button
 
 class Tick(App):
-    CSS_PATH = "theme.css"
+    CSS_PATH = "theme.tcss"
     SCREENS = {"home": HomeScreen}
     TITLE = "TICK"
     
-    # Define keyboard bindings for the entire application
     BINDINGS = [
         Binding("q", "quit", "Quit", show=True),
         Binding("up", "focus_previous", "Move Up", show=True),
@@ -19,7 +18,8 @@ class Tick(App):
     
     def on_mount(self) -> None:
         self.push_screen("home")
-        self.disable_mouse()  
+        self.disable_mouse()
+        self.theme = "gruvbox"
 
     def on_screen_resume(self) -> None:
         try:

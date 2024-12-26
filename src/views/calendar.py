@@ -1,4 +1,4 @@
-from textual.containers import Container, Grid, Horizontal
+from textual.containers import Container, Grid, Horizontal, Vertical
 from textual.widgets import Button, Static
 from textual.app import ComposeResult
 from datetime import datetime
@@ -50,7 +50,6 @@ class CalendarGrid(Grid):
         self.styles.width = "100%"
         self.styles.grid_size_rows = 7
         self.styles.grid_size_columns = 7
-        self.styles.grid_gutter = 1
         self.styles.padding = 1
         
     def compose(self) -> ComposeResult:
@@ -88,6 +87,7 @@ class CalendarView(Container):
         self.current_date = datetime.now()
         yield NavBar(self.current_date)
         yield CalendarGrid(self.current_date)
+        yield DayView(self.current_date)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         button_id = event.button.id
@@ -113,7 +113,21 @@ class CalendarView(Container):
             event.stop()  
         
         elif isinstance(event.button, CalendarDayButton):
-            self.notify(f"Selected {self.current_date.strftime('%B')} {event.button.day}, {self.current_date.year}")
+            selected_date = self.current_date.replace(day=event.button.day)
+            day_view = self.query_one(DayView)
+            day_view.date = selected_date
+            day_view.styles.display = "block"  
+            self.query_one(CalendarGrid).styles.display = "none"  
+            self.query_one(NavBar).styles.display = "none"
+            header = self.query_one("#day-view-header")
+            header.update(f"Schedule for {selected_date.strftime('%B %d, %Y')}")
+            event.stop()
+
+
+    def action_back_to_calendar(self) -> None:
+        self.query_one(DayView).styles.display = "none"
+        self.query_one(CalendarGrid).styles.display = "block"
+        self.query_one(NavBar).styles.display = "block"  
     
     def _refresh_calendar(self) -> None:
         self.query("NavBar").first().remove()
@@ -121,3 +135,24 @@ class CalendarView(Container):
         
         self.mount(NavBar(self.current_date))
         self.mount(CalendarGrid(self.current_date))
+
+   
+'''
+    TODO:
+    - Fix back to calendar button
+    - Implement appending of tasks
+        - Form with type of task, due date/time, title, and description/notes
+'''
+class DayView(Vertical):
+    def __init__(self, date: datetime):
+        super().__init__()
+        self.date = date
+        
+    def compose(self) -> ComposeResult:
+        yield Static(f"Schedule for {self.date.strftime('%B %d, %Y')}", id="day-view-header")
+        yield Button("Back to Calendar", id="back-to-calendar", classes="back-button")
+        yield Static("Commitments and TODO", classes="schedule-section")
+        with Horizontal():
+            yield Button("+ Add", id="add-schedule", classes="schedule-button")
+
+    

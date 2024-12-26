@@ -1,0 +1,244 @@
+Screen {
+    align: center middle;
+    layout: grid;
+    grid-size: 1;
+    overflow: auto;
+}
+
+Header {
+    height: 3;
+    dock: top;
+    width: 20%;
+}
+
+Footer {
+    dock: bottom;
+    width: 100%;
+    height: 3;
+}
+
+MainMenu {
+    dock: left;
+    width: 30;
+    height: 100%;
+    layer: above;
+    layers: above;
+    offset-x: 0;
+    transition: offset-x 500ms in_out_cubic;
+    border-right: solid;
+}
+
+.menu-header {
+    padding: 1 1;
+    background: transparent;
+    text-align: center;
+}
+
+MenuItem {
+    margin: 1 2;
+    height: 3;
+    border: none;
+    text-align: center;
+    min-width: 20;
+}
+
+MenuItem:hover {}
+
+MenuItem:focus {
+    text-style: none;
+}
+
+#content {
+    height: 100%;
+    width: 100%;
+    overflow-y: auto;
+}
+
+WelcomeView {
+    width: 100%;
+    height: auto;
+    min-height: 100%;
+    align: center middle;
+    padding: 2;
+}
+
+WelcomeMessage {
+    width: 100%;
+    height: auto;
+    content-align: center middle;
+    text-align: center;
+    padding: 1;
+}
+
+CalendarView {
+    width: 100%;
+    height: 100%;
+    scrollbar-gutter: stable;
+    scrollbar-size: 1 1;
+}
+
+NavBar {
+    width: 100%;
+    height: 5;
+    padding: 1;
+    align: center middle;
+}
+
+CalendarHeader {
+    width: 100%;
+    height: 5;
+    content-align: center middle;
+    text-style: bold;
+    padding: 1;
+}
+
+CalendarGrid {
+    width: 100%;
+    height: 85%;
+    grid-size: 7 7;
+    grid-gutter: 1;
+    padding: 1;
+    align: center middle;
+}
+
+.calendar-weekday, CalendarDayButton, .calendar-empty-day {
+    width: 1fr;
+    height: 1fr;
+    min-height: 3;
+    content-align: center middle;
+}
+
+.calendar-weekday {
+    text-align: center;
+    text-style: bold;
+}
+
+CalendarDayButton {
+    border: none;
+    content-align: center middle;
+}
+
+CalendarDayButton:hover {}
+
+CalendarDayButton:focus {
+    border: tall;
+}
+
+CalendarDayButton.current-day {
+    border: tall;
+}
+
+.calendar-empty-day {}
+
+.calendar-nav-left, .calendar-nav-right {
+    width: 4;
+    height: 3;
+    margin: 1;
+    text-align: center;
+}
+
+.calendar-nav-left {
+    dock: left;
+}
+
+.calendar-nav-right {
+    dock: right;
+}
+
+.calendar-nav-left:hover, .calendar-nav-right:hover {}
+
+.calendar-nav-left:focus, .calendar-nav-right:focus {
+    border: tall;
+}
+
+MainMenu.hidden {
+    offset-x: -100%;
+    width: 0 !important;
+    display: none;
+}
+
+SystemStats {
+    padding: 0 1;
+    width: 80%;
+    height: 100%;
+    content-align: right middle;
+}
+
+CustomHeader {
+    dock: top;
+    width: 100%;
+    height: 5;
+}
+
+SystemStatsHeader {
+    width: 100%;
+    height: 2;
+    text-align: center;
+    padding: 0 1;
+}
+
+.content-area {
+    width: 100%;
+    height: 1fr;
+}
+
+#main-container {
+    width: 100%;
+    height: 100%;
+    layout: horizontal;
+}
+
+DayView {
+    padding: 2;
+    overflow: auto;
+}
+
+#day-view-header {
+    height: 3;
+    width: 100%;
+    content-align: center middle;
+    margin-bottom: 1;
+    text-style: bold;
+}
+
+.schedule-section {
+    background: black 30%;
+    color: auto;
+    height: auto;
+    padding: 1;
+    margin: 1 0;
+    text-align: center;
+    text-style: bold;
+}
+
+.schedule-text {
+    width: auto;
+    align: center middle;
+    margin: 1;
+}
+
+.schedule-button {
+    margin: 1 2;
+    width: 20;
+}
+
+Horizontal {
+    align: center middle;
+    height: auto;
+}
+
+.back-button {
+    margin: 1;
+    width: auto;
+}
+
+.back-button:hover {}
+
+.back-button:focus {
+    border: tall;
+}
+
+Footer {
+    height: auto;
+}
+

@@ -1,5 +1,5 @@
 from textual.app import ComposeResult
-from textual.containers import Container 
+from textual.containers import Container, ScrollableContainer 
 from textual.screen import Screen
 from textual.widgets import Header, Button, Static, Footer, Welcome
 from textual.binding import Binding
@@ -18,7 +18,7 @@ class MainMenu(Container):
         yield MenuItem("HOME", id="menu_home")
         yield MenuItem("CALENDAR", id="menu_calendar")
         yield MenuItem("NOTES", id="menu_notes")
-        yield MenuItem("POMODORO", id="menu_POMODORO")
+        yield MenuItem("POMODORO", id="menu_pomodoro")
         yield MenuItem("YOUTUBE", id="menu_youtube")
         yield MenuItem("SPOTIFY", id="menu_spotify")
         yield MenuItem("SETTINGS", id="menu_settings")
@@ -41,7 +41,7 @@ class HomeScreen(Screen):
 
         yield Container(
             MainMenu(),
-            Container(
+            ScrollableContainer(
                 WelcomeView(),
                 id="content"
             ),
