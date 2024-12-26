@@ -1,5 +1,6 @@
 from textual.containers import Container, Grid, Horizontal, Vertical
-from textual.widgets import Button, Static
+from textual.widgets import Button, Static, TextArea
+from textual.widgets.markdown import Markdown
 from textual.app import ComposeResult
 from datetime import datetime
 import calendar
@@ -136,23 +137,70 @@ class CalendarView(Container):
         self.mount(NavBar(self.current_date))
         self.mount(CalendarGrid(self.current_date))
 
-   
-'''
-    TODO:
-    - Fix back to calendar button
-    - Implement appending of tasks
-        - Form with type of task, due date/time, title, and description/notes
-'''
+class ScheduleSection(Vertical):
+   # TODO: Implement task addition 
+    def compose(self) -> ComposeResult:
+        yield Static("Schedule & Tasks", classes="section-header")
+        with Horizontal(classes="schedule-controls"):
+            yield Button("+ Add Task", id="add-task", classes="schedule-button")
+        yield Static("Today's Tasks:", classes="task-header")
+        with Vertical(classes="tasks-list"):
+            yield Static("No tasks scheduled for today", classes="empty-schedule")
+
+class NotesSection(Vertical):
+    def __init__(self):
+        super().__init__()
+        self.notes_content = """# Notes
+Start writing your notes here...
+
+* Use markdown formatting
+* Add lists and headers
+* Your notes will render as you type"""
+    
+    def compose(self) -> ComposeResult:
+        yield Static("Notes", classes="section-header")
+        yield TextArea(self.notes_content, id="notes-editor")
+        with Horizontal(classes="notes-controls"):
+            yield Button("Save", id="save-notes", classes="notes-button")
+    
+    def on_text_area_changed(self, event: TextArea.Changed) -> None:
+        text_area = self.query_one("#notes-editor", TextArea)
+        text_area.styles.height = "1fr"  
+    
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        """Handle button presses for save and preview toggle."""
+        if event.button.id == "save-notes":
+            self.notify("Notes saved!", severity="success")
+            # TODO: Implement actual save functionality
+        elif event.button.id == "toggle-preview":
+            preview_container = self.query_one(".preview-container")
+            editor_container = self.query_one(".editor-container")
+            
+            if "hidden" in preview_container.classes:
+                preview_container.remove_class("hidden")
+                editor_container.styles.width = "50%"
+            else:
+                preview_container.add_class("hidden")
+                editor_container.styles.width = "100%"
+
+
 class DayView(Vertical):
     def __init__(self, date: datetime):
         super().__init__()
         self.date = date
-        
+    
     def compose(self) -> ComposeResult:
-        yield Static(f"Schedule for {self.date.strftime('%B %d, %Y')}", id="day-view-header")
+        yield Static(f"{self.date.strftime('%B %d, %Y')}", id="day-view-header")
         yield Button("Back to Calendar", id="back-to-calendar", classes="back-button")
-        yield Static("Commitments and TODO", classes="schedule-section")
-        with Horizontal():
-            yield Button("+ Add", id="add-schedule", classes="schedule-button")
+        
+        with Horizontal(classes="day-view-content"):
+            with Container(classes="schedule-container"):
+                yield ScheduleSection()
+            with Container(classes="notes-container"):
+                yield NotesSection()
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "back-to-calendar":
+            self.styles.display = "none"
 
     
