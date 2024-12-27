@@ -8,6 +8,8 @@ class Tick(App):
     CSS_PATH = "theme.tcss"
     SCREENS = {"home": HomeScreen}
     TITLE = "TICK"
+    COMMANDS = set()
+    DEFAULT_SCREENS = {}
     
     BINDINGS = [
         Binding("q", "quit", "Quit", show=True),
@@ -15,6 +17,7 @@ class Tick(App):
         Binding("down", "focus_next", "Move Down", show=True),
         Binding("enter", "select_item", "Select", show=True),
     ]
+
     
     def __init__(self):
         super().__init__()
