@@ -1,13 +1,15 @@
-# app.py
 from textual.app import App
 from views.home import HomeScreen
 from textual.binding import Binding
 from textual.widgets import Button
+from database.calendar_db import CalendarDB
 
 class Tick(App):
     CSS_PATH = "theme.tcss"
     SCREENS = {"home": HomeScreen}
     TITLE = "TICK"
+    COMMANDS = set()
+    DEFAULT_SCREENS = {}
     
     BINDINGS = [
         Binding("q", "quit", "Quit", show=True),
@@ -15,10 +17,14 @@ class Tick(App):
         Binding("down", "focus_next", "Move Down", show=True),
         Binding("enter", "select_item", "Select", show=True),
     ]
+
+    
+    def __init__(self):
+        super().__init__()
+        self.db = CalendarDB()
     
     def on_mount(self) -> None:
         self.push_screen("home")
-        self.disable_mouse()
         self.theme = "gruvbox"
 
     def on_screen_resume(self) -> None:
@@ -28,13 +34,6 @@ class Tick(App):
                 first_menu_item.focus()
         except Exception:
             pass
-
-    def disable_mouse(self) -> None:
-        for widget in self.query("*"):
-            if hasattr(widget, "can_focus"):
-                widget.can_focus = False
-            if hasattr(widget, "show_cursor"):
-                widget.show_cursor = False
 
     def action_focus_next(self) -> None:
         current = self.focused

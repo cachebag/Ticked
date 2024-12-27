@@ -1,3 +1,4 @@
+/* Base Layout */
 Screen {
     align: center middle;
     layout: grid;
@@ -5,6 +6,7 @@ Screen {
     overflow: auto;
 }
 
+/* Header and Footer */
 Header {
     height: 3;
     dock: top;
@@ -14,9 +16,10 @@ Header {
 Footer {
     dock: bottom;
     width: 100%;
-    height: 3;
+    height: auto;
 }
 
+/* Main Menu */
 MainMenu {
     dock: left;
     width: 30;
@@ -24,8 +27,13 @@ MainMenu {
     layer: above;
     layers: above;
     offset-x: 0;
-    transition: offset-x 500ms in_out_cubic;
-    border-right: solid;
+    transition: width 200ms in_out_cubic;
+    overflow: hidden;
+    padding: 1;
+}
+
+MainMenu.hidden {
+    width: 0 !important;
 }
 
 .menu-header {
@@ -48,12 +56,25 @@ MenuItem:focus {
     text-style: none;
 }
 
-#content {
+/* Content Area */
+.content {
     height: 100%;
     width: 100%;
     overflow-y: auto;
 }
 
+.content-area {
+    width: 100%;
+    height: 1fr;
+}
+
+.main-container {
+    width: 100%;
+    height: 100%;
+    layout: horizontal;
+}
+
+/* Welcome View */
 WelcomeView {
     width: 100%;
     height: auto;
@@ -70,6 +91,7 @@ WelcomeMessage {
     padding: 1;
 }
 
+/* Calendar View */
 CalendarView {
     width: 100%;
     height: 100%;
@@ -125,7 +147,7 @@ CalendarDayButton:focus {
 }
 
 CalendarDayButton.current-day {
-    border: tall;
+    border: orange;
 }
 
 .calendar-empty-day {}
@@ -148,15 +170,10 @@ CalendarDayButton.current-day {
 .calendar-nav-left:hover, .calendar-nav-right:hover {}
 
 .calendar-nav-left:focus, .calendar-nav-right:focus {
-    border: tall;
+    border: tall white;
 }
 
-MainMenu.hidden {
-    offset-x: -100%;
-    width: 0 !important;
-    display: none;
-}
-
+/* System Stats */
 SystemStats {
     padding: 0 1;
     width: 80%;
@@ -177,23 +194,13 @@ SystemStatsHeader {
     padding: 0 1;
 }
 
-.content-area {
-    width: 100%;
-    height: 1fr;
-}
-
-#main-container {
-    width: 100%;
-    height: 100%;
-    layout: horizontal;
-}
-
+/* Day View */
 DayView {
     padding: 2;
     overflow: auto;
 }
 
-#day-view-header {
+.day-view-header {
     height: 3;
     width: 100%;
     content-align: center middle;
@@ -201,9 +208,15 @@ DayView {
     text-style: bold;
 }
 
+.day-view-content {
+    width: 100%;
+    height: 100%;
+    margin-top: 1;
+}
+
+/* Schedule Section */
 .schedule-section {
     background: black 30%;
-    color: auto;
     height: auto;
     padding: 1;
     margin: 1 0;
@@ -222,6 +235,97 @@ DayView {
     width: 20;
 }
 
+.schedule-container, .notes-container {
+    width: 1fr;
+    height: 100%;
+    padding: 1;
+}
+
+/* Notes Section */
+.notes-container {
+    height: 40;
+}
+
+.notes-editor {
+    height: 1fr;
+    border: solid;
+    margin-bottom: 1;
+}
+
+.notes-controls {
+    width: 100%;
+    height: auto;
+    align: left middle;
+    padding: 1;
+}
+
+.notes-button {
+    margin: 0 1;
+    min-width: 15;
+    height: 3;
+}
+
+/* Section Headers */
+.section-header {
+    height: auto;
+    padding: 1;
+    margin-bottom: 1;
+    text-align: center;
+    text-style: bold;
+    background: gray;
+}
+
+/* Tasks */
+.task-header {
+    padding: 1 2;
+    text-style: bold;
+    margin-top: 1;
+}
+
+.tasks-list {
+    margin: 1 2;
+    height: auto;
+    overflow: auto;
+}
+
+.task-item {
+    padding: 1;
+    border: wide white 35%;
+    margin-bottom: 1;
+}
+
+.task-item:hover {}
+
+.empty-schedule {
+    padding: 2;
+    text-align: center;
+}
+
+/* Task Form */
+.task-form-container {
+    width: 60;
+    height: 40;
+    border: thick white 20%;
+    background: transparent;
+}
+
+.task-form {
+    padding: 2;
+}
+
+.form-header {
+    text-align: center;
+    padding-bottom: 1;
+    text-style: bold;
+}
+
+.form-buttons {
+    margin-top: 2;
+    align-horizontal: center;
+    align-vertical: middle;
+}
+
+/* Navigation */
 Horizontal {
     align: center middle;
     height: auto;
@@ -235,10 +339,80 @@ Horizontal {
 .back-button:hover {}
 
 .back-button:focus {
-    border: tall;
+    border: tall white;
 }
 
-Footer {
+/* Tab Bar */
+.tab-bar {
+    width: 100%;
     height: auto;
+    padding: 0 1;
 }
 
+.tab-button {
+    margin-right: 1;
+    min-width: 15;
+    height: 3;
+    border: none;
+    content-align: center middle;
+}
+
+.tab-button.active {
+    text-style: bold;
+}
+
+.tab-content {
+    width: 100%;
+    height: 100%;
+}
+
+/* Dashboard Layout */
+.dashboard-grid {
+    grid-size-columns: 2;
+    grid-size-rows: 1;
+    height: 100%;
+    padding: 1;
+    grid-gutter: 1;
+}
+
+.tasks-card {
+    column-span: 1;
+    height: 100%;
+}
+
+.right-column {
+    height: 100%;
+}
+
+.right-top-grid {
+    layout: grid;
+    grid-size-columns: 2;
+    height: 50%;
+    grid-gutter: 1;
+}
+
+.bottom-card {
+    height: 50%;
+    width: 100%;
+    margin-top: 1;
+}
+
+DashboardCard {
+    height: 100%;
+    width: 100%;
+    border: solid $secondary;
+    padding: 1;
+    overflow: auto;
+}
+
+.card-title {
+    dock: top;
+    text-style: bold;
+    padding-bottom: 1;
+    border-bottom: solid $accent;
+    margin-bottom: 1;
+}
+
+.card-content {
+    padding: 1;
+}
