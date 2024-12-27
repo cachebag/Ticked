@@ -3,7 +3,9 @@ from textual.containers import Container, Grid, Horizontal, Vertical
 from textual.app import ComposeResult
 from datetime import datetime
 from .calendar import Task
-import asyncio
+import requests
+import random
+import json
 
 class TabButton(Button):
     def __init__(self, label: str, tab_id: str):
@@ -93,6 +95,32 @@ class TodayContent(Container):
     def __init__(self) -> None:
         super().__init__()
         self.tasks_to_mount = None
+    
+    def fetch_and_cache_quotes(self):
+        try:
+            response = requests.get("https://zenquotes.io/api/quotes", timeout=10)
+            if response.status_code == 200:
+                quotes = response.json()
+                with open("quotes_cache.json", "w") as file:
+                    json.dump(quotes, file)
+                print("Quotes cached successfully!")
+            else:
+                print(f"Failed to fetch quotes: {response.status_code}")
+        except requests.RequestException as e:
+            print(f"Error fetching quotes: {e}")
+
+
+    def get_cached_quote(self):
+        try:
+            with open("quotes_cache.json", "r") as file:
+                quotes = json.load(file)
+                random_quote = random.choice(quotes)
+                return f"{random_quote['q']} \n — {random_quote['a']}"
+        except FileNotFoundError:
+            self.fetch_and_cache_quotes()
+            return "No quotes available. Please try again later."
+
+
 
     def compose(self) -> ComposeResult:
         with Grid(classes="dashboard-grid"):
@@ -103,10 +131,8 @@ class TodayContent(Container):
             
             with Container(classes="right-column"):
                 with Grid(classes="right-top-grid"):
-                    yield DashboardCard(
-                        "Quote of the Day",
-                        "Nothing to see here"
-                    )
+                    quote = self.get_cached_quote()
+                    yield DashboardCard("Quote of the Day", quote)
                     with DashboardCard("Nothing to see here yet"):
                         yield ASCIIAnimation()
                 
