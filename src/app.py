@@ -1,8 +1,8 @@
-# app.py
 from textual.app import App
 from views.home import HomeScreen
 from textual.binding import Binding
 from textual.widgets import Button
+from database.calendar_db import CalendarDB
 
 class Tick(App):
     CSS_PATH = "theme.tcss"
@@ -15,6 +15,10 @@ class Tick(App):
         Binding("down", "focus_next", "Move Down", show=True),
         Binding("enter", "select_item", "Select", show=True),
     ]
+    
+    def __init__(self):
+        super().__init__()
+        self.db = CalendarDB()
     
     def on_mount(self) -> None:
         self.push_screen("home")

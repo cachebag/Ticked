@@ -309,3 +309,56 @@ Footer {
 }
 
 
+
+.task-header {
+    padding: 1 2;
+    color: $text;
+    text-style: bold;
+}
+
+.tasks-list {
+    margin: 1 2;
+}
+
+.task-item {
+    padding: 1;
+    background: $boost;
+    border: wide $background;
+    margin-bottom: 1;
+}
+
+.task-item:hover {
+    background: $accent;
+    color: $text;
+}
+
+.empty-schedule {
+    padding: 2;
+    color: $text-muted;
+    text-align: center;
+}
+
+/* Task Form styling */
+.task-form-container {
+    width: 60;
+    height: 40;
+    border: thick $background;
+    background: $surface;
+}
+
+.task-form {
+    padding: 2;
+}
+
+.form-header {
+    text-align: center;
+    padding-bottom: 1;
+    color: $text;
+    text-style: bold;
+}
+
+.form-buttons {
+    margin-top: 2;
+    align-horizontal: right;
+    align-vertical: middle;
+}
