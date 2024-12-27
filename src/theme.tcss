@@ -254,6 +254,10 @@ Footer {
     padding: 1;
 }
 
+.notes-container {
+    height: 40;
+}
+
 .section-header {
     background: gray;
     color: $text;
@@ -273,6 +277,7 @@ Footer {
 .tasks-list {
     margin-top: 1;
     padding: 0 1;
+    overflow: auto;
 }
 
 .empty-schedule {
@@ -291,6 +296,7 @@ Footer {
     width: 100%;
     height: auto;
     align: left middle;
+    padding: 1;
 }
 
 .notes-button {

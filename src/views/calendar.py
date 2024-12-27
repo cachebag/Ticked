@@ -2,7 +2,7 @@ from textual.containers import Container, Grid, Horizontal, Vertical
 from textual.widgets import Button, Input, Label, Static, TextArea, Markdown
 from textual.screen import ModalScreen
 from textual import on
-from textual.app import App, ComposeResult
+from textual.app import  ComposeResult
 from datetime import datetime
 import calendar
 
@@ -45,7 +45,7 @@ class CalendarHeader(Static):
         self.styles.text_style = "bold"
 
 class CalendarGrid(Grid):
-    def __init__(self, current_date: datetime = None):
+    def __init__(self, current_date: datetime | None = None):
         super().__init__()
         self.current_date = current_date or datetime.now()
         self.styles.height = "85%"
@@ -118,27 +118,47 @@ class CalendarView(Container):
             selected_date = self.current_date.replace(day=event.button.day)
             day_view = self.query_one(DayView)
             day_view.date = selected_date
-        
-            # Update header first
+    
+            notes_section = day_view.query_one(NotesSection)
+            notes_section.date = selected_date
+
             header = self.query_one("#day-view-header")
             header.update(f"Schedule for {selected_date.strftime('%B %d, %Y')}")
-        
-            # Then update visibility
+
             day_view.styles.display = "block"
             self.query_one(CalendarGrid).styles.display = "none"
             self.query_one(NavBar).styles.display = "none"
-        
-            # Finally refresh content
+
             day_view.refresh_tasks()
             day_view.load_notes()
+            event.stop() 
+
+        # TODO: There has to be a better way to do this
+
+        elif button_id == "save_notes":
+            day_view = self.query_one(DayView)
+            event.stop()  
+            day_view.refresh_tasks()
+
+        elif button_id == "add-task":
             event.stop()
+
+        else:
+            self.query_one(CalendarGrid).styles.display = "block"
+            self.query_one(NavBar).styles.display = "block"
+            self.query_one(DayView).styles.display = "none"
+
+            self._refresh_calendar()
+
+            event.stop()
+
+
 
     def action_back_to_calendar(self) -> None:
         day_view = self.query_one(DayView)
         day_view.styles.display = "none"
         self.query_one(CalendarGrid).styles.display = "block"
         self.query_one(NavBar).styles.display = "block"
-        #Refresh the calendar to show updated tasks
         self._refresh_calendar()
     
     def _refresh_calendar(self) -> None:
@@ -221,7 +241,7 @@ class TaskForm(ModalScreen):
             "due_time": time,
             "description": description
         }
-        
+
         self.dismiss(task)
 
 class TaskEditForm(TaskForm):
@@ -257,7 +277,7 @@ class TaskEditForm(TaskForm):
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "cancel":
-            self.app.pop_screen()
+            event.stop()
         elif event.button.id == "delete":
             self.app.db.delete_task(self.task_data['id'])
             self.app.pop_screen()
@@ -311,19 +331,32 @@ class ScheduleSection(Vertical):
     async def show_task_form(self) -> None:
         task_form = TaskForm()
         task = await self.app.push_screen(task_form)
-        
+
         if task:
-            tasks_list = self.query_one("#tasks-list")
-            empty_schedule = tasks_list.query("#empty-schedule").first()
+            day_view = None
+            for ancestor in self.ancestors:
+                if isinstance(ancestor, DayView):
+                    day_view = ancestor
+                    break
+        
+            if day_view:
+                day_view.refresh_tasks()
+                day_view.styles.display = "block"
             
-            if empty_schedule:
-                empty_schedule.remove()
+                calendar_view = None
+                for ancestor in self.ancestors:
+                    if isinstance(ancestor, CalendarView):
+                        calendar_view = ancestor
+                        break
             
-            tasks_list.mount(Task(task))
-            self.notify("Task added successfully!", severity="success")
+                if calendar_view:
+                    calendar_view.query_one(CalendarGrid).styles.display = "none"
+                    calendar_view.query_one(NavBar).styles.display = "none"
+        
+            self.notify("Task added successfully!")
 
 class NotesSection(Vertical):
-    def __init__(self, date: datetime = None):
+    def __init__(self, date: datetime | None = None):
         super().__init__()
         self.date = date
         self.notes_content = "# Notes\nStart writing your notes here..."
@@ -340,9 +373,10 @@ class NotesSection(Vertical):
             if self.date:
                 date_str = self.date.strftime('%Y-%m-%d')
                 if self.app.db.save_notes(date_str, content):
-                    self.notify("Notes saved!")
+                    self.notify(f"Notes saved for {date_str}!")
             else:
                 self.notify("No date selected!", severity="error")
+            event.stop()
 
 class DayView(Vertical):
     def __init__(self, date: datetime):
@@ -360,6 +394,18 @@ class DayView(Vertical):
             with Container(classes="notes-container"):
                 yield NotesSection(self.date)
 
+    def set_date(self, new_date: datetime) -> None:
+        """Update the date and refresh all content"""
+        self.date = new_date
+        # Update header
+        self.query_one("#day-view-header").update(f"{self.date.strftime('%B %d, %Y')}")
+        # Update notes section date
+        notes_section = self.query_one(NotesSection)
+        notes_section.date = self.date
+        # Refresh content
+        self.refresh_tasks()
+        self.load_notes()
+
     def refresh_tasks(self) -> None:
         """Refresh the tasks list for the current date."""
         current_date = self.date.strftime('%Y-%m-%d')
@@ -367,18 +413,16 @@ class DayView(Vertical):
         tasks = self.app.db.get_tasks_for_date(current_date)
         tasks_list = self.query_one("#tasks-list")
         
-        # Clear existing content
         tasks_list.remove_children()
         
         if tasks:
             for task in tasks:
                 tasks_list.mount(Task(task))
         else:
-            # Create a new Static widget with a unique ID for the empty message
-            date_str = self.date.strftime('%Y%m%d')
+            # This creates a new Static widget for the empty message without an ID
+            # since we don't need to query it later
             empty_message = Static(
                 "No tasks scheduled for today",
-                id=f"empty-schedule-{date_str}",
                 classes="empty-schedule"
             )
             tasks_list.mount(empty_message)
@@ -391,8 +435,3 @@ class DayView(Vertical):
         else:
             notes_editor.text = "# Notes\nStart writing your notes here..."
     
-    def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id == "back-to-calendar":
-            self.styles.display = "none"
-            self.screen.query_one(CalendarGrid).styles.display = "block"
-            self.screen.query_one(NavBar).styles.display = "block"
