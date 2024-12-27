@@ -1,20 +1,15 @@
 import sqlite3
-from datetime import datetime
 from typing import Optional, List, Dict, Any
-from pathlib import Path
 
 class CalendarDB:
     def __init__(self, db_path: str = "calendar.db"):
-        """Initialize the database connection and create tables if they don't exist."""
         self.db_path = db_path
         self._create_tables()
     
     def _create_tables(self) -> None:
-        """Create the necessary tables if they don't exist."""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             
-            # Create tasks table
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS tasks (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -27,7 +22,6 @@ class CalendarDB:
                 )
             """)
             
-            # Create notes table
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS notes (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -41,7 +35,6 @@ class CalendarDB:
             conn.commit()
     
     def add_task(self, title: str, due_date: str, due_time: str, description: str = "") -> int:
-        """Add a new task and return its ID."""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute("""
@@ -49,12 +42,11 @@ class CalendarDB:
                 VALUES (?, ?, ?, ?)
             """, (title, description, due_date, due_time))
             conn.commit()
-            return cursor.lastrowid
+            return cursor.lastrowid or 0
     
     def get_tasks_for_date(self, date: str) -> List[Dict[str, Any]]:
-        """Get all tasks for a specific date."""
         with sqlite3.connect(self.db_path) as conn:
-            conn.row_factory = sqlite3.Row  # This enables column access by name
+            conn.row_factory = sqlite3.Row  
             cursor = conn.cursor()
             cursor.execute("""
                 SELECT * FROM tasks 
@@ -65,7 +57,6 @@ class CalendarDB:
             return [dict(row) for row in cursor.fetchall()]
     
     def update_task(self, task_id: int, **kwargs) -> bool:
-        """Update task fields. Returns True if successful."""
         valid_fields = {'title', 'description', 'due_date', 'due_time', 'completed'}
         update_fields = {k: v for k, v in kwargs.items() if k in valid_fields}
         
@@ -87,7 +78,6 @@ class CalendarDB:
             return cursor.rowcount > 0
     
     def delete_task(self, task_id: int) -> bool:
-        """Delete a task. Returns True if successful."""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
@@ -95,7 +85,6 @@ class CalendarDB:
             return cursor.rowcount > 0
     
     def save_notes(self, date: str, content: str) -> bool:
-        """Save or update notes for a specific date."""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute("""
@@ -109,7 +98,6 @@ class CalendarDB:
             return True
     
     def get_notes(self, date: str) -> Optional[str]:
-        """Get notes for a specific date."""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT content FROM notes WHERE date = ?", (date,))
@@ -117,7 +105,6 @@ class CalendarDB:
             return result[0] if result else None
     
     def get_tasks_between_dates(self, start_date: str, end_date: str) -> List[Dict[str, Any]]:
-        """Get all tasks between two dates inclusive."""
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
