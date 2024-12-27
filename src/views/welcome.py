@@ -115,7 +115,7 @@ class TodayContent(Container):
             with open("quotes_cache.json", "r") as file:
                 quotes = json.load(file)
                 random_quote = random.choice(quotes)
-                return f"{random_quote['q']} \n — {random_quote['a']}"
+                return f"{random_quote['q']} \n\n — {random_quote['a']}"
         except FileNotFoundError:
             self.fetch_and_cache_quotes()
             return "No quotes available. Please try again later."
