@@ -1,11 +1,11 @@
-from asyncio import events
 from textual.containers import Container, Grid, Horizontal, Vertical
-from textual.widgets import Button, Input, Label, Static, TextArea, Markdown
+from textual.widgets import Button, Input, Label, Static, TextArea
 from textual.screen import ModalScreen
 from textual import on
 from textual.app import ComposeResult
 from datetime import datetime
 import calendar
+from .task_widget import Task
 
 class NavBar(Horizontal):
     def __init__(self, current_date: datetime):
@@ -153,27 +153,6 @@ class CalendarView(Container):
         self.mount(NavBar(self.current_date))
         self.mount(CalendarGrid(self.current_date))
 
-class Task(Static):
-    def __init__(self, task_data: dict) -> None:
-        self.task_data = task_data
-        display_text = f"{task_data['title']} @ {task_data['due_time']}"
-        if task_data['description']:
-            display_text += f" | {task_data['description']}"
-        super().__init__(display_text, classes="task-item")
-        self.task_id = task_data['id']
-        self.can_focus = True
-
-    async def on_click(self) -> None:
-        task_form = TaskEditForm(self.task_data)
-        updated_task = await self.app.push_screen(task_form)
-        
-        if updated_task:
-            for ancestor in self.ancestors():
-                if isinstance(ancestor, DayView):
-                    ancestor.refresh_tasks()
-                    self.notify("Task updated successfully!")
-                    break
-
 class TaskForm(ModalScreen):
     def __init__(self, date: datetime) -> None:
         super().__init__()
@@ -227,7 +206,7 @@ class TaskForm(ModalScreen):
 
         task_id = self.app.db.add_task(
             title=title,
-            due_date=date,  
+            due_date=date,
             due_time=time,
             description=description
         )
@@ -241,6 +220,22 @@ class TaskForm(ModalScreen):
         }
 
         self.dismiss(task)
+
+        try:
+            day_view = self.app.screen.query_one(DayView)
+            if day_view:
+                day_view.refresh_tasks()
+                self.notify("Task added successfully!")
+        except Exception:
+            pass
+            
+        try:
+            from .welcome import TodayContent
+            today_content = self.app.screen.query_one(TodayContent)
+            if today_content:
+                today_content.refresh_tasks()
+        except Exception:
+            pass 
 
 class TaskEditForm(TaskForm):
     def __init__(self, task_data: dict):
@@ -272,13 +267,33 @@ class TaskEditForm(TaskForm):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "cancel":
             event.stop()
+            self.app.pop_screen()
         elif event.button.id == "delete":
             self.app.db.delete_task(self.task_data['id'])
-            self.app.pop_screen()
+            self.dismiss(None)
+            
+            try:
+                day_view = self.app.screen.query_one(DayView)
+                if day_view:
+                    day_view.refresh_tasks()
+            except Exception:
+                pass
+                
+            try:
+                from .welcome import TodayContent
+                today_content = self.app.screen.query_one(TodayContent)
+                if today_content:
+                    today_content.refresh_tasks()
+            except Exception:
+                pass
+                
+            self.notify("Task deleted successfully!")
+            event.stop()
         elif event.button.id == "submit":
             self._submit_form()
+            event.stop()
 
-    def _submit_form(self, event: Button.Pressed) -> None:
+    def _submit_form(self) -> None:
         title = self.query_one("#task-title", Input).value
         time = self.query_one("#task-time", Input).value
         description = self.query_one("#task-description", TextArea).text
@@ -301,13 +316,8 @@ class TaskEditForm(TaskForm):
             description=description
         )
 
-        for ancestor in self.app.screen.ancestors():
-            if isinstance(ancestor, DayView):
-                ancestor.refresh_tasks()
-                break
-
         task = {
-            "id": task_id, 
+            "id": task_id,
             "title": title,
             "due_date": self.date.strftime('%Y-%m-%d'),
             "due_time": time,
@@ -315,8 +325,23 @@ class TaskEditForm(TaskForm):
         }
 
         self.dismiss(task)
-        event.stop()
-
+        
+        try:
+            day_view = self.app.screen.query_one(DayView)
+            if day_view:
+                day_view.refresh_tasks()
+                self.notify("Task updated successfully!")
+        except Exception:
+            pass
+            
+        try:
+            from .welcome import TodayContent
+            today_content = self.app.screen.query_one(TodayContent)
+            if today_content:
+                today_content.refresh_tasks()
+        except Exception:
+            pass
+ 
 
 class ScheduleSection(Vertical):
     def __init__(self, date: datetime) -> None:
@@ -336,13 +361,6 @@ class ScheduleSection(Vertical):
         task_form = TaskForm(self.date)
         task = await self.app.push_screen(task_form)
        
-       # This SHOULD refresh tasks instantly but it's not
-        if task:
-            for ancestor in self.ancestors():
-                if isinstance(ancestor, DayView):
-                    ancestor.refresh_tasks()
-                    break
-            self.notify("Task added successfully!")
         event.stop()
 
 class NotesSection(Vertical):
