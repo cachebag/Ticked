@@ -2,8 +2,8 @@ from textual.widgets import Static, TabPane, Button
 from textual.containers import Container, Grid, Horizontal, Vertical
 from textual.app import ComposeResult
 from datetime import datetime
-from .calendar import Task
 import requests
+from .task_widget import Task
 import random
 import json
 
@@ -88,39 +88,12 @@ class TodayContent(Container):
     .bottom-card {
         height: 100%;
         grid-size: 1;
-        
     }
     """
     
     def __init__(self) -> None:
         super().__init__()
         self.tasks_to_mount = None
-    
-    def fetch_and_cache_quotes(self):
-        try:
-            response = requests.get("https://zenquotes.io/api/quotes", timeout=10)
-            if response.status_code == 200:
-                quotes = response.json()
-                with open("quotes_cache.json", "w") as file:
-                    json.dump(quotes, file)
-                print("Quotes cached successfully!")
-            else:
-                print(f"Failed to fetch quotes: {response.status_code}")
-        except requests.RequestException as e:
-            print(f"Error fetching quotes: {e}")
-
-
-    def get_cached_quote(self):
-        try:
-            with open("quotes_cache.json", "r") as file:
-                quotes = json.load(file)
-                random_quote = random.choice(quotes)
-                return f"{random_quote['q']} \n\n — {random_quote['a']}"
-        except FileNotFoundError:
-            self.fetch_and_cache_quotes()
-            return "No quotes available. Please try again later."
-
-
 
     def compose(self) -> ComposeResult:
         with Grid(classes="dashboard-grid"):
@@ -147,6 +120,14 @@ class TodayContent(Container):
             self._do_mount_tasks(self.tasks_to_mount)
             self.tasks_to_mount = None
 
+    def on_task_updated(self, event: Task.Updated) -> None:
+        self.refresh_tasks()
+        event.prevent_default()
+
+    def on_task_deleted(self, event: Task.Deleted) -> None:
+        self.refresh_tasks()
+        event.prevent_default()
+
     def mount_tasks(self, tasks):
         if self.is_mounted:
             self._do_mount_tasks(tasks)
@@ -159,9 +140,38 @@ class TodayContent(Container):
         
         if tasks:
             for task in tasks:
-                tasks_list.mount(Task(task))
+                task_widget = Task(task)
+                tasks_list.mount(task_widget)
         else:
-            tasks_list.mount(Static("No tasks scheduled for today", classes="empty-schedule"))
+            tasks_list.mount(Static("No tasks scheduled for today - Head over to your calendar to add some!", classes="empty-schedule"))
+
+    def refresh_tasks(self) -> None:
+        today = datetime.now().strftime('%Y-%m-%d')
+        tasks = self.app.db.get_tasks_for_date(today)
+        self._do_mount_tasks(tasks)
+
+    def get_cached_quote(self):
+        try:
+            with open("quotes_cache.json", "r") as file:
+                quotes = json.load(file)
+                random_quote = random.choice(quotes)
+                return f"{random_quote['q']} \n\n — {random_quote['a']}"
+        except FileNotFoundError:
+            self.fetch_and_cache_quotes()
+            return "No quotes available. Please try again later."
+
+    def fetch_and_cache_quotes(self):
+        try:
+            response = requests.get("https://zenquotes.io/api/quotes", timeout=10)
+            if response.status_code == 200:
+                quotes = response.json()
+                with open("quotes_cache.json", "w") as file:
+                    json.dump(quotes, file)
+                print("Quotes cached successfully!")
+            else:
+                print(f"Failed to fetch quotes: {response.status_code}")
+        except requests.RequestException as e:
+            print(f"Error fetching quotes: {e}")
 
 class WelcomeMessage(Static):
     DEFAULT_CSS = """
@@ -196,32 +206,38 @@ class WelcomeContent(Container):
         yield WelcomeMessage("• Press Esc to toggle the menu")
         yield WelcomeMessage("")
         yield WelcomeMessage("Select an option from the menu to begin (you can use your mouse too, we don't judge.)")
+        yield Button("Don't show this again", id="hide_welcome", variant="primary")
 
 class WelcomeView(Container):
     def compose(self) -> ComposeResult:
         with Horizontal(classes="tab-bar"):
+            yield TabButton("Today", "today")
             yield TabButton("Welcome", "welcome")
         
         with Container(id="tab-content"):
+            yield TodayContent()
             yield WelcomeContent()
-
+            
     def on_mount(self) -> None:
-        self.query_one("TabButton").toggle_active(True)
+        today_tab = self.query_one("TabButton#tab_today")
+        today_tab.toggle_active(True)
+        
+        welcome_content = self.query_one(WelcomeContent)
+        welcome_content.styles.display = "none"
+        today_content = self.query_one(TodayContent)
+        today_content.styles.display = "block"
         
         today = datetime.now().strftime('%Y-%m-%d')
         tasks = self.app.db.get_tasks_for_date(today)
-        
-        if tasks:
-            tab_bar = self.query_one(".tab-bar")
-            today_tab = TabButton("Today", "today")
-            tab_bar.mount(today_tab)
-            
-            today_content = TodayContent()
-            self.query_one("#tab-content").mount(today_content)
-            today_content.styles.display = "none"
-            today_content.mount_tasks(tasks)
+        today_content.mount_tasks(tasks)
     
     def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "hide_welcome":
+            welcome_content = self.query_one(WelcomeContent)
+            welcome_content.styles.display = "none"
+            event.stop()
+            return
+            
         if not event.button.id.startswith("tab_"):
             return
 
@@ -229,21 +245,14 @@ class WelcomeView(Container):
             
         tab_buttons = self.query(".tab-button")
         welcome_content = self.query_one(WelcomeContent)
+        today_content = self.query_one(TodayContent)
         
         for button in tab_buttons:
             button.toggle_active(button.id == event.button.id)
         
         if event.button.id == "tab_welcome":
             welcome_content.styles.display = "block"
-            try:
-                today_content = self.query_one(TodayContent)
-                today_content.styles.display = "none"
-            except Exception:
-                pass
+            today_content.styles.display = "none"
         elif event.button.id == "tab_today":
             welcome_content.styles.display = "none"
-            try:
-                today_content = self.query_one(TodayContent)
-                today_content.styles.display = "block"
-            except Exception:
-                pass
+            today_content.styles.display = "block"
