@@ -58,8 +58,7 @@ class HomeScreen(Screen):
         menu = self.query_one("MainMenu")
         if "hidden" in menu.classes:
             menu.remove_class("hidden")
-            menu.styles.display = "block"  # Ensure menu is displayed
-            # This helps continuously keep focus for keyboard navigation when the sidebar is toggled
+            menu.styles.display = "block"  
             try:
                 first_menu_item = menu.query_one("MenuItem")
                 if first_menu_item:
@@ -84,7 +83,7 @@ class HomeScreen(Screen):
             if button_id == "menu_home":
                 menu.add_class("hidden")
                 home_view = WelcomeView()
-                content_container.mount(home_view)  # Remove duplicate mount
+                content_container.mount(home_view)  
             elif button_id == "menu_calendar":
                 calendar_view = CalendarView()
                 content_container.mount(calendar_view)
