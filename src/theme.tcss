@@ -380,6 +380,8 @@ Horizontal {
     height: 100%;
 }
 
+.tasks-card:hover {}
+
 .right-column {
     height: 100%;
 }
@@ -416,3 +418,11 @@ DashboardCard {
 .card-content {
     padding: 1;
 }
+
+.tasks-list > Static:hover {
+    background: $background-lighten-1; /* Use a valid theme color variable */
+    text-style: bold; /* Add a hover indication with bold text */
+}
+
+
+

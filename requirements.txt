@@ -2,4 +2,4 @@ textual
 textual-dev
 psutil
 python-dateutil
-
+requests
