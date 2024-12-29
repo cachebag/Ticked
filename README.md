@@ -1,6 +1,6 @@
 # Tick 📼
 
-**Tick** is a lightweight, TUI task and productivity manager built in Python over the Textual library. It's been developed for my personal use throughout my University courses, but is intended to work as an all around productivy manager for personal and professional use.
+**Tick** is a lightweight, TUI task and productivity manager built in Python over the Textual library.
 
 # Installation (Python 3.7+)
 
@@ -30,7 +30,6 @@ cd tick
 
 2. Install requirements
 ```bash
-
 pip install -r requirements.txt
 ```
 
@@ -38,6 +37,15 @@ pip install -r requirements.txt
 ```bash
 python main.py
 ```
+
+## Features
+
+- [X] Integrated calendar with task management and daily note-taking
+- [ ] Notes system with folder organization, markdown support, and inline code formatting
+- [ ] Pomodoro timer for productivity
+- [ ] Spotify API integration for access to music
+- [X] SQLite-powered database for easy sharing across devices
+- [X] Compatible across multiple platforms
 
 ## Contributing
 
