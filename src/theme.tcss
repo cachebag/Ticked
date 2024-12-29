@@ -294,7 +294,9 @@ DayView {
     margin-bottom: 1;
 }
 
-.task-item:hover {}
+.task-item:hover {
+    background: $surface-lighten-1;
+}
 
 .empty-schedule {
     padding: 2;
@@ -425,4 +427,48 @@ DashboardCard {
 }
 
 
+.status-indicator:hover {
+    background: $surface;
+    text-style: bold;  /* This gives visual feedback instead of cursor change */
+}
 
+.status-indicator {
+    width: auto;
+    min-width: 4;
+    margin-left: 1;
+    padding: 0 1;
+    color: $text;
+    text-align: center;
+    border: none;
+}
+
+
+.task-text {
+    width: 1fr;
+    padding: 1;
+    color: $text;         /* Ensure text is visible */
+}
+
+.completed {
+    text-style: strike;
+    color: $success-darken-2;    /* Use theme colors */
+}
+
+.completed-task {
+    background: $success-darken-3 50%;
+}
+
+.in-progress {
+    background: $warning-darken-2 50%;
+}
+
+/* Update hover states */
+.complete-button:hover {
+    background: $success-darken-2;
+    color: $text;
+}
+
+.progress-button:hover {
+    background: $warning-darken-2;
+    color: $text;
+}
