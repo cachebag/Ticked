@@ -9,30 +9,39 @@ class CalendarDB:
     def _create_tables(self) -> None:
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
-            
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS tasks (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    title TEXT NOT NULL,
-                    description TEXT,
-                    due_date DATE NOT NULL,
-                    due_time TIME NOT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    completed BOOLEAN DEFAULT 0
-                )
-            """)
-            
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS notes (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    date DATE NOT NULL,
-                    content TEXT,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    UNIQUE(date)
-                )
-            """)
-            
-            conn.commit()
+        
+        # Create tasks table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS tasks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                description TEXT,
+                due_date DATE NOT NULL,
+                due_time TIME NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                completed BOOLEAN DEFAULT 0,
+                in_progress BOOLEAN DEFAULT 0
+            )
+        """)
+        
+        # Add in_progress column if it doesn't exist
+        cursor.execute("PRAGMA table_info(tasks)")
+        columns = [column[1] for column in cursor.fetchall()]
+        if 'in_progress' not in columns:
+            cursor.execute("ALTER TABLE tasks ADD COLUMN in_progress BOOLEAN DEFAULT 0")
+        
+        # Create notes table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS notes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                date DATE NOT NULL,
+                content TEXT,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(date)
+            )
+        """)
+        
+        conn.commit() 
     
     def add_task(self, title: str, due_date: str, due_time: str, description: str = "") -> int:
         with sqlite3.connect(self.db_path) as conn:
@@ -57,7 +66,7 @@ class CalendarDB:
             return [dict(row) for row in cursor.fetchall()]
     
     def update_task(self, task_id: int, **kwargs) -> bool:
-        valid_fields = {'title', 'description', 'due_date', 'due_time', 'completed'}
+        valid_fields = {'title', 'description', 'due_date', 'due_time', 'completed','in_progress'}
         update_fields = {k: v for k, v in kwargs.items() if k in valid_fields}
         
         if not update_fields:
@@ -114,4 +123,15 @@ class CalendarDB:
                 ORDER BY due_date, due_time
             """, (start_date, end_date))
             
+            return [dict(row) for row in cursor.fetchall()]
+
+    def get_upcoming_tasks(self, start_date: str, days: int = 7) -> List[Dict[str, Any]]:
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT * FROM tasks 
+                WHERE due_date > ? AND due_date <= date(?, '+' || ? || ' days')
+                ORDER BY due_date, due_time
+            """, (start_date, start_date, days))
             return [dict(row) for row in cursor.fetchall()]

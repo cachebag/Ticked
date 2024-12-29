@@ -6,6 +6,7 @@ from textual.app import ComposeResult
 from datetime import datetime
 import calendar
 from .task_widget import Task
+from textual.binding import Binding
 
 class NavBar(Horizontal):
     def __init__(self, current_date: datetime):
@@ -153,7 +154,38 @@ class CalendarView(Container):
         self.mount(NavBar(self.current_date))
         self.mount(CalendarGrid(self.current_date))
 
+    async def action_previous_month(self) -> None:
+        prev_month = self.query_one("#prev_month")
+        if prev_month:
+            prev_month.press()
+
+    async def action_next_month(self) -> None:
+        next_month = self.query_one("#next_month")
+        if next_month:
+            next_month.press()
+
+    async def action_cycle_focus(self) -> None:
+        current = self.app.focused
+        focusable = list(self.query("Button"))
+        if focusable and current in focusable:
+            idx = focusable.index(current)
+            next_idx = (idx + 1) % len(focusable)
+            focusable[next_idx].focus()
+        elif focusable:
+            focusable[0].focus()
+
+    async def action_back(self) -> None:
+        day_view = self.query_one(DayView)
+        if day_view and day_view.styles.display == "block":
+            self.action_back_to_calendar()
+
 class TaskForm(ModalScreen):
+    BINDINGS = [
+        Binding("escape", "cancel", "Cancel"),
+        Binding("f1", "submit", "Submit"),
+        Binding("tab", "next_field", "Next Field")
+    ]
+
     def __init__(self, date: datetime) -> None:
         super().__init__()
         self.date = date
@@ -180,6 +212,20 @@ class TaskForm(ModalScreen):
                 with Horizontal(classes="form-buttons"):
                     yield Button("Cancel", variant="error", id="cancel")
                     yield Button("Add Task", variant="success", id="submit")
+
+    async def action_cancel(self) -> None:
+        self.app.pop_screen()
+        
+    async def action_submit(self) -> None:
+        self._submit_form()
+        
+    async def action_next_field(self) -> None:
+        current = self.app.focused
+        fields = list(self.query("Input, TextArea, Button"))
+        if fields and current in fields:
+            idx = fields.index(current)
+            next_idx = (idx + 1) % len(fields)
+            fields[next_idx].focus()
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "cancel":
@@ -238,6 +284,13 @@ class TaskForm(ModalScreen):
             pass 
 
 class TaskEditForm(TaskForm):
+    BINDINGS = [
+        Binding("escape", "cancel", "Cancel"),
+        Binding("f1", "submit", "Submit"),
+        Binding("tab", "next_field", "Next Field"),
+        Binding("delete", "delete_task", "Delete Task")
+    ]
+
     def __init__(self, task_data: dict):
         super().__init__(date=datetime.strptime(task_data['due_date'], '%Y-%m-%d'))
         self.task_data = task_data
@@ -264,10 +317,11 @@ class TaskEditForm(TaskForm):
                     yield Button("Cancel", variant="primary", id="cancel")
                     yield Button("Save", variant="success", id="submit")
 
+
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "cancel":
             event.stop()
-            self.app.pop_screen()
+            # self.app.pop_screen() I'm not sure why but adding this breaks the screen
         elif event.button.id == "delete":
             self.app.db.delete_task(self.task_data['id'])
             self.dismiss(None)
@@ -434,4 +488,3 @@ class DayView(Vertical):
             notes_editor.text = notes
         else:
             notes_editor.text = "# Notes\nStart writing your notes here..."
-
