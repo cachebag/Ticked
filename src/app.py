@@ -8,14 +8,19 @@ class Tick(App):
     CSS_PATH = "theme.tcss"
     SCREENS = {"home": HomeScreen}
     TITLE = "TICK"
-    COMMANDS = set()
-    DEFAULT_SCREENS = {}
+    # COMMANDS = set()
+    # DEFAULT_SCREENS = {}
     
     BINDINGS = [
         Binding("q", "quit", "Quit", show=True),
         Binding("up", "focus_previous", "Move Up", show=True),
         Binding("down", "focus_next", "Move Down", show=True),
         Binding("enter", "select_item", "Select", show=True),
+        Binding("left", "previous_month", "Previous Month", show=True),
+        Binding("right", "next_month", "Next Month", show=True),
+        Binding("tab", "cycle_focus", "Cycle Focus", show=True),
+        Binding("esc", "toggle_menu", "Toggle Menu", show=True),
+        Binding("b", "back", "Back", show=True),
     ]
 
     
@@ -58,3 +63,4 @@ class Tick(App):
 if __name__ == "__main__":
     app = Tick()
     app.run()
+
