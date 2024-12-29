@@ -444,9 +444,7 @@ DashboardCard {
 
 
 .task-text {
-    width: 1fr;
-    padding: 1;
-    color: $text;         /* Ensure text is visible */
+    width: 5fr;
 }
 
 .completed {
@@ -471,4 +469,12 @@ DashboardCard {
 .progress-button:hover {
     background: $warning-darken-2;
     color: $text;
+}
+
+
+.task-container:hover {
+    width: 100%;
+    height: auto;
+    background: $surface-lighten-1;
+
 }
