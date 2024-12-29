@@ -1,4 +1,4 @@
-textual
+textual[syntax]
 textual-dev
 psutil
 python-dateutil
