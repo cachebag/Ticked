@@ -25,7 +25,7 @@
 - Spotify API integration for music 
 - Cross-platform compatibility
 
-## Installation (For Development Only, this is not a functioning version)
+## Installation (For development only, this is not a functioning version)
 
 ### Mac/Linux
 
