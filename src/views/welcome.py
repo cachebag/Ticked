@@ -1,4 +1,4 @@
-from textual.widgets import Static, TabPane, Button
+from textual.widgets import Static, Button
 from textual.containers import Container, Grid, Horizontal, Vertical
 from textual.app import ComposeResult
 from datetime import datetime
@@ -110,10 +110,7 @@ class TodayContent(Container):
                         yield ASCIIAnimation()
                 
                 with Container(classes="bottom-card"):
-                    yield DashboardCard(
-                        "Upcoming",
-                        "No upcoming tasks"
-                    )
+                    yield UpcomingTasksView()
 
     def on_mount(self) -> None:
         if self.tasks_to_mount is not None:
@@ -149,6 +146,10 @@ class TodayContent(Container):
         today = datetime.now().strftime('%Y-%m-%d')
         tasks = self.app.db.get_tasks_for_date(today)
         self._do_mount_tasks(tasks)
+        
+        upcoming_view = self.query_one(UpcomingTasksView)
+        if upcoming_view:
+            upcoming_view.refresh_tasks()
 
     def get_cached_quote(self):
         try:
@@ -206,7 +207,6 @@ class WelcomeContent(Container):
         yield WelcomeMessage("• Press Esc to toggle the menu")
         yield WelcomeMessage("")
         yield WelcomeMessage("Select an option from the menu to begin (you can use your mouse too, we don't judge.)")
-        yield Button("Don't show this again", id="hide_welcome", variant="primary")
 
 class WelcomeView(Container):
     def compose(self) -> ComposeResult:
@@ -256,3 +256,60 @@ class WelcomeView(Container):
         elif event.button.id == "tab_today":
             welcome_content.styles.display = "none"
             today_content.styles.display = "block"
+
+
+class UpcomingTasksView(Container):
+    def __init__(self):
+        super().__init__()
+        self.filter_days = 7
+
+    def compose(self) -> ComposeResult:
+        with Horizontal(classes="header-row"):
+            yield Static("Upcoming", classes="card-title")
+            yield Static("", classes="header-spacer")
+            with Horizontal(classes="filter-buttons"):
+                yield Button("7d", id="filter-7", classes="filter-btn active")
+                yield Button("30d", id="filter-30", classes="filter-btn")
+        
+        with Vertical(id="upcoming-tasks-list", classes="tasks-list"):
+            yield Static("Loading...", classes="empty-schedule")
+
+    def on_mount(self) -> None:
+        self.refresh_tasks()
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id.startswith("filter-"):
+            days = int(event.button.id.split("-")[1])
+            self.filter_days = days
+            
+            for btn in self.query(".filter-btn"):
+                btn.remove_class("active")
+            event.button.add_class("active")
+            event.stop()
+            
+            self.refresh_tasks()
+
+    def refresh_tasks(self) -> None:
+        today = datetime.now().strftime('%Y-%m-%d')
+        tasks = self.app.db.get_upcoming_tasks(today, self.filter_days)
+        
+        tasks_list = self.query_one("#upcoming-tasks-list")
+        tasks_list.remove_children()
+        
+        if tasks:
+            for task in tasks:
+                task_with_date = task.copy()
+                date_obj = datetime.strptime(task['due_date'], '%Y-%m-%d')
+                date_str = date_obj.strftime('%B %d, %Y')  # e.g. "December 29, 2024"
+                
+                if task['description']:
+                    task_with_date['display_text'] = f"{task['title']} @ {task['due_time']} | {task['description']} | On {date_str}"
+                else:
+                    task_with_date['display_text'] = f"{task['title']} @ {task['due_time']} | On {date_str}"
+                
+                task_widget = Task(task_with_date)
+                tasks_list.mount(task_widget)
+        else:
+            tasks_list.mount(Static("No upcoming tasks", classes="empty-schedule"))
+
+

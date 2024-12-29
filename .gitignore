@@ -63,3 +63,4 @@ poetry.lock
 .DS_Store
 .AppleDouble
 .LSOverride
+quotes_cache.json
