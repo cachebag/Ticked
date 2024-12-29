@@ -267,7 +267,7 @@ class TaskEditForm(TaskForm):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "cancel":
             event.stop()
-            self.app.pop_screen()
+            # self.app.pop_screen() I'm not sure why but adding this breaks the screen
         elif event.button.id == "delete":
             self.app.db.delete_task(self.task_data['id'])
             self.dismiss(None)

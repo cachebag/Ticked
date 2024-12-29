@@ -9,30 +9,39 @@ class CalendarDB:
     def _create_tables(self) -> None:
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
-            
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS tasks (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    title TEXT NOT NULL,
-                    description TEXT,
-                    due_date DATE NOT NULL,
-                    due_time TIME NOT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    completed BOOLEAN DEFAULT 0
-                )
-            """)
-            
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS notes (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    date DATE NOT NULL,
-                    content TEXT,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    UNIQUE(date)
-                )
-            """)
-            
-            conn.commit()
+        
+        # Create tasks table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS tasks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                description TEXT,
+                due_date DATE NOT NULL,
+                due_time TIME NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                completed BOOLEAN DEFAULT 0,
+                in_progress BOOLEAN DEFAULT 0
+            )
+        """)
+        
+        # Add in_progress column if it doesn't exist
+        cursor.execute("PRAGMA table_info(tasks)")
+        columns = [column[1] for column in cursor.fetchall()]
+        if 'in_progress' not in columns:
+            cursor.execute("ALTER TABLE tasks ADD COLUMN in_progress BOOLEAN DEFAULT 0")
+        
+        # Create notes table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS notes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                date DATE NOT NULL,
+                content TEXT,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(date)
+            )
+        """)
+        
+        conn.commit() 
     
     def add_task(self, title: str, due_date: str, due_time: str, description: str = "") -> int:
         with sqlite3.connect(self.db_path) as conn:
