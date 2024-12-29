@@ -27,26 +27,6 @@
 
 ## Installation (For development only, this is not a functioning version)
 
-### Mac/Linux
-
-1. Clone the repository:
-   ```bash
-   git clone git@github.com:cachebag/Tick.git
-   cd tick
-   ```
-
-2. Install the requirements:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. Run the program:
-   ```bash
-   python src/app.py
-   ```
-
-### Windows
-
 1. Clone the repository:
    ```bash
    git clone git@github.com:cachebag/Tick.git
@@ -65,7 +45,7 @@
 
 ## Contributing
 
-New issues and pull requests are welcome!  
+New issues and pull requests are welcome! 
 
 If you want to contribute:
 1. Fork the repository.
