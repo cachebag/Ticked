@@ -20,7 +20,6 @@ class MainMenu(Container):
         yield MenuItem("CALENDAR", id="menu_calendar")
         yield MenuItem("NEST", id="menu_nest")
         yield MenuItem("POMODORO", id="menu_pomodoro")
-        yield MenuItem("YOUTUBE", id="menu_youtube")
         yield MenuItem("SPOTIFY", id="menu_spotify")
         yield MenuItem("SETTINGS", id="menu_settings")
         yield MenuItem("EXIT", id="menu_exit")
@@ -94,9 +93,6 @@ class HomeScreen(Screen):
                 nest_view = NestView()
                 content_container.mount(nest_view)
             elif button_id == "menu_pomodoro":
-                menu.add_class("hidden")
-                self.notify("Coming Soon!", severity="warning")
-            elif button_id == "menu_youtube":
                 menu.add_class("hidden")
                 self.notify("Coming Soon!", severity="warning")
             elif button_id == "menu_spotify":
