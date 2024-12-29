@@ -272,7 +272,7 @@ DayView {
     margin-bottom: 1;
     text-align: center;
     text-style: bold;
-    background: gray;
+    background: $secondary;
 }
 
 /* Tasks */
@@ -410,11 +410,11 @@ DashboardCard {
 }
 
 .card-title {
-    dock: top;
+    width: auto;
     text-style: bold;
     padding-bottom: 1;
     border-bottom: solid $accent;
-    margin-bottom: 1;
+    dock: top;
 }
 
 .card-content {
@@ -477,4 +477,64 @@ DashboardCard {
     height: auto;
     background: $surface-lighten-1;
 
+}
+
+
+.header-row {
+    width: 100%;
+    height: 3;
+    layout: horizontal;
+    dock: top;
+    align: left middle;
+    padding: 0 1;
+    margin-bottom: 1;
+  }
+
+.header-spacer {
+    width: 1fr;  /* This creates a flexible space between title and buttons */
+}
+
+.filter-buttons {
+    width: auto;
+    align: right middle;
+    padding: 0;
+}
+
+.filter-btn {
+    background: transparent;
+    min-width: 4;
+    height: 3;
+    padding: 0 1;
+    margin-left: 1;
+    border: none;
+}
+
+.filter-btn:hover {
+    background: $surface-lighten-1;
+}
+
+.filter-btn.active {
+    text-style: bold;
+    border-bottom: solid $accent;
+}
+
+.upcoming-tasks-list {
+    margin-top: 1;
+    height: auto;
+    max-height: 90%;
+    overflow: auto;
+}
+
+  UpcomingTasksView {
+    border: solid $secondary;
+    height: 100%;
+    padding: 1;
+    overflow: auto;
+}
+
+  /* Add this new style */
+  .header-row > .card-title {
+    border-bottom: none;
+    padding-bottom: 0;
+    dock: none;  /* Override the dock for card titles in header rows */
 }

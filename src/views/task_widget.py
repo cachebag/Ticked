@@ -4,8 +4,15 @@ from textual.message import Message
 from textual.app import ComposeResult
 from textual import on
 from textual.events import Click
+from textual.binding import Binding
 
 class Task(Static):
+    BINDINGS = [
+        Binding("c", "toggle_complete", "Toggle Complete"),
+        Binding("p", "toggle_progress", "Toggle Progress"), 
+        Binding("enter", "edit_task", "Edit Task")
+    ]
+    
     class Updated(Message):
         def __init__(self, task_id: int) -> None:
             self.task_id = task_id
@@ -31,44 +38,48 @@ class Task(Static):
     
     def compose(self) -> ComposeResult:
         with Horizontal(classes="task-container"):
-            display_text = f"{self.task_data['title']} @ {self.task_data['due_time']}"
-            if self.task_data['description']:
-                display_text += f" | {self.task_data['description']}"
-        
-            yield Static(display_text, classes="task-text")
+            if 'display_text' in self.task_data:
+                yield Static(self.task_data['display_text'], classes="task-text")
+            else:
+                display_text = f"{self.task_data['title']} @ {self.task_data['due_time']}"
+                if self.task_data['description']:
+                    display_text += f" | {self.task_data['description']}"
+                yield Static(display_text, classes="task-text")
+            
             with Horizontal(classes="status-group"):
                 yield Static("✓", classes="status-indicator complete-indicator") 
-                yield Static("→", classes="status-indicator progress-indicator") 
-
+                yield Static("→", classes="status-indicator progress-indicator")
+ 
     @on(Click)
     async def on_click(self, event: Click) -> None:
-        # Replace entire click handler
         if "complete-indicator" in event.widget.classes:
-            self.completed = not self.completed
-            self.in_progress = False
-            self.update_task_status()
-            self.refresh_style()
+            await self.action_toggle_complete()
         elif "progress-indicator" in event.widget.classes:
-            self.in_progress = not self.in_progress 
-            self.completed = False
-            self.update_task_status()
-            self.refresh_style()
+            await self.action_toggle_progress()
         else:
-            from .calendar import TaskEditForm
-            task_form = TaskEditForm(self.task_data)
-            result = await self.app.push_screen(task_form)
-            if result is None:
-                self.post_message(self.Deleted(self.task_id))
-            elif result:
-                self.post_message(self.Updated(self.task_id))
-            self.refresh_all_views() 
+            await self.action_edit_task()
+
+    async def action_toggle_complete(self) -> None:
+        self.toggle_complete()
+
+    async def action_toggle_progress(self) -> None:
+        self.toggle_progress()
+        
+    async def action_edit_task(self) -> None:
+        from .calendar import TaskEditForm
+        task_form = TaskEditForm(self.task_data) 
+        result = await self.app.push_screen(task_form)
+        if result is None:
+            self.post_message(self.Deleted(self.task_id))
+        elif result:
+            self.post_message(self.Updated(self.task_id))
+        self.refresh_all_views()
 
     def toggle_complete(self) -> None:
         task_text = self.query_one(".task-text")
         complete_indicator = self.query_one(".complete-indicator")
         progress_indicator = self.query_one(".progress-indicator")
 
-        # Toggle "completed" state
         if self.completed:
             self.completed = False
             task_text.remove_class("completed")
@@ -76,14 +87,13 @@ class Task(Static):
             complete_indicator.update("[ ]")
         else:
             self.completed = True
-            self.in_progress = False  # Ensure "in_progress" is turned off
+            self.in_progress = False
             task_text.add_class("completed")
             self.add_class("completed-task")
             complete_indicator.update("✓")
-            progress_indicator.update("[-]")  # Reset progress indicator
+            progress_indicator.update("[-]")
             self.remove_class("in-progress")
 
-            # Update database and UI
             self.update_task_status()
             self.post_message(self.Updated(self.task_id))
 
@@ -92,29 +102,24 @@ class Task(Static):
         complete_indicator = self.query_one(".complete-indicator")
         task_text = self.query_one(".task-text")
 
-        # Toggle "in_progress" state
         if self.in_progress:
             self.in_progress = False
             self.remove_class("in-progress")
             progress_indicator.update("[-]")
         else:
             self.in_progress = True
-            self.completed = False  # Ensure "completed" is turned off
+            self.completed = False
             self.add_class("in-progress")
             progress_indicator.update("→")
             task_text.remove_class("completed")
             self.remove_class("completed-task")
-            complete_indicator.update("[ ]")  # Reset complete indicator
+            complete_indicator.update("[ ]")
 
-        # Update database and UI
         self.update_task_status()
         self.post_message(self.Updated(self.task_id))
 
     def update_task_status(self) -> None:
-        """Update the task's status in the database."""
         self.app.db.update_task(self.task_id, completed=self.completed, in_progress=self.in_progress)
-
- 
     
     def refresh_all_views(self) -> None:
         try:
@@ -136,8 +141,8 @@ class Task(Static):
         if self.completed:
             self.add_class("completed-task")
             self.query_one(".task-text").add_class("completed")
-            self.remove_class("in-progress")  # Make sure we remove in-progress when completed
-        elif self.in_progress:  # Use elif to ensure they're mutually exclusive
+            self.remove_class("in-progress")
+        elif self.in_progress:
             self.add_class("in-progress")
             self.remove_class("completed-task")
             self.query_one(".task-text").remove_class("completed")

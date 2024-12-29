@@ -124,3 +124,14 @@ class CalendarDB:
             """, (start_date, end_date))
             
             return [dict(row) for row in cursor.fetchall()]
+
+    def get_upcoming_tasks(self, start_date: str, days: int = 7) -> List[Dict[str, Any]]:
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT * FROM tasks 
+                WHERE due_date > ? AND due_date <= date(?, '+' || ? || ' days')
+                ORDER BY due_date, due_time
+            """, (start_date, start_date, days))
+            return [dict(row) for row in cursor.fetchall()]

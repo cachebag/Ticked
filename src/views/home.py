@@ -107,3 +107,19 @@ class HomeScreen(Screen):
                 self.action_quit_app()
         except Exception as e:
             self.notify(f"Error: {str(e)}")
+
+    async def action_cycle_focus(self) -> None:
+        current = self.app.focused
+        focusable = list(self.query("Button, Input, TextArea"))
+        if focusable and current in focusable:
+            idx = focusable.index(current)
+            next_idx = (idx + 1) % len(focusable)
+            focusable[next_idx].focus()
+        elif focusable:
+            focusable[0].focus()
+
+    async def action_back(self) -> None:
+        try:
+            self.app.pop_screen()
+        except:
+            pass
