@@ -25,13 +25,13 @@
 - Spotify API integration for music 
 - Cross-platform compatibility
 
-## Installation
+## Installation (For Development Only, this is not a functioning version)
 
 ### Mac/Linux
 
 1. Clone the repository:
    ```bash
-   git clone git@github.com:your-username/tick.git
+   git clone git@github.com:cachebag/Tick.git
    cd tick
    ```
 
@@ -49,7 +49,7 @@
 
 1. Clone the repository:
    ```bash
-   git clone git@github.com:your-username/tick.git
+   git clone git@github.com:cachebag/Tick.git
    cd tick
    ```
 
