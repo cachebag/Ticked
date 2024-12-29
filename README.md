@@ -43,11 +43,10 @@ python main.py
 - [X] Integrated calendar with task management and daily note-taking
 - [ ] Notes system with folder organization, markdown support, and inline code formatting
 - [ ] Pomodoro timer for productivity
-- [ ] Spotify API integration for music control
+- [ ] Spotify API integration for access to music
 - [X] SQLite-powered database for easy sharing across devices
 - [X] Compatible across multiple platforms
 
 ## Contributing
 
 Contributions are welcome. Please fork the repository, make your changes, and submit a pull request.
-```
