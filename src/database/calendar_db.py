@@ -66,7 +66,7 @@ class CalendarDB:
             return [dict(row) for row in cursor.fetchall()]
     
     def update_task(self, task_id: int, **kwargs) -> bool:
-        valid_fields = {'title', 'description', 'due_date', 'due_time', 'completed'}
+        valid_fields = {'title', 'description', 'due_date', 'due_time', 'completed','in_progress'}
         update_fields = {k: v for k, v in kwargs.items() if k in valid_fields}
         
         if not update_fields:

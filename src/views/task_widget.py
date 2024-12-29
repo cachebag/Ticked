@@ -30,56 +30,38 @@ class Task(Static):
             self.add_class("in-progress")
     
     def compose(self) -> ComposeResult:
-        with Horizontal():
+        with Horizontal(classes="task-container"):
             display_text = f"{self.task_data['title']} @ {self.task_data['due_time']}"
             if self.task_data['description']:
                 display_text += f" | {self.task_data['description']}"
-            task_text = Static(display_text, classes="task-text")
-            yield task_text
         
-            complete_indicator = Static(
-                "[ ]" if not self.completed else "✓", 
-                classes="status-indicator complete-indicator", 
-                id=f"complete_{self.task_id}"
-            )
-            yield complete_indicator
-        
-            progress_indicator = Static(
-                "[-]" if not self.in_progress else "→", 
-                classes="status-indicator progress-indicator", 
-                id=f"progress_{self.task_id}"
-            )
-            yield progress_indicator
+            yield Static(display_text, classes="task-text")
+            with Horizontal(classes="status-group"):
+                yield Static("✓", classes="status-indicator complete-indicator") 
+                yield Static("→", classes="status-indicator progress-indicator") 
 
     @on(Click)
     async def on_click(self, event: Click) -> None:
-        clicked_widget = event.widget
-        
-        if isinstance(clicked_widget, Static):
-            if "complete-indicator" in clicked_widget.classes:
-                self.completed = not self.completed
-                self.toggle_complete()
-                event.stop()
-            elif "progress-indicator" in clicked_widget.classes:
-                self.in_progress = not self.in_progress
-                self.toggle_progress()
-                event.stop()
-            elif "task-text" in clicked_widget.classes:
-                # Import TaskEditForm here to avoid circular imports
-                from .calendar import TaskEditForm
-                # Create and show the edit form
-                task_form = TaskEditForm(self.task_data)
-                # Use app.push_screen directly
-                result = await self.app.push_screen(task_form)
-                
-                # Handle the result
-                if result is None:
-                    self.post_message(self.Deleted(self.task_id))
-                    self.refresh_all_views()
-                elif result:
-                    self.post_message(self.Updated(self.task_id))
-                    self.refresh_all_views()
-                event.stop()
+        # Replace entire click handler
+        if "complete-indicator" in event.widget.classes:
+            self.completed = not self.completed
+            self.in_progress = False
+            self.update_task_status()
+            self.refresh_style()
+        elif "progress-indicator" in event.widget.classes:
+            self.in_progress = not self.in_progress 
+            self.completed = False
+            self.update_task_status()
+            self.refresh_style()
+        else:
+            from .calendar import TaskEditForm
+            task_form = TaskEditForm(self.task_data)
+            result = await self.app.push_screen(task_form)
+            if result is None:
+                self.post_message(self.Deleted(self.task_id))
+            elif result:
+                self.post_message(self.Updated(self.task_id))
+            self.refresh_all_views() 
 
     def toggle_complete(self) -> None:
         task_text = self.query_one(".task-text")
@@ -149,3 +131,17 @@ class Task(Static):
                 today_content.refresh_tasks()
         except Exception:
             pass
+
+    def refresh_style(self) -> None:
+        if self.completed:
+            self.add_class("completed-task")
+            self.query_one(".task-text").add_class("completed")
+            self.remove_class("in-progress")  # Make sure we remove in-progress when completed
+        elif self.in_progress:  # Use elif to ensure they're mutually exclusive
+            self.add_class("in-progress")
+            self.remove_class("completed-task")
+            self.query_one(".task-text").remove_class("completed")
+        else:
+            self.remove_class("completed-task")
+            self.remove_class("in-progress")
+            self.query_one(".task-text").remove_class("completed")
