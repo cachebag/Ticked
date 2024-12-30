@@ -167,25 +167,37 @@ async function loadPage(pageId) {
         
         try {
             if (page.type === 'markdown') {
+                console.log('Attempting to load:', page.path);
                 const response = await fetch(page.path);
+                console.log('Response status:', response.status);
                 if (!response.ok) {
-                    throw new Error(`Failed to load ${page.path}`);
+                    throw new Error(`Failed to load ${page.path} (Status: ${response.status})`);
                 }
                 content = await response.text();
             } else {
                 content = page.content;
             }
 
-            document.getElementById('doc-content').innerHTML = marked(content);
+            // Check if marked is available
+            if (typeof marked === 'undefined') {
+                throw new Error('Markdown parser not loaded');
+            }
+
+            // Use marked.parse instead of marked directly
+            document.getElementById('doc-content').innerHTML = marked.parse(content);
             document.getElementById('breadcrumb').textContent = page.title;
             updateUrl(pageId);
             highlightCode();
         } catch (error) {
-            console.error('Error loading content:', error);
-            document.getElementById('doc-content').innerHTML = marked('# Error Loading Page\n\nFailed to load the requested documentation.');
+            console.error('Error details:', error);
+            document.getElementById('doc-content').innerHTML = `
+                <h1>Error Loading Page</h1>
+                <p>Failed to load the documentation.</p>
+                <pre>${error.message}</pre>
+            `;
         }
     } else {
-        document.getElementById('doc-content').innerHTML = marked('# Page Not Found');
+        document.getElementById('doc-content').innerHTML = '<h1>Page Not Found</h1>';
     }
 }
 
