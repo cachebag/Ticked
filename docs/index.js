@@ -6,9 +6,9 @@ const docs = {
             items: [
                 { 
                     id: 'introduction', 
-                    title: 'External Document',
+                    title: 'Intro',
                     type: 'markdown',
-                    path: 'intro.md'
+                    path: './docs/intro.md'
                 },
                 { 
                     id: 'quick-start', 
