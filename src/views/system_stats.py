@@ -1,5 +1,4 @@
 from textual.widgets import Static
-from textual.reactive import reactive
 import psutil
 from datetime import datetime
 import getpass
