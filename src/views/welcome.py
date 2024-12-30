@@ -1,6 +1,7 @@
 from textual.widgets import Static, Button
 from textual.containers import Container, Grid, Horizontal, Vertical
 from textual.app import ComposeResult
+from textual.binding import Binding
 from datetime import datetime
 import requests
 from .task_widget import Task
@@ -209,6 +210,60 @@ class WelcomeContent(Container):
         yield WelcomeMessage("Select an option from the menu to begin (you can use your mouse too, we don't judge.)")
 
 class WelcomeView(Container):
+
+    BINDINGS = [
+        Binding("left", "move_left", "Left", show=True),
+        Binding("right", "move_right", "Right", show=True),
+        Binding("enter", "select_tab", "Select", show=True),
+        Binding("up", "move_up", "Up", show=True),  
+        Binding("down", "move_down", "Down", show=True),  
+        Binding("tab", "toggle_filter", "Toggle Upcoming Tasks", show=True)
+    ]
+
+    def __init__(self):
+        super().__init__()
+        self._focused_tasks = False
+
+    def on_focus(self, event) -> None:
+        if isinstance(event.widget, Task):
+            tasks_list = self.query_one("#today-tasks-list")
+            if event.widget in tasks_list.query(Task):
+                self._focused_tasks = True
+
+    def on_blur(self, event) -> None:
+        if self._focused_tasks:
+            self._focused_tasks = False
+
+    async def action_move_down(self) -> None:
+        current = self.app.focused
+    
+        if isinstance(current, TabButton):
+            tasks = list(self.query_one("#today-tasks-list").query(Task))
+            if tasks:
+                self._focused_tasks = True
+                tasks[0].focus()
+        elif isinstance(current, Task):
+            tasks = list(self.query_one("#today-tasks-list").query(Task))
+            if tasks:
+                current_idx = tasks.index(current)
+                next_idx = (current_idx + 1) % len(tasks)
+                tasks[next_idx].focus()
+
+    async def action_move_up(self) -> None:
+        current = self.app.focused
+    
+        if isinstance(current, Task):
+            tasks = list(self.query_one("#today-tasks-list").query(Task))
+            if tasks:
+                current_idx = tasks.index(current)
+                if current_idx == 0:
+                    self._focused_tasks = False
+                    today_tab = self.query_one("TabButton#tab_today")
+                    today_tab.focus()
+                else:
+                    prev_idx = (current_idx - 1)
+                    tasks[prev_idx].focus()
+
     def compose(self) -> ComposeResult:
         with Horizontal(classes="tab-bar"):
             yield TabButton("Today", "today")
@@ -221,6 +276,7 @@ class WelcomeView(Container):
     def on_mount(self) -> None:
         today_tab = self.query_one("TabButton#tab_today")
         today_tab.toggle_active(True)
+        today_tab.focus()  
         
         welcome_content = self.query_one(WelcomeContent)
         welcome_content.styles.display = "none"
@@ -257,8 +313,55 @@ class WelcomeView(Container):
             welcome_content.styles.display = "none"
             today_content.styles.display = "block"
 
+    async def action_move_left(self) -> None:
+        if self._focused_tasks:
+            return
+    
+        tabs = list(self.query(TabButton))
+        current = self.app.focused
+        if current in tabs:
+            current_idx = tabs.index(current)
+            prev_idx = (current_idx - 1) % len(tabs)
+            tabs[prev_idx].focus()
+
+    async def action_move_right(self) -> None:
+        if self._focused_tasks:
+            return
+        
+        tabs = list(self.query(TabButton))
+        current = self.app.focused
+        if current in tabs:
+            current_idx = tabs.index(current)
+            next_idx = (current_idx + 1) % len(tabs)
+            tabs[next_idx].focus()
+
+    async def action_select_tab(self) -> None:
+        current = self.app.focused
+        if isinstance(current, TabButton):
+            self.app.focused.press()
+        elif isinstance(current, Task):
+            await current.action_edit_task()    
+
+    async def action_toggle_filter(self) -> None:
+        upcoming = self.query_one(UpcomingTasksView)
+        if upcoming.filter_days == 7:
+            upcoming.filter_days = 30
+            for btn in upcoming.query(".filter-btn"):
+                btn.remove_class("active")
+            thirty_day_btn = upcoming.query_one("#filter-30")
+            thirty_day_btn.add_class("active")
+        else:
+            upcoming.filter_days = 7
+            for btn in upcoming.query(".filter-btn"):
+                btn.remove_class("active")
+            seven_day_btn = upcoming.query_one("#filter-7")
+            seven_day_btn.add_class("active")
+        
+        upcoming.refresh_tasks()
+
 
 class UpcomingTasksView(Container):
+
     def __init__(self):
         super().__init__()
         self.filter_days = 7
@@ -300,7 +403,7 @@ class UpcomingTasksView(Container):
             for task in tasks:
                 task_with_date = task.copy()
                 date_obj = datetime.strptime(task['due_date'], '%Y-%m-%d')
-                date_str = date_obj.strftime('%B %d, %Y')  # e.g. "December 29, 2024"
+                date_str = date_obj.strftime('%B %d, %Y')  
                 
                 if task['description']:
                     task_with_date['display_text'] = f"{task['title']} @ {task['due_time']} | {task['description']} | On {date_str}"
@@ -311,5 +414,6 @@ class UpcomingTasksView(Container):
                 tasks_list.mount(task_widget)
         else:
             tasks_list.mount(Static("No upcoming tasks", classes="empty-schedule"))
+
 
 

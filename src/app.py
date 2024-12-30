@@ -15,12 +15,10 @@ class Tick(App):
         Binding("q", "quit", "Quit", show=True),
         Binding("up", "focus_previous", "Move Up", show=True),
         Binding("down", "focus_next", "Move Down", show=True),
-        Binding("enter", "select_item", "Select", show=True),
-        Binding("left", "previous_month", "Previous Month", show=True),
-        Binding("right", "next_month", "Next Month", show=True),
-        Binding("tab", "cycle_focus", "Cycle Focus", show=True),
-        Binding("esc", "toggle_menu", "Toggle Menu", show=True),
-        Binding("b", "back", "Back", show=True),
+        Binding("left", "focus_previous", "Move Left", show=True),
+        Binding("right", "focus_next", "Move Right", show=True),
+        Binding("enter", "select", "Select", show=True),
+        Binding("escape", "toggle_menu", "Toggle Menu", show=True),
     ]
 
     
@@ -39,26 +37,6 @@ class Tick(App):
                 first_menu_item.focus()
         except Exception:
             pass
-
-    def action_focus_next(self) -> None:
-        current = self.focused
-        menu_items = list(self.screen.query("MenuItem"))
-        if menu_items and current in menu_items:
-            index = menu_items.index(current)
-            next_index = (index + 1) % len(menu_items)
-            menu_items[next_index].focus()
-
-    def action_focus_previous(self) -> None:
-        current = self.focused
-        menu_items = list(self.screen.query("MenuItem"))
-        if menu_items and current in menu_items:
-            index = menu_items.index(current)
-            prev_index = (index - 1) % len(menu_items)
-            menu_items[prev_index].focus()
-
-    def action_select_item(self) -> None:
-        if self.focused and isinstance(self.focused, Button):
-            self.focused.press()
 
 if __name__ == "__main__":
     app = Tick()

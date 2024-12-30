@@ -4,15 +4,8 @@ from textual.message import Message
 from textual.app import ComposeResult
 from textual import on
 from textual.events import Click
-from textual.binding import Binding
 
 class Task(Static):
-    BINDINGS = [
-        Binding("c", "toggle_complete", "Toggle Complete"),
-        Binding("p", "toggle_progress", "Toggle Progress"), 
-        Binding("enter", "edit_task", "Edit Task")
-    ]
-    
     class Updated(Message):
         def __init__(self, task_id: int) -> None:
             self.task_id = task_id

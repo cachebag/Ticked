@@ -33,7 +33,11 @@ class HomeScreen(Screen):
     
     BINDINGS = [
         Binding("escape", "toggle_menu", "Toggle Menu", show=True),
-        Binding("q", "quit_app", "Quit Application", show=True),
+        Binding("up", "menu_up", "Up", show=True),
+        Binding("down", "menu_down", "Down", show=True),
+        Binding("enter", "menu_select", "", show=False),
+        Binding("left", "move_left", "", show=False),
+        Binding("right", "move_right", "", show=False)
     ]
     
     def compose(self) -> ComposeResult:
@@ -54,11 +58,16 @@ class HomeScreen(Screen):
     def action_quit_app(self) -> None:
         self.app.exit()
 
+    def is_menu_visible(self) -> bool:
+        """Check if menu is currently visible"""
+        menu = self.query_one("MainMenu")
+        return "hidden" not in menu.classes
+
     def action_toggle_menu(self) -> None:
         menu = self.query_one("MainMenu")
         if "hidden" in menu.classes:
             menu.remove_class("hidden")
-            menu.styles.display = "block"  
+            menu.styles.display = "block"
             try:
                 first_menu_item = menu.query_one("MenuItem")
                 if first_menu_item:
@@ -67,6 +76,82 @@ class HomeScreen(Screen):
                 self.notify("Could not focus menu item")
         else:
             menu.add_class("hidden")
+            content = self.query_one("#content")
+            if content and content.children:
+                current_view = content.children[0]
+            
+                if isinstance(current_view, WelcomeView):
+                    try:
+                        today_tab = current_view.query_one("TabButton#tab_today")
+                        if today_tab:
+                            today_tab.focus()
+                        return
+                    except Exception:
+                        pass
+            
+                elif isinstance(current_view, CalendarView):
+                    try:
+                        day_view = current_view.query_one(DayView)
+                        if day_view and day_view.styles.display == "block":
+                            add_task = day_view.query_one("#add-task")
+                            if add_task:
+                                add_task.focus()
+                                return
+                    except Exception:
+                        pass
+                
+                    try:
+                        current_day = current_view.query_one(".current-day")
+                        if current_day:
+                            current_day.focus()
+                            return
+                        else:
+                            first_day = current_view.query_one("CalendarDayButton")
+                            if first_day:
+                                first_day.focus()
+                                return
+                    except Exception:
+                        pass
+            
+                elif isinstance(current_view, NestView):
+                    try:
+                        tree = current_view.query_one("FilterableDirectoryTree")
+                        if tree:
+                            tree.focus()
+                        return
+                    except Exception:
+                        pass
+            
+                content.focus() 
+
+    def action_menu_up(self) -> None:
+        """Handle up arrow key when menu is visible"""
+        if self.is_menu_visible():
+            menu = self.query_one("MainMenu")
+            menu_items = list(menu.query("MenuItem"))
+            current = self.focused
+            
+            if current in menu_items:
+                current_idx = menu_items.index(current)
+                prev_idx = (current_idx - 1) % len(menu_items)
+                menu_items[prev_idx].focus()
+
+    def action_menu_down(self) -> None:
+        """Handle down arrow key when menu is visible"""
+        if self.is_menu_visible():
+            menu = self.query_one("MainMenu")
+            menu_items = list(menu.query("MenuItem"))
+            current = self.focused
+            
+            if current in menu_items:
+                current_idx = menu_items.index(current)
+                next_idx = (current_idx + 1) % len(menu_items)
+                menu_items[next_idx].focus()
+
+    def action_menu_select(self) -> None:
+        """Handle enter key when menu is visible"""
+        if self.is_menu_visible() and isinstance(self.focused, MenuItem):
+            self.focused.press()
 
     def on_mount(self) -> None:
         menu = self.query_one("MainMenu")
@@ -106,18 +191,24 @@ class HomeScreen(Screen):
         except Exception as e:
             self.notify(f"Error: {str(e)}")
 
-    async def action_cycle_focus(self) -> None:
-        current = self.app.focused
-        focusable = list(self.query("Button, Input, TextArea"))
-        if focusable and current in focusable:
-            idx = focusable.index(current)
-            next_idx = (idx + 1) % len(focusable)
-            focusable[next_idx].focus()
-        elif focusable:
-            focusable[0].focus()
+    def on_focus(self, event) -> None:
+        """Prevent focus on non-menu items when menu is visible"""
+        if self.is_menu_visible():
+            menu = self.query_one("MainMenu")
+            if not isinstance(event.control, (MenuItem, MainMenu)):
+                event.prevent_default()
+                event.stop()
+                current_menu_item = menu.query("MenuItem").first()
+                for item in menu.query("MenuItem"):
+                    if item.has_focus:
+                        current_menu_item = item
+                        break
+                current_menu_item.focus()
 
-    async def action_back(self) -> None:
-        try:
-            self.app.pop_screen()
-        except:
-            pass
+    def on_key(self, event) -> None:
+        """Prevent navigation keys from affecting content when menu is visible"""
+        if self.is_menu_visible():
+            allowed_keys = {"escape", "up", "down", "enter"}
+            if event.key not in allowed_keys:
+                event.prevent_default()
+                event.stop()

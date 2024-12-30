@@ -143,12 +143,9 @@ CalendarDayButton {
 
 CalendarDayButton:hover {}
 
-CalendarDayButton:focus {
-    border: tall;
-}
 
 CalendarDayButton.current-day {
-    border: orange;
+    background: $accent 40%;
 }
 
 .calendar-empty-day {}
@@ -297,7 +294,14 @@ DayView {
 
 .task-item:hover {
     background: $surface-lighten-1;
+    border: wide $accent;
 }
+
+.task-item:focus {
+    background: $surface-lighten-2;
+    border: wide $accent;
+}
+
 
 .empty-schedule {
     padding: 2;
@@ -672,7 +676,6 @@ CodeEditor .selection {
 
 /* Selection and Focus */
 *:focus {
-    border: solid $accent;
 }
 
 FilterableDirectoryTree:focus {
@@ -687,10 +690,3 @@ CodeEditor:focus {
     border: solid transparent;  /* Default transparent border to prevent layout shifts */
 }
 
-.file-nav:focus-within {
-    border-title-color: $accent;
-}
-
-.editor-container:focus-within {
-    border-title-color: $accent;
-}
