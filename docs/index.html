@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tick Documentation</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- Add highlight.js for code syntax highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h1 class="logo">Docs</h1>
+                <button id="menu-toggle" class="menu-toggle">☰</button>
+            </div>
+            <nav id="sidebar-nav">
+                <!-- Navigation items will be dynamically inserted here -->
+            </nav>
+        </aside>
+        <main class="content">
+            <div class="content-header">
+                <div class="breadcrumb" id="breadcrumb"></div>
+                <div class="theme-toggle">
+                    <button id="theme-switch" aria-label="Toggle theme">🌙</button>
+                </div>
+            </div>
+            <div id="doc-content" class="doc-content">
+                <!-- Markdown content will be rendered here -->
+            </div>
+        </main>
+    </div>
+    <script src="index.js"></script>
+</body>
+</html>
