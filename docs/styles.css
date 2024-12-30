@@ -127,10 +127,6 @@ nav {
     margin-bottom: 2rem;
 }
 
-.breadcrumb {
-    color: var(--text-secondary);
-    font-size: 0.875rem;
-}
 
 .theme-toggle button {
     background: none;
