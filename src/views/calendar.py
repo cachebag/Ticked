@@ -196,6 +196,24 @@ class CalendarView(Container):
         if day_view and day_view.styles.display == "block":
             self.action_back_to_calendar()
 
+    def action_focus_previous(self) -> None:
+        """Only allow menu navigation when menu is visible"""
+        try:
+            menu = self.app.screen.query_one("MainMenu")
+            if "hidden" in menu.classes:
+                return
+        except Exception:
+            pass
+
+    def action_focus_next(self) -> None:
+        """Only allow menu navigation when menu is visible"""
+        try:
+            menu = self.app.screen.query_one("MainMenu")
+            if "hidden" in menu.classes:
+                return
+        except Exception:
+            pass
+
 class TaskForm(ModalScreen):
     BINDINGS = [
         Binding("escape", "cancel", "Cancel"),
@@ -424,7 +442,7 @@ class ScheduleSection(Vertical):
         with Horizontal(classes="schedule-controls"):
             yield Button("+ Add Task", id="add-task", classes="schedule-button")
         yield Static("Today's Tasks:", classes="task-header")
-        with Vertical(id="tasks-list", classes="tasks-list"):
+        with Vertical(id="tasks-list-day", classes="tasks-list-day"):
             yield Static("No tasks scheduled for today", id="empty-schedule", classes="empty-schedule")
 
     @on(Button.Pressed, "#add-task")
@@ -493,8 +511,8 @@ class DayView(Vertical):
     BINDINGS = [
         Binding("left", "move_left", "Left", show=True),
         Binding("right", "move_right", "Right", show=True),
-        Binding("up", "move_up", "", show=False),      # Override and hide up binding
-        Binding("down", "move_down", "", show=False)   # Override and hide down binding
+        Binding("up", "move_up", "", show=False),      
+        Binding("down", "move_down", "", show=False)   
     ]
 
     def __init__(self, date: datetime):
@@ -509,6 +527,8 @@ class DayView(Vertical):
         with Horizontal(classes="day-view-content"):
             with Container(classes="schedule-container"):
                 yield ScheduleSection(self.date)
+            with Horizontal(classes="middle-container"):
+                yield Static("Nothing to see here yet", classes="section-header")
             with Container(classes="notes-container"):
                 yield NotesSection(self.date)
 
@@ -528,7 +548,7 @@ class DayView(Vertical):
     def refresh_tasks(self) -> None:
         current_date = self.date.strftime('%Y-%m-%d')
         tasks = self.app.db.get_tasks_for_date(current_date)
-        tasks_list = self.query_one("#tasks-list")
+        tasks_list = self.query_one("#tasks-list-day")
 
         tasks_list.remove_children()
 
