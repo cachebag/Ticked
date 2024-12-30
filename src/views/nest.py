@@ -42,6 +42,8 @@ class CodeEditor(TextArea):
         Binding(":wq", "write_quit", "Write and Quit", show=False),
         Binding(":q", "quit", "Quit", show=False),
         Binding(":q!", "force_quit", "Force Quit", show=False),
+        Binding("ctrl+z", "noop", ""), 
+        Binding("ctrl+y", "noop", ""),
     ]
 
     class FileModified(Message):
@@ -49,17 +51,25 @@ class CodeEditor(TextArea):
             super().__init__()
             self.is_modified = is_modified
 
+        def action_noop(self) -> None:
+            pass
+
     def __init__(self) -> None:
         super().__init__(language="python", theme="monokai", show_line_numbers=True)
+        self._undo_stack = []
+        self._redo_stack = []
+        self._last_text = ""
         self.current_file = None
         self._modified = False
         self.tab_size = 4
         self._syntax = None
         self.language = None
         self.highlight_text = None
-        self.mode = "insert"
+        self._is_undoing = False
+        self.mode = "normal"
         self.command = ""
         self.in_command_mode = False
+        self.pending_command = ""
 
     def on_key(self, event) -> None:
         if self.in_command_mode:
@@ -97,9 +107,16 @@ class CodeEditor(TextArea):
                     event.prevent_default()
                     event.stop()
                 elif event.key in ["left", "right", "up", "down"]:
-                    # Allow arrow keys for navigation in insert mode
                     return
             elif self.mode == "normal":
+                if event.key == "u":
+                    self.action_undo()
+                    event.prevent_default()
+                    event.stop()
+                elif event.key == "ctrl+r":
+                    self.action_redo()
+                    event.prevent_default()
+                    event.stop()
                 motion_map = {
                     "h": self.action_move_left,
                     "l": self.action_move_right,
@@ -109,12 +126,25 @@ class CodeEditor(TextArea):
                     "b": self.action_move_word_backward,
                     "0": self.action_move_line_start,
                     "$": self.action_move_line_end,
-                    "u": self.action_undo,
                     "x": self.action_delete_char,
                     "dd": self.action_delete_line,
                     "de": self.action_delete_to_end,
                 }
-                if event.character in motion_map:
+            
+                if self.pending_command:
+                    combined_command = self.pending_command + event.character
+                    if combined_command in motion_map:
+                        motion_map[combined_command]()
+                        self.pending_command = ""
+                    else:
+                        self.pending_command = "" 
+                    event.prevent_default()
+                    event.stop()
+                elif event.character == "d":  
+                    self.pending_command = "d"
+                    event.prevent_default()
+                    event.stop()
+                elif event.character in motion_map:
                     motion_map[event.character]()
                     event.prevent_default()
                     event.stop()
@@ -129,14 +159,13 @@ class CodeEditor(TextArea):
                     event.prevent_default()
                     event.stop()
                 elif event.key in ["left", "right", "up", "down"]:
-                    # Allow arrow keys for navigation in normal mode
                     return
                 else:
                     event.prevent_default()
                     event.stop()
 
     def execute_command(self) -> None:
-        command = self.command[1:].strip()  # Remove leading ':'
+        command = self.command[1:].strip()  
         if command == "w":
             self.action_write()
         elif command == "wq":
@@ -149,9 +178,12 @@ class CodeEditor(TextArea):
             self.notify(f"Unknown command: {command}", severity="warning")
 
     def render(self) -> str:
-        content = super().render()
+        # Convert the renderable to string explicitly using str()
+        content = str(super().render())
+    
         if self.in_command_mode:
-            content += f"\nCommand: {self.command}"  # Display the command input
+            content += f"\nCommand: {self.command}"
+    
         return content
 
     def set_language_from_file(self, filepath: str) -> None:
@@ -246,11 +278,16 @@ class CodeEditor(TextArea):
 
     def watch_text(self, old_text: str, new_text: str) -> None:
         if old_text != new_text:
+            if not self._is_undoing:
+                self._undo_stack.append(old_text)
+                self._redo_stack.clear()
+            
             if not self._modified:
                 self._modified = True
                 self.post_message(self.FileModified(True))
+        
             if self._syntax:
-                self.update_syntax_highlighting()
+                self.update_syntax_highlighting() 
 
     def action_enter_normal_mode(self) -> None:
         self.mode = "normal"
@@ -300,20 +337,13 @@ class CodeEditor(TextArea):
         if self.mode == "normal":
             self.move_cursor((self.cursor_location[0], 0))
 
-    def action_move_line_end(self) -> None:
-        if self.mode == "normal":
-            lines = self.text.split("\n")
-            cur_row = self.cursor_location[0]
-            line_length = len(lines[cur_row]) if cur_row < len(lines) else 0
-            self.move_cursor((cur_row, line_length)) 
-
     def action_undo(self) -> None:
         if self.mode == "normal":
             self.undo()
 
     def action_redo(self) -> None:
         if self.mode == "normal":
-            self.redo()
+            self.redo() 
 
     def action_delete_char(self) -> None:
         if self.mode == "normal":
@@ -344,9 +374,21 @@ class CodeEditor(TextArea):
             cur_row, cur_col = self.cursor_location
             lines = self.text.split("\n")
             if cur_row < len(lines):
-                lines[cur_row] = lines[cur_row][:cur_col]
+                line = lines[cur_row]
+                start_col = cur_col
+                while cur_col < len(line) and not line[cur_col].isspace():
+                    cur_col += 1
+                lines[cur_row] = line[:start_col] + line[cur_col:]
                 self.text = "\n".join(lines)
-                self.move_cursor((cur_row, cur_col))
+                self.move_cursor((cur_row, start_col))
+
+    def action_move_line_end(self) -> None:
+        if self.mode == "normal":
+            lines = self.text.split("\n")
+            cur_row = self.cursor_location[0]
+            if cur_row < len(lines):
+                line_length = len(lines[cur_row])
+                self.move_cursor((cur_row, line_length))
 
 class NestView(Container):
     BINDINGS = [
@@ -427,9 +469,15 @@ class NestView(Container):
         try:
             editor = self.query_one(CodeEditor)
             with open(event.path, 'r', encoding='utf-8') as file:
-                editor.load_text(file.read())
+                content = file.read()
+                editor.load_text(content)
+                # Initialize undo stack with the loaded file
+                editor._undo_stack = []
+                editor._redo_stack = []
+                editor._last_text = content
             editor.current_file = event.path
             editor.set_language_from_file(event.path)
+            editor.mode = "normal"  # Ensure we start in normal mode
             editor.focus()
         except (IOError, OSError) as e:
             self.notify(f"Error: {e}", severity="error")
