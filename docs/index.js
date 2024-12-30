@@ -185,8 +185,6 @@ async function loadPage(pageId) {
 
             // Use marked.parse instead of marked directly
             document.getElementById('doc-content').innerHTML = marked.parse(content);
-            document.getElementById('breadcrumb').textContent = page.title;
-            updateUrl(pageId);
             highlightCode();
         } catch (error) {
             console.error('Error details:', error);
