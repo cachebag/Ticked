@@ -8,7 +8,7 @@ const docs = {
                     id: 'introduction', 
                     title: 'Intro',
                     type: 'markdown',
-                    path: './docs/intro.md'
+                    path: 'intro.md'
                 },
                 { 
                     id: 'quick-start', 
