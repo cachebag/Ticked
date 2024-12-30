@@ -6,6 +6,7 @@ from textual.binding import Binding
 from .welcome import WelcomeView
 from .calendar import CalendarView
 from .system_stats import SystemStatsHeader
+from .nest import NestView
 
 class MenuItem(Button):
     def __init__(self, label: str, id: str) -> None:
@@ -17,9 +18,8 @@ class MainMenu(Container):
         yield Static("MENU", classes="menu-header")
         yield MenuItem("HOME", id="menu_home")
         yield MenuItem("CALENDAR", id="menu_calendar")
-        yield MenuItem("NOTES", id="menu_notes")
+        yield MenuItem("NEST", id="menu_nest")
         yield MenuItem("POMODORO", id="menu_pomodoro")
-        yield MenuItem("YOUTUBE", id="menu_youtube")
         yield MenuItem("SPOTIFY", id="menu_spotify")
         yield MenuItem("SETTINGS", id="menu_settings")
         yield MenuItem("EXIT", id="menu_exit")
@@ -85,16 +85,14 @@ class HomeScreen(Screen):
                 home_view = WelcomeView()
                 content_container.mount(home_view)  
             elif button_id == "menu_calendar":
+                menu.add_class("hidden")
                 calendar_view = CalendarView()
                 content_container.mount(calendar_view)
+            elif button_id == "menu_nest":
                 menu.add_class("hidden")
-            elif button_id == "menu_notes":
-                menu.add_class("hidden")
-                self.notify("Coming Soon!", severity="warning")
+                nest_view = NestView()
+                content_container.mount(nest_view)
             elif button_id == "menu_pomodoro":
-                menu.add_class("hidden")
-                self.notify("Coming Soon!", severity="warning")
-            elif button_id == "menu_youtube":
                 menu.add_class("hidden")
                 self.notify("Coming Soon!", severity="warning")
             elif button_id == "menu_spotify":

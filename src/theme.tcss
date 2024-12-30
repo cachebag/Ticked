@@ -72,6 +72,7 @@ MenuItem:focus {
     width: 100%;
     height: 100%;
     layout: horizontal;
+    overflow: hidden;  /* Add this */
 }
 
 /* Welcome View */
@@ -422,14 +423,13 @@ DashboardCard {
 }
 
 .tasks-list > Static:hover {
-    background: $background-lighten-1; /* Use a valid theme color variable */
-    text-style: bold; /* Add a hover indication with bold text */
+    background: $surface-lighten-1;
+    text-style: bold;
 }
-
 
 .status-indicator:hover {
     background: $surface;
-    text-style: bold;  /* This gives visual feedback instead of cursor change */
+    text-style: bold;
 }
 
 .status-indicator {
@@ -442,14 +442,13 @@ DashboardCard {
     border: none;
 }
 
-
 .task-text {
     width: 5fr;
 }
 
 .completed {
     text-style: strike;
-    color: $success-darken-2;    /* Use theme colors */
+    color: $success-darken-2;
 }
 
 .completed-task {
@@ -471,14 +470,11 @@ DashboardCard {
     color: $text;
 }
 
-
 .task-container:hover {
     width: 100%;
     height: auto;
     background: $surface-lighten-1;
-
 }
-
 
 .header-row {
     width: 100%;
@@ -488,10 +484,10 @@ DashboardCard {
     align: left middle;
     padding: 0 1;
     margin-bottom: 1;
-  }
+}
 
 .header-spacer {
-    width: 1fr;  /* This creates a flexible space between title and buttons */
+    width: 1fr;
 }
 
 .filter-buttons {
@@ -525,16 +521,176 @@ DashboardCard {
     overflow: auto;
 }
 
-  UpcomingTasksView {
+UpcomingTasksView {
     border: solid $secondary;
     height: 100%;
     padding: 1;
     overflow: auto;
 }
 
-  /* Add this new style */
-  .header-row > .card-title {
+.header-row > .card-title {
     border-bottom: none;
     padding-bottom: 0;
-    dock: none;  /* Override the dock for card titles in header rows */
+    dock: none;
+}
+
+/* Nav Header Styling */
+.nav-header {
+    width: 100%;
+    height: 3;
+    background: $secondary;
+    padding: 0 1;
+}
+
+.nav-title {
+    width: 2fr;
+    color: $accent;
+    text-style: bold;
+    padding: 1 2;
+}
+
+.toggle-hidden-btn {
+    width: 4;
+    height: 3;
+    background: transparent;
+    content-align: center middle;
+    border: none;
+}
+
+.toggle-hidden-btn:hover {
+    background: $primary-darken-2;
+}
+
+/* Directory Tree Styling */
+FilterableDirectoryTree {
+    width: 100%;
+    height: 100%;
+    scrollbar-size: 1 1;
+}
+
+.file-nav {
+    width: 30%;
+    min-width: 30;
+    max-width: 50;
+    height: 100%;
+    transition: width 200ms in_out_cubic;
+}
+
+.file-nav.hidden {
+    width: 0 !important;
+    min-width: 0;  /* Add this */
+    overflow: hidden;
+}
+
+.editor-container {
+    width: 1fr;
+    height: 100%;
+}
+
+/* File Navigation */
+#nest-view {
+    width: 100%;
+    height: 100%;
+}
+
+.main-container {
+    width: 100%;
+    height: 100%;
+    layout: horizontal;
+}
+
+.file-nav {
+    width: 30%;
+    min-width: 30;
+    max-width: 50;
+    height: 100%;
+    background: $boost;
+    border-right: solid $panel;
+}
+
+.editor-container {
+    width: 1fr;
+    height: 100%;
+}
+
+TextArea {
+    height: 100%;
+    dock: left;
+    width: 100%;
+}
+
+/* Editor Styling */
+CodeEditor {
+    border: none;
+    height: 100%;
+    dock: left;
+    width: 100%;
+    padding: 1;
+}
+
+/* Syntax highlighting */
+CodeEditor .string { 
+    color: $success; 
+}
+
+CodeEditor .number { 
+    color: $warning; 
+}
+
+CodeEditor .keyword { 
+    color: $error; 
+}
+
+CodeEditor .comment { 
+    color: $surface-lighten-2; 
+}
+
+CodeEditor .type { 
+    color: $primary; 
+}
+
+CodeEditor .function { 
+    color: $success; 
+}
+
+/* Editor features */
+CodeEditor .line-numbers {
+    background: $surface-darken-1;
+    color: $surface-lighten-2;
+    width: 4;
+    padding-right: 1;
+    text-align: right;
+}
+
+CodeEditor .current-line {
+    background: $boost;
+}
+
+CodeEditor .selection {
+    background: $primary-darken-1;
+}
+
+/* Selection and Focus */
+*:focus {
+    border: solid $accent;
+}
+
+FilterableDirectoryTree:focus {
+    border: solid $accent;
+}
+
+CodeEditor:focus {
+    border: solid $accent;
+}
+
+.file-nav, .editor-container {
+    border: solid transparent;  /* Default transparent border to prevent layout shifts */
+}
+
+.file-nav:focus-within {
+    border-title-color: $accent;
+}
+
+.editor-container:focus-within {
+    border-title-color: $accent;
 }
