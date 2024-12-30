@@ -35,6 +35,7 @@ class CodeEditor(TextArea):
         Binding("b", "move_word_backward", "Move Word Backward", show=False),
         Binding("0", "move_line_start", "Move to Line Start", show=False),
         Binding("$", "move_line_end", "Move to Line End", show=False),
+        Binding("shift+left", "focus_tree", "Focus Tree", show=True),
     ]
 
     class FileModified(Message):
@@ -60,13 +61,11 @@ class CodeEditor(TextArea):
             return
 
         if self.mode == "normal":
-            # In normal mode, only allow command keys
             if event.character == "i":
                 self.mode = "insert"
                 event.prevent_default()
                 event.stop()
             elif event.character in ["h", "j", "k", "l", "w", "b", "0", "$"]:
-                # Map the keys to their corresponding actions
                 action_map = {
                     "h": self.action_move_left,
                     "j": self.action_move_down,
@@ -82,7 +81,6 @@ class CodeEditor(TextArea):
                     event.prevent_default()
                     event.stop()
             else:
-                # Prevent any text input in normal mode
                 if event.is_printable:
                     event.prevent_default()
                     event.stop()
@@ -102,7 +100,7 @@ class CodeEditor(TextArea):
                 self._syntax = Syntax(
                     self.text,
                     self.language,
-                    theme="monokai",
+                    theme="dracula",
                     line_numbers=True,
                     word_wrap=False,
                     indent_guides=True,
@@ -215,7 +213,6 @@ class NestView(Container):
         Binding("ctrl+h", "toggle_hidden", "Toggle Hidden Files", show=True),
         Binding("ctrl+b", "toggle_sidebar", "Toggle Sidebar", show=True),
         Binding("ctrl+f", "find", "Find", show=True),
-        Binding("space+e", "toggle_sidebar", "Toggle Sidebar", show=True),
         Binding("ctrl+right", "focus_editor", "Focus Editor", show=True),
         Binding("ctrl+left", "focus_tree", "Focus Tree", show=True),
     ]
@@ -242,7 +239,7 @@ class NestView(Container):
                     classes="file-nav"
                 ),
                 Container(
-                    CodeEditor(),
+                    CustomCodeEditor(),
                     classes="editor-container"
                 ),
                 classes="main-container"
@@ -254,6 +251,11 @@ class NestView(Container):
         self.editor = self.query_one(CodeEditor)
         tree = self.query_one(FilterableDirectoryTree)
         tree.focus()
+
+        self.editor.can_focus_tab = True
+        self.editor.key_handlers = {
+            "ctrl+left": lambda: self.action_focus_tree()
+        }
 
     def action_toggle_hidden(self) -> None:
         self.show_hidden = not self.show_hidden
@@ -294,3 +296,12 @@ class NestView(Container):
 
     def on_code_editor_file_modified(self, event: CodeEditor.FileModified) -> None:
         pass
+
+class CustomCodeEditor(CodeEditor):
+    BINDINGS = [
+        *CodeEditor.BINDINGS,
+        Binding("shift+left", "focus_tree", "Focus Tree", show=True)
+    ]
+
+    def action_focus_tree(self) -> None:
+        self.app.query_one("NestView").action_focus_tree()
