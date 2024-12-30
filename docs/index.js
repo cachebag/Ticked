@@ -1,25 +1,20 @@
+// Documentation content structure
 const docs = {
     sections: [
         {
             title: 'Getting Started',
             items: [
-                { id: 'introduction', title: 'Introduction', content: `
-# Introduction
-
-Welcome to our documentation! This guide will help you get started with our platform.
-
-## Overview
-
-Our platform provides a simple and intuitive way to manage your documentation.
-
-### Key Features
-
-- **Markdown Support**: Write your documentation in Markdown
-- **Dark Mode**: Toggle between light and dark themes
-- **Mobile Responsive**: Works great on all devices
-- **Fast**: No build step required
-                `},
-                { id: 'quick-start', title: 'Quick Start', content: `
+                { 
+                    id: 'introduction', 
+                    title: 'External Document',
+                    type: 'markdown',
+                    path: 'intro.md'
+                },
+                { 
+                    id: 'quick-start', 
+                    title: 'Quick Start', 
+                    type: 'embedded',
+                    content: `
 # Quick Start Guide
 
 Get up and running in minutes!
@@ -31,14 +26,25 @@ const docs = new Docs({
     theme: 'light'
 });
 \`\`\`
-                `}
+                    `
+                }
             ]
         },
         {
             title: 'Core Concepts',
             items: [
-                { id: 'basics', title: 'Basic Concepts', content: `# Basic Concepts...` },
-                { id: 'advanced', title: 'Advanced Usage', content: `# Advanced Usage...` }
+                { 
+                    id: 'basics', 
+                    title: 'Basic Concepts',
+                    type: 'embedded',
+                    content: `# Basic Concepts...` 
+                },
+                { 
+                    id: 'advanced', 
+                    title: 'Advanced Usage',
+                    type: 'embedded',
+                    content: `# Advanced Usage...` 
+                }
             ]
         }
     ]
@@ -102,6 +108,8 @@ const themeManager = {
 // Build sidebar navigation
 function buildNavigation() {
     const nav = document.getElementById('sidebar-nav');
+    nav.innerHTML = ''; // Clear existing navigation
+    
     docs.sections.forEach(section => {
         const sectionEl = document.createElement('div');
         sectionEl.className = 'nav-section';
@@ -149,16 +157,33 @@ function updateActiveLink(clickedLink) {
 }
 
 // Load page content
-function loadPage(pageId) {
+async function loadPage(pageId) {
     const page = docs.sections
         .flatMap(section => section.items)
         .find(item => item.id === pageId);
     
     if (page) {
-        document.getElementById('doc-content').innerHTML = marked(page.content);
-        document.getElementById('breadcrumb').textContent = page.title;
-        updateUrl(pageId);
-        highlightCode();
+        let content;
+        
+        try {
+            if (page.type === 'markdown') {
+                const response = await fetch(page.path);
+                if (!response.ok) {
+                    throw new Error(`Failed to load ${page.path}`);
+                }
+                content = await response.text();
+            } else {
+                content = page.content;
+            }
+
+            document.getElementById('doc-content').innerHTML = marked(content);
+            document.getElementById('breadcrumb').textContent = page.title;
+            updateUrl(pageId);
+            highlightCode();
+        } catch (error) {
+            console.error('Error loading content:', error);
+            document.getElementById('doc-content').innerHTML = marked('# Error Loading Page\n\nFailed to load the requested documentation.');
+        }
     } else {
         document.getElementById('doc-content').innerHTML = marked('# Page Not Found');
     }
