@@ -24,9 +24,6 @@ MainMenu {
     dock: left;
     width: 30;
     height: 100%;
-    layer: above;
-    layers: above;
-    offset-x: 0;
     transition: width 200ms in_out_cubic;
     overflow: hidden;
     padding: 1;
@@ -34,6 +31,9 @@ MainMenu {
 
 MainMenu.hidden {
     width: 0 !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+    display: none !important;
 }
 
 .menu-header {
@@ -72,7 +72,7 @@ MenuItem:focus {
     width: 100%;
     height: 100%;
     layout: horizontal;
-    overflow: hidden;  /* Add this */
+    overflow: hidden;
 }
 
 /* Welcome View */
@@ -596,6 +596,7 @@ UpcomingTasksView {
     background: transparent;
     content-align: center middle;
     border: none;
+    margin-left: 1;
 }
 
 .toggle-hidden-btn:hover {
@@ -605,26 +606,28 @@ UpcomingTasksView {
 /* Directory Tree Styling */
 FilterableDirectoryTree {
     width: 100%;
-    height: 100%;
+    height: 1fr;
     scrollbar-size: 1 1;
 }
 
 .file-nav {
-    width: 30%;
+    width: 1fr;
     min-width: 30;
     max-width: 50;
     height: 100%;
-    transition: width 200ms in_out_cubic;
+    background: $boost;
+    border-right: solid $panel;
 }
 
 .file-nav.hidden {
     width: 0 !important;
-    min-width: 0;  /* Add this */
-    overflow: hidden;
+    min-width: 0 !important;
+    overflow: hidden !important;
+    display: none !important;
 }
 
 .editor-container {
-    width: 1fr;
+    width: 2fr;
     height: 100%;
 }
 
@@ -641,7 +644,7 @@ FilterableDirectoryTree {
 }
 
 .file-nav {
-    width: 30%;
+    width: 1fr;
     min-width: 30;
     max-width: 50;
     height: 100%;
@@ -650,7 +653,7 @@ FilterableDirectoryTree {
 }
 
 .editor-container {
-    width: 1fr;
+    width: 2fr;
     height: 100%;
 }
 
@@ -788,4 +791,75 @@ Tooltip {
 
 .in-progress {
     background: $warning-darken-2 50%;
+}
+
+/* New File Button */
+.new-file-btn {
+    width: 4;
+    height: 3;
+    background: transparent;
+    content-align: center middle;
+    border: none;
+    margin-left: 1;
+}
+
+.new-file-btn:hover {
+    background: $primary-darken-2;
+}
+
+/* Task Form Container */
+.task-form-container {
+    width: 60;
+    height: 40;
+    border: solid $panel;
+    padding: 1;
+    background: $boost;
+}
+
+/* File Dialog Styling */
+#file-dialog-tree {
+    height: 1fr;
+    margin: 1 0;
+    border: solid $panel;
+    padding: 1;
+}
+
+#selected-path {
+    text-align: left;
+    width: 100%;
+    height: auto;
+    padding: 1;
+    border: solid $panel;
+    margin-bottom: 1;
+}
+
+/* Modal Styling */
+#filename {
+    margin-bottom: 1;
+}
+
+.form-buttons {
+    width: 100%;
+    align-horizontal: right;
+}
+
+.form-buttons Button {
+    margin-left: 1;
+    min-width: 15;
+}
+
+/* Button styling */
+.toggle-hidden-btn, .new-file-btn {
+    width: 4;
+    height: 3;
+    background: transparent;
+    content-align: center middle;
+    border: none;
+    margin-left: 1;
+    color: $text;
+}
+
+.toggle-hidden-btn:hover, .new-file-btn:hover {
+    background: $primary-darken-2;
+    color: $accent;
 }

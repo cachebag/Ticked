@@ -1,6 +1,7 @@
 from textual.app import ComposeResult
-from textual.containers import Horizontal, Container
-from textual.widgets import DirectoryTree, Static, Button, TextArea
+from textual.containers import Horizontal, Container, Vertical
+from textual.screen import ModalScreen
+from textual.widgets import DirectoryTree, Static, Button, TextArea, Input, Label
 from textual.binding import Binding
 from textual.message import Message
 from rich.syntax import Syntax
@@ -17,8 +18,91 @@ class FilterableDirectoryTree(DirectoryTree):
             return paths
         return [path for path in paths if not os.path.basename(path).startswith('.')]
 
+class NewFileDialog(ModalScreen):
+    BINDINGS = [
+        Binding("escape", "cancel", "Cancel"),
+        Binding("f1", "submit", "Submit"),
+        Binding("tab", "next_field", "Next Field")
+    ]
+
+    def __init__(self, initial_path: str) -> None:
+        super().__init__()
+        self.selected_path = initial_path
+
+    def compose(self) -> ComposeResult:
+        with Container(classes="task-form-container"):
+            with Vertical(classes="task-form"):
+                yield Static("Create New File", classes="form-header")
+                
+                with Vertical():
+                    yield Label("Selected Directory:")
+                    yield Static(str(self.selected_path), id="selected-path")
+
+                with Vertical():
+                    yield Label("Filename")
+                    yield Input(placeholder="Enter filename", id="filename")
+
+                yield FilterableDirectoryTree(os.path.expanduser("~"))
+
+                with Horizontal(classes="form-buttons"):
+                    yield Button("Cancel", variant="error", id="cancel")
+                    yield Button("Create File", variant="success", id="submit")
+
+    def on_mount(self) -> None:
+        self.query_one("#filename").focus()
+
+    def on_directory_tree_directory_selected(self, event: DirectoryTree.DirectorySelected) -> None:
+        self.selected_path = event.path
+        self.query_one("#selected-path").update(str(self.selected_path))
+
+    def on_input_submitted(self) -> None:
+        self.action_submit()
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "cancel":
+            self.dismiss(None)
+        elif event.button.id == "submit":
+            self._handle_submit()
+
+    def _handle_submit(self) -> None:
+        filename = self.query_one("#filename").value
+        if not filename:
+            self.notify("Filename is required", severity="error")
+            return
+            
+        full_path = os.path.join(self.selected_path, filename)
+        
+        if os.path.exists(full_path):
+            self.notify("File already exists!", severity="error")
+            return
+            
+        try:
+            with open(full_path, 'w') as f:
+                f.write("")
+            self.dismiss(full_path)
+        except Exception as e:
+            self.notify(f"Error creating file: {str(e)}", severity="error")
+
+    async def action_cancel(self) -> None:
+        self.dismiss(None)
+        
+    async def action_submit(self) -> None:
+        self._handle_submit()
+
+    async def action_next_field(self) -> None:
+        current = self.app.focused
+        if isinstance(current, Input):
+            self.query_one(FilterableDirectoryTree).focus()
+        elif isinstance(current, FilterableDirectoryTree):
+            self.query_one("#submit").focus()
+        elif isinstance(current, Button):
+            self.query_one("#filename").focus()
+        else:
+            self.query_one("#filename").focus()
+
 class CodeEditor(TextArea):
     BINDINGS = [
+        Binding("ctrl+n", "new_file", "New File", show=True),
         Binding("tab", "indent", "Indent", show=False),
         Binding("shift+tab", "unindent", "Unindent", show=False),
         Binding("ctrl+]", "indent", "Indent", show=False),
@@ -72,6 +156,9 @@ class CodeEditor(TextArea):
         self.pending_command = ""
 
     def on_key(self, event) -> None:
+        if event.key.startswith("ctrl+") or event.key == "shift+left":
+            return
+
         if self.in_command_mode:
             if event.key == "enter":
                 self.execute_command()
@@ -178,7 +265,6 @@ class CodeEditor(TextArea):
             self.notify(f"Unknown command: {command}", severity="warning")
 
     def render(self) -> str:
-        # Convert the renderable to string explicitly using str()
         content = str(super().render())
     
         if self.in_command_mode:
@@ -228,14 +314,19 @@ class CodeEditor(TextArea):
 
 
     def action_write(self) -> None:
-        if self._modified:
-            self.action_save_file()
-        else:
-            self.notify("Already latest change", severity="info")
+        if not self.current_file:
+            self.notify("No file to save", severity="warning")
+            return
+        
+        self.action_save_file()
 
     def action_write_quit(self) -> None:
-        if self._modified:
-            self.action_save_file()
+        if not self.current_file:
+            self.notify("No file to save", severity="warning")
+            self.clear_editor()
+            return
+        
+        self.action_save_file()
         self.clear_editor()
 
     def action_quit(self) -> None:
@@ -243,7 +334,6 @@ class CodeEditor(TextArea):
             self.notify("You have unsaved changes. Use ':q!' to override.", severity="warning")
         else:
             self.clear_editor()
-
 
     def action_force_quit(self) -> None:
         self.clear_editor()
@@ -390,6 +480,31 @@ class CodeEditor(TextArea):
                 line_length = len(lines[cur_row])
                 self.move_cursor((cur_row, line_length))
 
+    async def action_new_file(self) -> None:
+        try:
+            tree = self.app.screen.query_one(FilterableDirectoryTree)
+            current_path = tree.path if tree.path else os.path.expanduser("~")
+        except Exception:
+            current_path = os.path.expanduser("~")
+            
+        dialog = NewFileDialog(current_path)
+        result = await self.app.push_screen(dialog)
+        
+        if result:
+            try:
+                with open(result, 'r', encoding='utf-8') as file:
+                    self.load_text("")
+                    self._undo_stack = []
+                    self._redo_stack = []
+                    self._last_text = ""
+                    self.current_file = result
+                    self.set_language_from_file(result)
+                    self.mode = "normal"
+                    self.focus()
+                    self.notify(f"Created new file: {os.path.basename(result)}")
+            except Exception as e:
+                self.notify(f"Error loading new file: {str(e)}", severity="error")
+
 class NestView(Container):
     BINDINGS = [
         Binding("ctrl+h", "toggle_hidden", "Toggle Hidden Files", show=True),
@@ -405,13 +520,17 @@ class NestView(Container):
         self.show_sidebar = True
         self.editor = None
 
+    async def action_new_file(self) -> None:
+        await self.app.action_new_file()
+
     def compose(self) -> ComposeResult:
         yield Container(
             Horizontal(
                 Container(
                     Horizontal(
                         Static("Explorer", classes="nav-title"),
-                        Button("👁", id="toggle_hidden", classes="toggle-hidden-btn"),
+                        Button("-", id="toggle_hidden", classes="toggle-hidden-btn"),
+                        Button("New", id="new_file", classes="new-file-btn"),
                         classes="nav-header"
                     ),
                     FilterableDirectoryTree(
@@ -436,7 +555,12 @@ class NestView(Container):
 
         self.editor.can_focus_tab = True
         self.editor.key_handlers = {
-            "ctrl+left": lambda: self.action_focus_tree()
+            "ctrl+left": lambda: self.action_focus_tree(),
+            "ctrl+n": self.action_new_file
+        }
+        
+        tree.key_handlers = {
+            "ctrl+n": self.action_new_file
         }
 
     def action_toggle_hidden(self) -> None:
@@ -444,6 +568,9 @@ class NestView(Container):
         tree = self.query_one(FilterableDirectoryTree)
         tree.show_hidden = self.show_hidden
         tree.reload()
+        
+        toggle_btn = self.query_one("#toggle_hidden")
+        toggle_btn.label = "+" if self.show_hidden else "-"
         self.notify("Hidden files " + ("shown" if self.show_hidden else "hidden"))
 
     def action_toggle_sidebar(self) -> None:
@@ -464,23 +591,38 @@ class NestView(Container):
         if event.button.id == "toggle_hidden":
             self.action_toggle_hidden()
             event.stop()
+        elif event.button.id == "new_file":
+            self.run_worker(self.action_new_file())
+            event.stop()
 
     def on_directory_tree_file_selected(self, event: DirectoryTree.FileSelected) -> None:
         try:
+            with open(event.path, 'rb') as file:
+                is_binary = False
+                chunk = file.read(1024)
+                if b'\x00' in chunk or len([b for b in chunk if b > 127]) > chunk.count(b'\n') * 0.3:
+                    is_binary = True
+
+            if is_binary:
+                self.notify("Cannot open binary file", severity="warning")
+                return
+
             editor = self.query_one(CodeEditor)
             with open(event.path, 'r', encoding='utf-8') as file:
                 content = file.read()
                 editor.load_text(content)
-                # Initialize undo stack with the loaded file
                 editor._undo_stack = []
                 editor._redo_stack = []
                 editor._last_text = content
-            editor.current_file = event.path
-            editor.set_language_from_file(event.path)
-            editor.mode = "normal"  # Ensure we start in normal mode
-            editor.focus()
+                editor.current_file = event.path
+                editor.set_language_from_file(event.path)
+                editor.mode = "normal"
+                editor.focus()
+
+        except UnicodeDecodeError:
+            self.notify("Cannot open file: Not a valid UTF-8 text file", severity="warning")
         except (IOError, OSError) as e:
-            self.notify(f"Error: {e}", severity="error")
+            self.notify(f"Error opening file: {str(e)}", severity="error")
 
     def on_code_editor_file_modified(self, event: CodeEditor.FileModified) -> None:
         pass

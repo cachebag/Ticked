@@ -1,5 +1,5 @@
-textual[syntax]
-textual-dev
-psutil
-python-dateutil
 requests
+textual
+textual-dev
+rich
+psutil
