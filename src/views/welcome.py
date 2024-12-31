@@ -134,14 +134,20 @@ class TodayContent(Container):
 
     def _do_mount_tasks(self, tasks):
         tasks_list = self.query_one("#today-tasks-list")
+        current_focused_task_id = None
+        
+        focused = self.app.focused
+        if isinstance(focused, Task):
+            current_focused_task_id = focused.task_id
+            
         tasks_list.remove_children()
         
         if tasks:
             for task in tasks:
                 task_widget = Task(task)
                 tasks_list.mount(task_widget)
-        else:
-            tasks_list.mount(Static("No tasks scheduled for today - Head over to your calendar to add some!", classes="empty-schedule"))
+                if current_focused_task_id and task['id'] == current_focused_task_id:
+                    task_widget.focus()
 
     def refresh_tasks(self) -> None:
         today = datetime.now().strftime('%Y-%m-%d')

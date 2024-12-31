@@ -18,7 +18,7 @@ class MainMenu(Container):
         yield Static("MENU", classes="menu-header")
         yield MenuItem("HOME", id="menu_home")
         yield MenuItem("CALENDAR", id="menu_calendar")
-        yield MenuItem("NEST", id="menu_nest")
+        yield MenuItem("NEST+", id="menu_nest")
         yield MenuItem("POMODORO", id="menu_pomodoro")
         yield MenuItem("SPOTIFY", id="menu_spotify")
         yield MenuItem("SETTINGS", id="menu_settings")
@@ -59,7 +59,6 @@ class HomeScreen(Screen):
         self.app.exit()
 
     def is_menu_visible(self) -> bool:
-        """Check if menu is currently visible"""
         menu = self.query_one("MainMenu")
         return "hidden" not in menu.classes
 
@@ -125,7 +124,6 @@ class HomeScreen(Screen):
                 content.focus() 
 
     def action_menu_up(self) -> None:
-        """Handle up arrow key when menu is visible"""
         if self.is_menu_visible():
             menu = self.query_one("MainMenu")
             menu_items = list(menu.query("MenuItem"))
@@ -137,7 +135,6 @@ class HomeScreen(Screen):
                 menu_items[prev_idx].focus()
 
     def action_menu_down(self) -> None:
-        """Handle down arrow key when menu is visible"""
         if self.is_menu_visible():
             menu = self.query_one("MainMenu")
             menu_items = list(menu.query("MenuItem"))
@@ -149,7 +146,6 @@ class HomeScreen(Screen):
                 menu_items[next_idx].focus()
 
     def action_menu_select(self) -> None:
-        """Handle enter key when menu is visible"""
         if self.is_menu_visible() and isinstance(self.focused, MenuItem):
             self.focused.press()
 
@@ -192,7 +188,6 @@ class HomeScreen(Screen):
             self.notify(f"Error: {str(e)}")
 
     def on_focus(self, event) -> None:
-        """Prevent focus on non-menu items when menu is visible"""
         if self.is_menu_visible():
             menu = self.query_one("MainMenu")
             if not isinstance(event.control, (MenuItem, MainMenu)):
@@ -206,9 +201,18 @@ class HomeScreen(Screen):
                 current_menu_item.focus()
 
     def on_key(self, event) -> None:
-        """Prevent navigation keys from affecting content when menu is visible"""
         if self.is_menu_visible():
             allowed_keys = {"escape", "up", "down", "enter"}
             if event.key not in allowed_keys:
                 event.prevent_default()
                 event.stop()
+
+    def action_focus_previous(self) -> None:
+        if not self.is_menu_visible():
+            return
+        self.action_menu_up()
+
+    def action_focus_next(self) -> None:
+        if not self.is_menu_visible():
+            return
+        self.action_menu_down()
