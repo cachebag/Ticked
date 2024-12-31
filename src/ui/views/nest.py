@@ -631,10 +631,8 @@ class NestView(Container, InitialFocusMixin):
 
     async def action_new_file(self) -> None:
         if hasattr(self.app, "action_new_file"):
-            # Use the app's implementation
             await self.app.action_new_file()
         else:
-            # Fallback to editor's implementation if app doesn't have one
             editor = self.query_one(CodeEditor)
             await editor.action_new_file()
 
