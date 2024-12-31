@@ -139,46 +139,117 @@ class CodeEditor(TextArea):
             pass
 
     def __init__(self) -> None:
-        super().__init__(language="python", theme="monokai", show_line_numbers=True)  # Remove all parameters from super().__init__()
+        super().__init__(language="python", theme="monokai", show_line_numbers=True)
         self.current_file = None
         self._modified = False
         self.tab_size = 4
         self._syntax = None
         self.language = None
         self.highlight_text = None
-        self.mode = "insert"  # Start in insert mode instead of normal
+        self.mode = "insert"
+        self._undo_stack = []
+        self._redo_stack = []
+        self._last_text = ""
+        self._is_undoing = False
+        self.command = ""
+        self.in_command_mode = False
+        self.pending_command = ""
 
     def on_key(self, event) -> None:
-        if event.key == "escape":
-            self.mode = "normal"
-            event.prevent_default()
-            event.stop()
-            return
-
-        if self.mode == "normal":
-            if event.character == "i":
-                self.mode = "insert"
+        if self.in_command_mode:
+            if event.key == "enter":
+                self.execute_command()
+                self.in_command_mode = False
+                self.command = ""
+                self.refresh()
                 event.prevent_default()
                 event.stop()
-            elif event.character in ["h", "j", "k", "l", "w", "b", "0", "$"]:
-                action_map = {
+            elif event.key == "escape":
+                self.in_command_mode = False
+                self.command = ""
+                self.refresh()
+                event.prevent_default()
+                event.stop()
+            elif event.is_printable:
+                self.command += event.character
+                self.refresh()
+                event.prevent_default()
+                event.stop()
+            elif event.key == "backspace" and len(self.command) > 1:
+                self.command = self.command[:-1]
+                self.refresh()
+                event.prevent_default()
+                event.stop()
+        else:
+            if self.mode == "insert":
+                if event.is_printable:
+                    self._save_undo_state()  
+                    self.insert(event.character)
+                    event.prevent_default()
+                    event.stop()
+                elif event.key == "backspace":
+                    self._save_undo_state()  
+                    self.action_delete_left()
+                    event.prevent_default()
+                    event.stop()
+                elif event.key in ["left", "right", "up", "down"]:
+                    return
+            elif self.mode == "normal":
+                if event.key == "u":
+                    self.action_undo()
+                    event.prevent_default()
+                    event.stop()
+                elif event.key == "ctrl+r":
+                    self.action_redo()
+                    event.prevent_default()
+                    event.stop()
+                motion_map = {
                     "h": self.action_move_left,
+                    "l": self.action_move_right,
                     "j": self.action_move_down,
                     "k": self.action_move_up,
-                    "l": self.action_move_right,
                     "w": self.action_move_word_forward,
                     "b": self.action_move_word_backward,
                     "0": self.action_move_line_start,
-                    "$": self.action_move_line_end
+                    "$": self.action_move_line_end,
+                    "x": self.action_delete_char,
+                    "dd": self.action_delete_line,
+                    "de": self.action_delete_to_end,
                 }
-                if event.character in action_map:
-                    action_map[event.character]()
+            
+                if self.pending_command and event.character:
+                    combined_command = self.pending_command + event.character
+                    if combined_command in motion_map:
+                        motion_map[combined_command]()
+                        self.pending_command = ""
+                    else:
+                        self.pending_command = "" 
                     event.prevent_default()
                     event.stop()
-            else:
-                if event.is_printable:
+                elif event.character == "d":  
+                    self.pending_command = "d"
                     event.prevent_default()
                     event.stop()
+                elif event.character in motion_map:
+                    motion_map[event.character]()
+                    event.prevent_default()
+                    event.stop()
+                elif event.character == "i":
+                    self.mode = "insert"
+                    event.prevent_default()
+                    event.stop()
+                elif event.character == ":":
+                    self.in_command_mode = True
+                    self.command = ":"
+                    self.refresh()
+                    event.prevent_default()
+                    event.stop()
+                elif event.key in ["left", "right", "up", "down"]:
+                    return
+                else:
+                    if event.is_printable:
+                        event.prevent_default()
+                        event.stop()
 
     def execute_command(self) -> None:
         command = self.command[1:].strip()  
@@ -224,7 +295,7 @@ class CodeEditor(TextArea):
                 self._syntax = Syntax(
                     self.text,
                     self.language,
-                    theme="dracula",  # Changed to dracula theme
+                    theme="dracula",
                     line_numbers=True,
                     word_wrap=False,
                     indent_guides=True,
@@ -248,7 +319,6 @@ class CodeEditor(TextArea):
         self._modified = False
         self.notify("File closed. You are now editing a blank file.", severity="info")
         self.refresh()
-
 
     def action_write(self) -> None:
         if not self.current_file:
@@ -274,7 +344,6 @@ class CodeEditor(TextArea):
 
     def action_force_quit(self) -> None:
         self.clear_editor()
-
 
     def action_indent(self) -> None:
         cursor_location = self.cursor_location
@@ -306,6 +375,7 @@ class CodeEditor(TextArea):
     def watch_text(self, old_text: str, new_text: str) -> None:
         if old_text != new_text:
             if not self._is_undoing:
+                current_cursor = self.cursor_location
                 self._undo_stack.append(old_text)
                 self._redo_stack.clear()
             
@@ -365,15 +435,34 @@ class CodeEditor(TextArea):
             self.move_cursor((self.cursor_location[0], 0))
 
     def action_undo(self) -> None:
-        if self.mode == "normal":
-            self.undo()
+        if self.mode == "normal" and self._undo_stack:
+            self._is_undoing = True
+            current_cursor = self.cursor_location
+            self._redo_stack.append(self.text)
+            self.text = self._undo_stack.pop()
+            self._is_undoing = False
+            max_row = len(self.text.split('\n')) - 1
+            row = min(current_cursor[0], max_row)
+            line = self.text.split('\n')[row]
+            col = min(current_cursor[1], len(line))
+            self.move_cursor((row, col))
 
     def action_redo(self) -> None:
-        if self.mode == "normal":
-            self.redo() 
+        if self.mode == "normal" and self._redo_stack:
+            self._is_undoing = True
+            current_cursor = self.cursor_location
+            self._undo_stack.append(self.text)
+            self.text = self._redo_stack.pop()
+            self._is_undoing = False
+            max_row = len(self.text.split('\n')) - 1
+            row = min(current_cursor[0], max_row)
+            line = self.text.split('\n')[row]
+            col = min(current_cursor[1], len(line))
+            self.move_cursor((row, col))
 
     def action_delete_char(self) -> None:
         if self.mode == "normal":
+            self._save_undo_state()
             cur_row, cur_col = self.cursor_location
             lines = self.text.split("\n")
             if cur_row < len(lines):
@@ -389,6 +478,7 @@ class CodeEditor(TextArea):
 
     def action_delete_line(self) -> None:
         if self.mode == "normal":
+            self._save_undo_state()
             cur_row, _ = self.cursor_location
             lines = self.text.split("\n")
             if cur_row < len(lines):
@@ -398,6 +488,7 @@ class CodeEditor(TextArea):
 
     def action_delete_to_end(self) -> None:
         if self.mode == "normal":
+            self._save_undo_state()
             cur_row, cur_col = self.cursor_location
             lines = self.text.split("\n")
             if cur_row < len(lines):
@@ -416,6 +507,11 @@ class CodeEditor(TextArea):
             if cur_row < len(lines):
                 line_length = len(lines[cur_row])
                 self.move_cursor((cur_row, line_length))
+
+    def _save_undo_state(self) -> None:
+        if not self._is_undoing:
+            self._undo_stack.append(self.text)
+            self._redo_stack.clear()
 
     async def action_new_file(self) -> None:
         try:

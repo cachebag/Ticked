@@ -50,10 +50,15 @@ MenuItem {
     min-width: 20;
 }
 
-MenuItem:hover {}
+MenuItem:hover {
+    text: white;
+    color: $primary;
+}
 
 MenuItem:focus {
     text-style: none;
+    background: $secondary;
+    color: $primary;
 }
 
 /* Content Area */
