@@ -3,3 +3,5 @@ textual
 textual-dev
 rich
 psutil
+pygments
+textual[syntax]

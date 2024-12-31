@@ -24,12 +24,13 @@ class Task(Static):
             super().__init__()
     
     def __init__(self, task_data: dict) -> None:
-        super().__init__("", classes="task-item")
+        self._completed = task_data.get('completed', False)
+        self._in_progress = task_data.get('in_progress', False)
+        display_text = task_data.get('display_text') or f"{task_data['title']} @ {task_data['due_time']}"
+        super().__init__(display_text, classes="task-item")
         self.task_data = task_data
         self.task_id = task_data['id']
         self.can_focus = True
-        self.completed = task_data.get('completed', False)
-        self.in_progress = task_data.get('in_progress', False)
         
         tooltip_text = (
             f"Title: {task_data['title']}\n"
@@ -40,9 +41,9 @@ class Task(Static):
         
         self.tooltip = tooltip_text
         
-        if self.completed:
+        if self._completed:
             self.add_class("completed-task")
-        if self.in_progress:
+        if self._in_progress:
             self.add_class("in-progress")
     
     def compose(self) -> ComposeResult:
@@ -161,7 +162,7 @@ class Task(Static):
         self.focus()
 
     def update_task_status(self) -> None:
-        self.app.db.update_task(self.task_id, completed=self.completed, in_progress=self.in_progress)
+        self.app.db.update_task(self.task_id, completed=self._completed, in_progress=self._in_progress, batch=True)
     
     def refresh_all_views(self) -> None:
         try:

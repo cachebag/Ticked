@@ -134,28 +134,29 @@ class TodayContent(Container):
 
     def _do_mount_tasks(self, tasks):
         tasks_list = self.query_one("#today-tasks-list")
-        current_focused_task_id = None
-        
-        focused = self.app.focused
-        if isinstance(focused, Task):
-            current_focused_task_id = focused.task_id
-            
+        if not tasks:
+            tasks_list.remove_children()
+            tasks_list.mount(Static("No tasks scheduled for today", classes="empty-schedule"))
+            return
+
+        task_widgets = []
+        for task in tasks:
+            task_widget = Task(task)
+            task_widgets.append(task_widget)
+
         tasks_list.remove_children()
-        
-        if tasks:
-            for task in tasks:
-                task_widget = Task(task)
-                tasks_list.mount(task_widget)
-                if current_focused_task_id and task['id'] == current_focused_task_id:
-                    task_widget.focus()
+        tasks_list.mount_all(task_widgets)
 
     def refresh_tasks(self) -> None:
+        if not self.is_mounted:
+            return
+            
         today = datetime.now().strftime('%Y-%m-%d')
         tasks = self.app.db.get_tasks_for_date(today)
         self._do_mount_tasks(tasks)
         
         upcoming_view = self.query_one(UpcomingTasksView)
-        if upcoming_view:
+        if upcoming_view and upcoming_view.is_mounted:
             upcoming_view.refresh_tasks()
 
     def get_cached_quote(self):
