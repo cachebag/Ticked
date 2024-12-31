@@ -3,16 +3,16 @@ from textual.containers import Horizontal
 from textual.message import Message
 from textual.app import ComposeResult
 from textual import on
-from textual.binding import Binding
 from textual.events import Click
-
+from textual.binding import Binding
 
 class Task(Static):
     BINDINGS = [
-        Binding("c", "toggle_complete", "Complete"),
-        Binding("p", "toggle_progress", "Progress")
+        Binding("c", "toggle_complete", "Toggle Complete"),
+        Binding("p", "toggle_progress", "Toggle Progress"), 
+        Binding("enter", "edit_task", "Edit Task")
     ]
-
+    
     class Updated(Message):
         def __init__(self, task_id: int) -> None:
             self.task_id = task_id
@@ -24,37 +24,31 @@ class Task(Static):
             super().__init__()
     
     def __init__(self, task_data: dict) -> None:
-        self._completed = task_data.get('completed', False)
-        self._in_progress = task_data.get('in_progress', False)
-        display_text = task_data.get('display_text') or f"{task_data['title']} @ {task_data['due_time']}"
-        super().__init__(display_text, classes="task-item")
+        super().__init__("", classes="task-item")
         self.task_data = task_data
         self.task_id = task_data['id']
         self.can_focus = True
+        self.completed = task_data.get('completed', False)
+        self.in_progress = task_data.get('in_progress', False)
         
-        tooltip_text = (
-            f"Title: {task_data['title']}\n"
-            f"Time: {task_data['due_time']}\n"
-            f"Date: {task_data['due_date']}\n"
-            f"Description: {task_data.get('description', 'No description')}"
-        )
-        
-        self.tooltip = tooltip_text
-        
-        if self._completed:
+        if self.completed:
             self.add_class("completed-task")
-        if self._in_progress:
+        if self.in_progress:
             self.add_class("in-progress")
     
     def compose(self) -> ComposeResult:
         with Horizontal(classes="task-container"):
-            display_text = f"{self.task_data['title']} @ {self.task_data['due_time']}"
-            yield Static(display_text, classes="task-text")
+            if 'display_text' in self.task_data:
+                yield Static(self.task_data['display_text'], classes="task-text")
+            else:
+                display_text = f"{self.task_data['title']} @ {self.task_data['due_time']}"
+                if self.task_data['description']:
+                    display_text += f" | {self.task_data['description']}"
+                yield Static(display_text, classes="task-text")
             
             with Horizontal(classes="status-group"):
                 yield Static("✓", classes="status-indicator complete-indicator") 
                 yield Static("→", classes="status-indicator progress-indicator")
-
  
     @on(Click)
     async def on_click(self, event: Click) -> None:
@@ -66,43 +60,10 @@ class Task(Static):
             await self.action_edit_task()
 
     async def action_toggle_complete(self) -> None:
-        if self.completed:
-            self.completed = False
-            self.remove_class("completed-task")
-            self.query_one(".task-text").remove_class("completed")
-            self.query_one(".complete-indicator").add_class("[ ]")
-            self.query_one(".progress-indicator").add_class("[-]")
-        else:
-            self.completed = True
-            self.in_progress = False
-            self.add_class("completed-task")
-            self.remove_class("in-progress")
-            self.query_one(".task-text").add_class("completed")
-            self.query_one(".complete-indicator").update("✓")
-            self.query_one(".progress-indicator").update("[-]")
-    
-        self.update_task_status()
-        self.post_message(self.Updated(self.task_id))
-        self.focus()  
+        self.toggle_complete()
 
     async def action_toggle_progress(self) -> None:
-        if self.in_progress:
-            self.in_progress = False
-            self.remove_class("in-progress")
-            self.query_one(".progress-indicator").update("[-]")
-            self.query_one(".complete-indicator").update("[ ]")
-        else:
-            self.in_progress = True
-            self.completed = False
-            self.add_class("in-progress")
-            self.remove_class("completed-task")
-            self.query_one(".task-text").remove_class("completed")
-            self.query_one(".progress-indicator").update("→")
-            self.query_one(".complete-indicator").update("[ ]")
-    
-        self.update_task_status()
-        self.post_message(self.Updated(self.task_id))
-        self.focus()  
+        self.toggle_progress()
         
     async def action_edit_task(self) -> None:
         from .calendar import TaskEditForm
@@ -116,53 +77,49 @@ class Task(Static):
 
     def toggle_complete(self) -> None:
         task_text = self.query_one(".task-text")
-        complete_indicator = self.query_one(".complete-indicator", Static)
-        progress_indicator = self.query_one(".progress-indicator", Static)
+        complete_indicator = self.query_one(".complete-indicator")
+        progress_indicator = self.query_one(".progress-indicator")
 
         if self.completed:
             self.completed = False
             task_text.remove_class("completed")
             self.remove_class("completed-task")
-            complete_indicator.renderable = "[ ]"
-            progress_indicator.renderable = "[-]"
+            complete_indicator.update("[ ]")
         else:
             self.completed = True
             self.in_progress = False
             task_text.add_class("completed")
             self.add_class("completed-task")
+            complete_indicator.update("✓")
+            progress_indicator.update("[-]")
             self.remove_class("in-progress")
-            complete_indicator.renderable = "✓"
-            progress_indicator.renderable = "[-]"
 
-        self.update_task_status()
-        self.post_message(self.Updated(self.task_id))
-        self.focus()
+            self.update_task_status()
+            self.post_message(self.Updated(self.task_id))
 
     def toggle_progress(self) -> None:
-        progress_indicator = self.query_one(".progress-indicator", Static)
-        complete_indicator = self.query_one(".complete-indicator", Static)
+        progress_indicator = self.query_one(".progress-indicator")
+        complete_indicator = self.query_one(".complete-indicator")
         task_text = self.query_one(".task-text")
 
         if self.in_progress:
             self.in_progress = False
             self.remove_class("in-progress")
-            progress_indicator.renderable = "[-]"
-            complete_indicator.renderable = "[ ]"
+            progress_indicator.update("[-]")
         else:
             self.in_progress = True
             self.completed = False
             self.add_class("in-progress")
-            self.remove_class("completed-task")
+            progress_indicator.update("→")
             task_text.remove_class("completed")
-            progress_indicator.renderable = "→"
-            complete_indicator.renderable = "[ ]"
+            self.remove_class("completed-task")
+            complete_indicator.update("[ ]")
 
         self.update_task_status()
         self.post_message(self.Updated(self.task_id))
-        self.focus()
 
     def update_task_status(self) -> None:
-        self.app.db.update_task(self.task_id, completed=self._completed, in_progress=self._in_progress, batch=True)
+        self.app.db.update_task(self.task_id, completed=self.completed, in_progress=self.in_progress)
     
     def refresh_all_views(self) -> None:
         try:
