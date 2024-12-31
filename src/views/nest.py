@@ -139,115 +139,44 @@ class CodeEditor(TextArea):
             pass
 
     def __init__(self) -> None:
-        super().__init__(language="python", theme="monokai", show_line_numbers=True)
-        self._undo_stack = []
-        self._redo_stack = []
-        self._last_text = ""
+        super().__init__(language="python", theme="monokai", show_line_numbers=True)  # Remove all parameters from super().__init__()
         self.current_file = None
         self._modified = False
         self.tab_size = 4
         self._syntax = None
         self.language = None
         self.highlight_text = None
-        self._is_undoing = False
-        self.mode = "normal"
-        self.command = ""
-        self.in_command_mode = False
-        self.pending_command = ""
+        self.mode = "insert"  # Start in insert mode instead of normal
 
     def on_key(self, event) -> None:
-        if event.key.startswith("ctrl+") or event.key == "shift+left":
+        if event.key == "escape":
+            self.mode = "normal"
+            event.prevent_default()
+            event.stop()
             return
 
-        if self.in_command_mode:
-            if event.key == "enter":
-                self.execute_command()
-                self.in_command_mode = False
-                self.command = ""
-                self.refresh()
+        if self.mode == "normal":
+            if event.character == "i":
+                self.mode = "insert"
                 event.prevent_default()
                 event.stop()
-            elif event.key == "escape":
-                self.in_command_mode = False
-                self.command = ""
-                self.refresh()
-                event.prevent_default()
-                event.stop()
-            elif event.is_printable:
-                self.command += event.character
-                self.refresh()
-                event.prevent_default()
-                event.stop()
-            elif event.key == "backspace" and len(self.command) > 1:
-                self.command = self.command[:-1]
-                self.refresh()
-                event.prevent_default()
-                event.stop()
-        else:
-            if self.mode == "insert":
-                if event.is_printable:
-                    self.insert(event.character)
-                    event.prevent_default()
-                    event.stop()
-                elif event.key == "backspace":
-                    self.action_delete_left()
-                    event.prevent_default()
-                    event.stop()
-                elif event.key in ["left", "right", "up", "down"]:
-                    return
-            elif self.mode == "normal":
-                if event.key == "u":
-                    self.action_undo()
-                    event.prevent_default()
-                    event.stop()
-                elif event.key == "ctrl+r":
-                    self.action_redo()
-                    event.prevent_default()
-                    event.stop()
-                motion_map = {
+            elif event.character in ["h", "j", "k", "l", "w", "b", "0", "$"]:
+                action_map = {
                     "h": self.action_move_left,
-                    "l": self.action_move_right,
                     "j": self.action_move_down,
                     "k": self.action_move_up,
+                    "l": self.action_move_right,
                     "w": self.action_move_word_forward,
                     "b": self.action_move_word_backward,
                     "0": self.action_move_line_start,
-                    "$": self.action_move_line_end,
-                    "x": self.action_delete_char,
-                    "dd": self.action_delete_line,
-                    "de": self.action_delete_to_end,
+                    "$": self.action_move_line_end
                 }
-            
-                if self.pending_command:
-                    combined_command = self.pending_command + event.character
-                    if combined_command in motion_map:
-                        motion_map[combined_command]()
-                        self.pending_command = ""
-                    else:
-                        self.pending_command = "" 
+                if event.character in action_map:
+                    action_map[event.character]()
                     event.prevent_default()
                     event.stop()
-                elif event.character == "d":  
-                    self.pending_command = "d"
-                    event.prevent_default()
-                    event.stop()
-                elif event.character in motion_map:
-                    motion_map[event.character]()
-                    event.prevent_default()
-                    event.stop()
-                elif event.character == "i":
-                    self.mode = "insert"
-                    event.prevent_default()
-                    event.stop()
-                elif event.character == ":":
-                    self.in_command_mode = True
-                    self.command = ":"
-                    self.refresh()
-                    event.prevent_default()
-                    event.stop()
-                elif event.key in ["left", "right", "up", "down"]:
-                    return
-                else:
+            else:
+                if event.is_printable:
                     event.prevent_default()
                     event.stop()
 
@@ -280,20 +209,28 @@ class CodeEditor(TextArea):
             '.html': 'html',
             '.css': 'css',
             '.md': 'markdown',
+            '.json': 'json',
+            '.sh': 'bash',
+            '.sql': 'sql',
+            '.yml': 'yaml',
+            '.yaml': 'yaml',
+            '.xml': 'xml',
+            '.txt': None
         }
-        self.language = language_map.get(ext, None)
+        
+        self.language = language_map.get(ext)
         if self.language:
             try:
                 self._syntax = Syntax(
                     self.text,
                     self.language,
-                    theme=self.theme, 
-                    line_numbers=self.show_line_numbers, 
+                    theme="dracula",  # Changed to dracula theme
+                    line_numbers=True,
                     word_wrap=False,
                     indent_guides=True,
                 )
                 self.update_syntax_highlighting()
-            except (SyntaxError, ValueError) as e:
+            except Exception as e:
                 self.notify(f"Syntax highlighting error: {e}", severity="error")
 
     def update_syntax_highlighting(self) -> None:

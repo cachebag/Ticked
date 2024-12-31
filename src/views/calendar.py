@@ -519,6 +519,8 @@ class DayView(Vertical):
         super().__init__()
         self.date = date
         self.styles.display = "none"
+        self._tasks_cache = {}
+        self._last_refresh = None
 
     def compose(self) -> ComposeResult:
         yield Static(f"{self.date.strftime('%B %d, %Y')}", id="day-view-header")
@@ -547,14 +549,22 @@ class DayView(Vertical):
 
     def refresh_tasks(self) -> None:
         current_date = self.date.strftime('%Y-%m-%d')
-        tasks = self.app.db.get_tasks_for_date(current_date)
+        now = datetime.now()
+        
+        if (self._last_refresh and 
+            (now - self._last_refresh).total_seconds() < 1 and 
+            current_date in self._tasks_cache):
+            tasks = self._tasks_cache[current_date]
+        else:
+            tasks = self.app.db.get_tasks_for_date(current_date)
+            self._tasks_cache[current_date] = tasks
+            self._last_refresh = now
+            
         tasks_list = self.query_one("#tasks-list-day")
-
         tasks_list.remove_children()
 
         if tasks:
-            for task in tasks:
-                tasks_list.mount(Task(task))
+            tasks_list.mount_all([Task(task) for task in tasks])
         else:
             tasks_list.mount(Static("No tasks scheduled for today", classes="empty-schedule"))
 
