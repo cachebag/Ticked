@@ -24,7 +24,6 @@ MainMenu {
     dock: left;
     width: 30;
     height: 100%;
-    transition: width 200ms in_out_cubic;
     overflow: hidden;
     padding: 1;
 }
