@@ -69,16 +69,16 @@ class Task(Static):
             self.completed = False
             self.remove_class("completed-task")
             self.query_one(".task-text").remove_class("completed")
-            self.query_one(".complete-indicator").add_class("[ ]")
-            self.query_one(".progress-indicator").add_class("[-]")
+            self.query_one(".complete-indicator").add_class("unchecked")
+            self.query_one(".progress-indicator").add_class("in-progress")
         else:
             self.completed = True
             self.in_progress = False
             self.add_class("completed-task")
             self.remove_class("in-progress")
             self.query_one(".task-text").add_class("completed")
-            self.query_one(".complete-indicator").update("✓")
-            self.query_one(".progress-indicator").update("[-]")
+            self.query_one(".complete-indicator").remove_class("unchecked")
+            self.query_one(".progress-indicator").remove_class("in-progress")
     
         self.update_task_status()
         self.post_message(self.Updated(self.task_id))
@@ -104,7 +104,7 @@ class Task(Static):
         self.focus()  
         
     async def action_edit_task(self) -> None:
-        from .calendar import TaskEditForm
+        from ..ui.views.calendar import TaskEditForm
         task_form = TaskEditForm(self.task_data) 
         result = await self.app.push_screen(task_form)
         if result is None:
@@ -122,8 +122,8 @@ class Task(Static):
             self.completed = False
             task_text.remove_class("completed")
             self.remove_class("completed-task")
-            complete_indicator.renderable = "[ ]"
-            progress_indicator.renderable = "[-]"
+            complete_indicator.renderable = "unchecked"
+            progress_indicator.renderable = "in-progress"
         else:
             self.completed = True
             self.in_progress = False
@@ -131,7 +131,7 @@ class Task(Static):
             self.add_class("completed-task")
             self.remove_class("in-progress")
             complete_indicator.renderable = "✓"
-            progress_indicator.renderable = "[-]"
+            progress_indicator.renderable = "in-progress"
 
         self.update_task_status()
         self.post_message(self.Updated(self.task_id))
@@ -165,14 +165,14 @@ class Task(Static):
     
     def refresh_all_views(self) -> None:
         try:
-            from .calendar import DayView
+            from ..ui.views.calendar import DayView
             day_view = self.app.screen.query_one(DayView)
             if day_view:
                 day_view.refresh_tasks()
         except Exception:
             pass
         try:
-            from .welcome import TodayContent
+            from ..ui.views.welcome import TodayContent
             today_content = self.app.screen.query_one(TodayContent)
             if today_content:
                 today_content.refresh_tasks()

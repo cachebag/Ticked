@@ -3,10 +3,13 @@ from textual.containers import Container, ScrollableContainer
 from textual.screen import Screen
 from textual.widgets import Header, Button, Static, Footer
 from textual.binding import Binding
-from .welcome import WelcomeView
-from .calendar import CalendarView
-from .system_stats import SystemStatsHeader
-from .nest import NestView
+from src.ui.views.welcome import WelcomeView
+from src.ui.views.calendar import CalendarView
+from src.utils.system_stats import SystemStatsHeader
+from src.ui.views.nest import NestView
+from src.ui.mixins.focus_mixin import InitialFocusMixin
+from textual.widget import Widget
+from typing import Optional
 
 class MenuItem(Button):
     def __init__(self, label: str, id: str) -> None:
@@ -29,7 +32,7 @@ class CustomHeader(Container):
         yield SystemStatsHeader()
         yield Header(show_clock=True)
 
-class HomeScreen(Screen):
+class HomeScreen(Screen, InitialFocusMixin):
     
     BINDINGS = [
         Binding("escape", "toggle_menu", "Toggle Menu", show=True),
@@ -64,64 +67,41 @@ class HomeScreen(Screen):
 
     def action_toggle_menu(self) -> None:
         menu = self.query_one("MainMenu")
+        content_container = self.query_one("#content")
+        
         if "hidden" in menu.classes:
+            # Show menu
             menu.remove_class("hidden")
             menu.styles.display = "block"
-            try:
-                first_menu_item = menu.query_one("MenuItem")
-                if first_menu_item:
-                    first_menu_item.focus()
-            except Exception:
-                self.notify("Could not focus menu item")
+            first_menu_item = menu.query_one("MenuItem")
+            if first_menu_item:
+                first_menu_item.focus()
         else:
+            # Hide menu and always focus the appropriate default element
             menu.add_class("hidden")
-            content = self.query_one("#content")
-            if content and content.children:
-                current_view = content.children[0]
+            menu.styles.display = "none"
             
-                if isinstance(current_view, WelcomeView):
-                    try:
-                        today_tab = current_view.query_one("TabButton#tab_today")
-                        if today_tab:
-                            today_tab.focus()
-                        return
-                    except Exception:
-                        pass
-            
-                elif isinstance(current_view, CalendarView):
-                    try:
-                        day_view = current_view.query_one(DayView)
-                        if day_view and day_view.styles.display == "block":
-                            add_task = day_view.query_one("#add-task")
-                            if add_task:
-                                add_task.focus()
-                                return
-                    except Exception:
-                        pass
+            # Get the current view from the content container
+            if content_container and content_container.children:
+                current_view = content_container.children[0]
                 
-                    try:
-                        current_day = current_view.query_one(".current-day")
-                        if current_day:
-                            current_day.focus()
+                try:
+                    # Handle focus for WelcomeView specifically
+                    if isinstance(current_view, WelcomeView):
+                        tab = current_view.query("TabButton").first()
+                        if tab:
+                            tab.focus()
                             return
-                        else:
-                            first_day = current_view.query_one("CalendarDayButton")
-                            if first_day:
-                                first_day.focus()
-                                return
-                    except Exception:
-                        pass
-            
-                elif isinstance(current_view, NestView):
-                    try:
-                        tree = current_view.query_one("FilterableDirectoryTree")
-                        if tree:
-                            tree.focus()
-                        return
-                    except Exception:
-                        pass
-            
-                content.focus() 
+                    
+                    # Handle any view that implements get_initial_focus
+                    if hasattr(current_view, 'get_initial_focus'):
+                        initial_focus = current_view.get_initial_focus()
+                        if initial_focus:
+                            initial_focus.focus()
+                            return
+                except Exception:
+                    # If any query fails, fallback to focusing the view itself
+                    current_view.focus()
 
     def action_menu_up(self) -> None:
         if self.is_menu_visible():
@@ -152,6 +132,10 @@ class HomeScreen(Screen):
     def on_mount(self) -> None:
         menu = self.query_one("MainMenu")
         menu.add_class("hidden")
+        menu.styles.display = "none"
+        first_menu_item = menu.query_one("MenuItem")
+        if first_menu_item:
+            first_menu_item.focus()
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         content_container = self.query_one("#content")
@@ -163,12 +147,28 @@ class HomeScreen(Screen):
         try:
             if button_id == "menu_home":
                 menu.add_class("hidden")
+                menu.styles.display = "none"
                 home_view = WelcomeView()
-                content_container.mount(home_view)  
+                content_container.mount(home_view)
+                try:
+                    tab = home_view.query("TabButton").first()
+                    if tab:
+                        tab.focus()
+                except Exception:
+                    home_view.focus()
+                    
             elif button_id == "menu_calendar":
                 menu.add_class("hidden")
+                menu.styles.display = "none"
                 calendar_view = CalendarView()
                 content_container.mount(calendar_view)
+                try:
+                    if hasattr(calendar_view, 'get_initial_focus'):
+                        initial_focus = calendar_view.get_initial_focus()
+                        if initial_focus:
+                            initial_focus.focus()
+                except Exception:
+                    calendar_view.focus()
             elif button_id == "menu_nest":
                 menu.add_class("hidden")
                 nest_view = NestView()
@@ -216,3 +216,7 @@ class HomeScreen(Screen):
         if not self.is_menu_visible():
             return
         self.action_menu_down()
+
+    def get_initial_focus(self) -> Optional[Widget]:
+        # Return the first menu item or calendar cell that should have focus
+        return self.query_one("MenuItem")  # Or whatever widget should have initial focus

@@ -1,10 +1,12 @@
 from textual.widgets import Static, Button
 from textual.containers import Container, Grid, Horizontal, Vertical
+from textual.widget import Widget
 from textual.app import ComposeResult
+from typing import Optional
 from textual.binding import Binding
 from datetime import datetime
 import requests
-from .task_widget import Task
+from src.widgets.task_widget import Task
 import random
 import json
 
@@ -282,7 +284,7 @@ class WelcomeView(Container):
     def on_mount(self) -> None:
         today_tab = self.query_one("TabButton#tab_today")
         today_tab.toggle_active(True)
-        today_tab.focus()  
+        today_tab.focus()  # Always focus the Today tab by default
         
         welcome_content = self.query_one(WelcomeContent)
         welcome_content.styles.display = "none"
@@ -292,6 +294,10 @@ class WelcomeView(Container):
         today = datetime.now().strftime('%Y-%m-%d')
         tasks = self.app.db.get_tasks_for_date(today)
         today_content.mount_tasks(tasks)
+
+    def get_initial_focus(self) -> Optional[Widget]:
+        """Return the today tab as the default focus target"""
+        return self.query_one(TabButton, id="tab_today")
     
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "hide_welcome":

@@ -1,8 +1,11 @@
 from textual.app import ComposeResult
+from textual.widget import Widget
 from textual.containers import Horizontal, Container, Vertical
 from textual.screen import ModalScreen
 from textual.widgets import DirectoryTree, Static, Button, TextArea, Input, Label
 from textual.binding import Binding
+from src.ui.mixins.focus_mixin import InitialFocusMixin
+from typing import Optional
 from textual.message import Message
 from rich.syntax import Syntax
 from rich.text import Text
@@ -100,6 +103,48 @@ class NewFileDialog(ModalScreen):
         else:
             self.query_one("#filename").focus()
 
+class StatusBar(Static):
+    def __init__(self) -> None:
+        super().__init__("", id="status-bar")
+        self.mode = "NORMAL"
+        self.file_info = ""
+        self.command = ""
+        self._update_content()
+
+    def update_mode(self, mode: str) -> None:
+        self.mode = mode.upper()
+        self._update_content()
+
+    def update_file_info(self, info: str) -> None:
+        self.file_info = info
+        self._update_content()
+
+    def update_command(self, command: str) -> None:
+        self.command = command
+        self._update_content()
+
+    def _update_content(self) -> None:
+        parts = []
+        
+        # Mode indicator
+        mode_style = {
+            "NORMAL": "cyan",
+            "INSERT": "green",
+            "COMMAND": "yellow"
+        }
+        mode_color = mode_style.get(self.mode, "white")
+        parts.append(f"[{mode_color}]{self.mode}[/]")
+        
+        # File info
+        if self.file_info:
+            parts.append(self.file_info)
+            
+        # Command
+        if self.command:
+            parts.append(f"[yellow]{self.command}[/]")
+            
+        self.update(" ".join(parts))
+
 class CodeEditor(TextArea):
     BINDINGS = [
         Binding("ctrl+n", "new_file", "New File", show=True),
@@ -126,6 +171,7 @@ class CodeEditor(TextArea):
         Binding(":wq", "write_quit", "Write and Quit", show=False),
         Binding(":q", "quit", "Quit", show=False),
         Binding(":q!", "force_quit", "Force Quit", show=False),
+        Binding("%d", "clear_editor", "Clear Editor", show=False), 
         Binding("ctrl+z", "noop", ""), 
         Binding("ctrl+y", "noop", ""),
     ]
@@ -154,6 +200,27 @@ class CodeEditor(TextArea):
         self.command = ""
         self.in_command_mode = False
         self.pending_command = ""
+        self.status_bar = StatusBar()
+
+    def compose(self) -> ComposeResult:
+        yield self.status_bar
+        
+    def on_mount(self) -> None:
+        self.status_bar.update_mode("NORMAL")
+        self._update_status_info()
+
+    def _update_status_info(self) -> None:
+        file_info = []
+        if self.current_file:
+            file_info.append(os.path.basename(self.current_file))
+        if self._modified:
+            file_info.append("[red][+][/]")
+        if self.text:
+            lines = len(self.text.split('\n'))
+            chars = len(self.text)
+            file_info.append(f"{lines}L, {chars}B")
+        
+        self.status_bar.update_file_info(" ".join(file_info))
 
     def on_key(self, event) -> None:
         if self.in_command_mode:
@@ -180,6 +247,8 @@ class CodeEditor(TextArea):
                 self.refresh()
                 event.prevent_default()
                 event.stop()
+            self.status_bar.update_mode("COMMAND")
+            self.status_bar.update_command(self.command)
         else:
             if self.mode == "insert":
                 if event.is_printable:
@@ -236,6 +305,7 @@ class CodeEditor(TextArea):
                     event.stop()
                 elif event.character == "i":
                     self.mode = "insert"
+                    self.status_bar.update_mode("INSERT")
                     event.prevent_default()
                     event.stop()
                 elif event.character == ":":
@@ -261,6 +331,8 @@ class CodeEditor(TextArea):
             self.action_quit()
         elif command == "q!":
             self.action_force_quit()
+        elif command == "%d":
+            self.clear_editor()
         else:
             self.notify(f"Unknown command: {command}", severity="warning")
 
@@ -315,9 +387,8 @@ class CodeEditor(TextArea):
 
     def clear_editor(self) -> None:
         self.text = ""
-        self.current_file = None
-        self._modified = False
-        self.notify("File closed. You are now editing a blank file.", severity="info")
+        if self.command == "%d":
+            self.notify("Editor Cleared", severity="info")
         self.refresh()
 
     def action_write(self) -> None:
@@ -368,7 +439,9 @@ class CodeEditor(TextArea):
                     file.write(self.text)
                 self._modified = False
                 self.post_message(self.FileModified(False))
-                self.notify("File saved successfully")
+                saved_size = os.path.getsize(self.current_file)
+                self.notify(f"Wrote {saved_size} bytes to {os.path.basename(self.current_file)}")
+                self._update_status_info()
             except (IOError, OSError) as e:
                 self.notify(f"Error saving file: {e}", severity="error")
 
@@ -385,12 +458,15 @@ class CodeEditor(TextArea):
         
             if self._syntax:
                 self.update_syntax_highlighting() 
+            self._update_status_info()
 
     def action_enter_normal_mode(self) -> None:
         self.mode = "normal"
+        self.status_bar.update_mode("NORMAL")
 
     def action_enter_insert_mode(self) -> None:
         self.mode = "insert"
+        self.status_bar.update_mode("INSERT")
 
     def action_move_left(self) -> None:
         if self.mode == "normal":
@@ -538,7 +614,7 @@ class CodeEditor(TextArea):
             except Exception as e:
                 self.notify(f"Error loading new file: {str(e)}", severity="error")
 
-class NestView(Container):
+class NestView(Container, InitialFocusMixin):
     BINDINGS = [
         Binding("ctrl+h", "toggle_hidden", "Toggle Hidden Files", show=True),
         Binding("ctrl+b", "toggle_sidebar", "Toggle Sidebar", show=True),
@@ -554,7 +630,13 @@ class NestView(Container):
         self.editor = None
 
     async def action_new_file(self) -> None:
-        await self.app.action_new_file()
+        if hasattr(self.app, "action_new_file"):
+            # Use the app's implementation
+            await self.app.action_new_file()
+        else:
+            # Fallback to editor's implementation if app doesn't have one
+            editor = self.query_one(CodeEditor)
+            await editor.action_new_file()
 
     def compose(self) -> ComposeResult:
         yield Container(
@@ -659,6 +741,9 @@ class NestView(Container):
 
     def on_code_editor_file_modified(self, event: CodeEditor.FileModified) -> None:
         pass
+
+    def get_initial_focus(self) -> Optional[Widget]:
+        return self.query_one(FilterableDirectoryTree)
 
 class CustomCodeEditor(CodeEditor):
     BINDINGS = [
