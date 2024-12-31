@@ -47,6 +47,7 @@ MenuItem {
     border: none;
     text-align: center;
     min-width: 20;
+    transition: opacity 3s;
 }
 
 MenuItem:hover {
@@ -56,7 +57,6 @@ MenuItem:hover {
 MenuItem:focus {
     text-style: none;
     background: $secondary;
-    color: $primary;
 }
 
 /* Content Area */
@@ -132,6 +132,7 @@ CalendarGrid {
     height: 1fr;
     min-height: 3;
     content-align: center middle;
+    text-style: none;
 }
 
 .calendar-weekday {
@@ -146,9 +147,13 @@ CalendarDayButton {
 
 CalendarDayButton:hover {}
 
+CalendarDayButton:focus {
+    background: $accent 40%;
+}
+
 
 CalendarDayButton.current-day {
-    background: $accent 40%;
+    
 }
 
 .calendar-empty-day {}
@@ -206,7 +211,8 @@ DayView {
     width: 100%;
     content-align: center middle;
     margin-bottom: 1;
-    text-style: bold;
+    text-style: none;
+    dock: top;
 }
 
 .day-view-content {
@@ -234,6 +240,7 @@ DayView {
 .schedule-button {
     margin: 1 2;
     width: 20;
+    text-style: none;
 }
 
 .schedule-container, .notes-container {
@@ -260,20 +267,22 @@ DayView {
     padding: 1;
 }
 
-.notes-button {
-    margin: 0 1;
-    min-width: 15;
-    height: 3;
+.notes-content {
+    height: 100%;
+    width: 100%;
+    padding: 1;
 }
 
-.section-header {
+/* Section Headers */
+.section-header, .task-header, .middle-header {
+    dock: top;
     height: 3;
     padding: 1;
     margin-bottom: 1;
     text-align: center;
     text-style: bold;
-    background: $secondary;
-    dock: top;
+    background: $primary;
+    width: 100%;
 }
 
   .day-view-content {
@@ -309,21 +318,18 @@ DayView {
   width: 1fr;
 }
 
-/* Tasks */
-.task-header {
-    padding: 1 2;
-    text-style: bold;
-    margin-top: 1;
-}
-
+/* Tasks Section */
 .tasks-list {
     margin: 1 2;
-    height: auto;
-    overflow: auto;
+    height: 90%;  /* Use a percentage instead of calc() */
+    overflow-y: auto;
+    position: relative;  
 }
 
 .tasks-list-day {
-    overflow: auto;
+    overflow-y: auto;
+    margin-top: 1;
+    position: relative;
 }
 
 .task-item {
@@ -380,7 +386,8 @@ Horizontal {
 
 .back-button {
     margin: 1;
-    width: auto;
+    width: auto;    
+    text-style: none;
 }
 
 .back-button:hover {}
@@ -402,15 +409,15 @@ Horizontal {
     height: 3;
     border: none;
     content-align: center middle;
+    text-style: none;
 }
 
 .tab-button.active {
-    text-style: bold;
+    background: $secondary;
 }
 
-.tab-content {
-    width: 100%;
-    height: 100%;
+.tab-focus:hover {
+    background: $primary;
 }
 
 /* Dashboard Layout */
@@ -468,12 +475,10 @@ DashboardCard {
 
 .tasks-list > Static:hover {
     background: $surface-lighten-1;
-    text-style: bold;
 }
 
 .status-indicator:hover {
     background: $surface;
-    text-style: bold;
 }
 
 .status-indicator {
@@ -554,7 +559,6 @@ DashboardCard {
 }
 
 .filter-btn.active {
-    text-style: bold;
     border-bottom: solid $accent;
 }
 
@@ -589,7 +593,6 @@ UpcomingTasksView {
 .nav-title {
     width: 2fr;
     color: $accent;
-    text-style: bold;
     padding: 1 2;
 }
 
@@ -865,4 +868,35 @@ Tooltip {
 .toggle-hidden-btn:hover, .new-file-btn:hover {
     background: $primary-darken-2;
     color: $accent;
+}
+
+/* New indicator classes */
+.complete-indicator {
+    color: $success;
+}
+
+.complete-indicator.unchecked {
+    color: $text;
+}
+
+.progress-indicator {
+    color: $warning;
+}
+
+.progress-indicator.in-progress {
+    color: $text;
+}
+
+#status-bar {
+    dock: bottom;
+    width: 100%;
+    height: 1;
+    background: $surface;
+    color: $text;
+    padding: 0 1;
+}
+
+.editor-container {
+    height: 100%;
+    margin-bottom: 1;
 }

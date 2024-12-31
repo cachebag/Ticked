@@ -5,8 +5,11 @@ from textual import on
 from textual.app import ComposeResult
 from datetime import datetime
 import calendar
-from .task_widget import Task
+from ...widgets.task_widget import Task
 from textual.binding import Binding
+from src.ui.mixins.focus_mixin import InitialFocusMixin
+from typing import Optional
+from textual.widget import Widget
 
 class NavBar(Horizontal):
     def __init__(self, current_date: datetime):
@@ -213,6 +216,13 @@ class CalendarView(Container):
                 return
         except Exception:
             pass
+
+    def get_initial_focus(self) -> Optional[Widget]:
+        """Return the calendar grid as the default focus target"""
+        calendar_grid = self.query_one(CalendarGrid)
+        # Find first day button in grid
+        day_button = calendar_grid.query_one(CalendarDayButton)
+        return day_button if day_button else calendar_grid
 
 class TaskForm(ModalScreen):
     BINDINGS = [
@@ -456,7 +466,7 @@ class NotesSection(Vertical):
 
     BINDINGS = [
         Binding("ctrl+left", "exit_notes", "Exit Notes", show=True, priority=True),
-        Binding("ctrl+s", "save_notes", "Save Notes", show=True)
+        Binding("shift+tab", "cycle_focus", "Cycle Focus", show=True),
     ]
 
     def __init__(self, date: datetime | None = None):
@@ -466,29 +476,14 @@ class NotesSection(Vertical):
 
     def compose(self) -> ComposeResult:
         yield Static("Notes", classes="section-header")
-        notes_editor = TextArea(self.notes_content, id="notes-editor")
-        notes_editor.can_focus_tab = True
-        notes_editor.can_focus = True
-        yield notes_editor
-        with Horizontal(classes="notes-controls"):
-            yield Button("Save", id="save-notes", classes="notes-button")
+        with Container(classes="notes-content"):
+            yield TextArea(self.notes_content, id="notes-editor")
 
-    def on_key(self, event) -> None:  # Add this method
+    def on_key(self, event) -> None:
         if event.key == "ctrl+left" or event.key == "ctrl+right":
             add_task_button = self.app.screen.query_one("#add-task")
             if add_task_button:
                 add_task_button.focus()
-            event.stop()
-
-    def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id == "save-notes":
-            content = self.query_one("#notes-editor", TextArea).text
-            if self.date:
-                date_str = self.date.strftime('%Y-%m-%d')
-                if self.app.db.save_notes(date_str, content):
-                    self.notify(f"Notes saved for {date_str}!")
-            else:
-                self.notify("No date selected!", severity="error")
             event.stop()
 
     async def action_exit_notes(self) -> None:
@@ -496,23 +491,17 @@ class NotesSection(Vertical):
         if add_task_button:
             add_task_button.focus()
 
-    async def action_save_notes(self) -> None:
-        content = self.query_one("#notes-editor", TextArea).text
-        if self.date:
-            date_str = self.date.strftime('%Y-%m-%d')
-            if self.app.db.save_notes(date_str, content):
-                self.notify(f"Notes saved!")
-        else:
-            self.notify("No date selected!", severity="error")
-
 class DayView(Vertical):
 
         
     BINDINGS = [
-        Binding("left", "move_left", "Left", show=True),
-        Binding("right", "move_right", "Right", show=True),
-        Binding("up", "move_up", "", show=False),      
-        Binding("down", "move_down", "", show=False)   
+        Binding("up", "move_up", "Previous"),
+        Binding("down", "move_down", "Next"),
+        Binding("escape", "toggle_menu", "Menu"),
+        Binding("ctrl+s", "save_notes", "Save Notes"),
+        Binding("left", "move_left", "Left", show=False),
+        Binding("right", "move_right", "Right", show=False),
+        Binding("enter", "edit_task", "Edit Task"),
     ]
 
     def __init__(self, date: datetime):
@@ -528,7 +517,7 @@ class DayView(Vertical):
             with Container(classes="schedule-container"):
                 yield ScheduleSection(self.date)
             with Horizontal(classes="middle-container"):
-                yield Static("Nothing to see here yet", classes="section-header")
+                yield Static("Nothing to see here yet", classes="middle-header")
             with Container(classes="notes-container"):
                 yield NotesSection(self.date)
 
@@ -566,3 +555,24 @@ class DayView(Vertical):
         else:
             notes_editor.text = "# Notes\nStart writing your notes here..."
 
+    async def action_move_up(self) -> None:
+        current = self.app.focused
+        focusable = list(self.query("Button, Task, TextArea"))
+        if current in focusable:
+            idx = focusable.index(current)
+            prev_idx = (idx - 1) % len(focusable)
+            focusable[prev_idx].focus()
+
+    async def action_move_down(self) -> None:
+        current = self.app.focused
+        focusable = list(self.query("Button, Task, TextArea"))
+        if current in focusable:
+            idx = focusable.index(current)
+            next_idx = (idx + 1) % len(focusable)
+            focusable[next_idx].focus()
+
+    async def action_edit_task(self) -> None:
+        current = self.app.focused
+        if isinstance(current, Task):
+            task_form = TaskEditForm(current.task_data)
+            await self.app.push_screen(task_form)
