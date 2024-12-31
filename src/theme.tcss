@@ -51,7 +51,6 @@ MenuItem {
 }
 
 MenuItem:hover {
-    text: white;
     color: $primary;
 }
 
