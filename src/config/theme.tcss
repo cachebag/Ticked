@@ -907,40 +907,61 @@ Tooltip {
     margin: 0 1;
 }
 
-/* Pomodoro Styles */
-.pomodoro-container {
-    width: 100%;
-    height: 100%;
+PomodoroView {
     align: center middle;
-    padding: 2;
-}
-
-Timer {
+    height: 100%;
     width: 100%;
-    height: 10;
-    content-align: center middle;
-    text-align: center;
-    background: $boost;
-    border: solid $panel;
-    text-style: bold;
-    padding: 2;
-    margin-bottom: 2;
 }
-
-.timer-controls {
-    width: 100%;
+ 
+.pomodoro-container {
+    width: 80%;  /* Increased to give more room for ASCII art */
     height: auto;
     align: center middle;
+    padding: 2;
+}
+
+#timer_display {
+    width: 100%;
+    height: auto;
+    content-align: center middle;
+    text-align: center;
+    padding: 2;
+    background: $accent 0%;  /* Optional: adds a subtle background */
+}
+
+#session_counter {
+    width: 100%;
+    text-align: center;
     padding: 1;
+    margin-bottom: 2;
 }
-
+ 
+.timer-controls {
+    align: center middle;
+    width: 100%;
+    margin-top: 2;
+    text-style: none;
+}
+ 
 .control-button {
-    min-width: 20;
-    margin: 0 2;
+    width: 30%;
+    margin: 1 2;
+    text-style: none;
 }
 
-/* Update existing modal styling for Pomodoro settings */
-.task-form-container {
-    min-width: 50;
-    min-height: 30;
+.control-button:hover {
+    background: $primary-darken-2;
+    color: $accent;
 }
+ 
+.control-button:focus {
+    background: $accent;
+}
+ 
+#timer {
+    text-align: center;
+    padding: 2;
+    height: 1fr;
+    width: 100%;
+
+ }

@@ -10,6 +10,7 @@ from src.ui.views.nest import NestView
 from src.ui.mixins.focus_mixin import InitialFocusMixin
 from textual.widget import Widget
 from typing import Optional
+from ..views.pomodoro import PomodoroView   
 
 
 class MenuItem(Button):
@@ -71,37 +72,31 @@ class HomeScreen(Screen, InitialFocusMixin):
         content_container = self.query_one("#content")
         
         if "hidden" in menu.classes:
-            # Show menu
             menu.remove_class("hidden")
             menu.styles.display = "block"
             first_menu_item = menu.query_one("MenuItem")
             if first_menu_item:
                 first_menu_item.focus()
         else:
-            # Hide menu and always focus the appropriate default element
             menu.add_class("hidden")
             menu.styles.display = "none"
             
-            # Get the current view from the content container
             if content_container and content_container.children:
                 current_view = content_container.children[0]
                 
                 try:
-                    # Handle focus for WelcomeView specifically
                     if isinstance(current_view, WelcomeView):
                         tab = current_view.query("TabButton").first()
                         if tab:
                             tab.focus()
                             return
                     
-                    # Handle any view that implements get_initial_focus
                     if hasattr(current_view, 'get_initial_focus'):
                         initial_focus = current_view.get_initial_focus()
                         if initial_focus:
                             initial_focus.focus()
                             return
                 except Exception:
-                    # If any query fails, fallback to focusing the view itself
                     current_view.focus()
 
     def action_menu_up(self) -> None:
@@ -175,7 +170,9 @@ class HomeScreen(Screen, InitialFocusMixin):
                 nest_view = NestView()
                 content_container.mount(nest_view)
             elif button_id == "menu_pomodoro":
-                self.notify("Coming Soon!", severity="warning")
+                menu.add_class("hidden")
+                pomo_view = PomodoroView()
+                content_container.mount(pomo_view)
             elif button_id == "menu_spotify":
                 menu.add_class("hidden")
                 self.notify("Coming Soon!", severity="warning")
