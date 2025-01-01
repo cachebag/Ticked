@@ -11,6 +11,7 @@ from src.ui.mixins.focus_mixin import InitialFocusMixin
 from textual.widget import Widget
 from typing import Optional
 
+
 class MenuItem(Button):
     def __init__(self, label: str, id: str) -> None:
         super().__init__(label, id=id)
@@ -174,7 +175,6 @@ class HomeScreen(Screen, InitialFocusMixin):
                 nest_view = NestView()
                 content_container.mount(nest_view)
             elif button_id == "menu_pomodoro":
-                menu.add_class("hidden")
                 self.notify("Coming Soon!", severity="warning")
             elif button_id == "menu_spotify":
                 menu.add_class("hidden")
@@ -218,5 +218,4 @@ class HomeScreen(Screen, InitialFocusMixin):
         self.action_menu_down()
 
     def get_initial_focus(self) -> Optional[Widget]:
-        # Return the first menu item or calendar cell that should have focus
-        return self.query_one("MenuItem")  # Or whatever widget should have initial focus
+        return self.query_one("MenuItem")
