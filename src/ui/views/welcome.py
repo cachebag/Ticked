@@ -150,6 +150,8 @@ class TodayContent(Container):
                 tasks_list.mount(task_widget)
                 if current_focused_task_id and task['id'] == current_focused_task_id:
                     task_widget.focus()
+        else:
+            tasks_list.mount(Static("No tasks - Head to your calendar to add some!", classes="empty-schedule"))
 
     def refresh_tasks(self) -> None:
         today = datetime.now().strftime('%Y-%m-%d')
@@ -387,7 +389,7 @@ class UpcomingTasksView(Container):
                 yield Button("30d", id="filter-30", classes="filter-btn")
         
         with Vertical(id="upcoming-tasks-list", classes="tasks-list"):
-            yield Static("Loading...", classes="empty-schedule")
+            yield Static("Loading...", classes="empty-schedule-up")
 
     def on_mount(self) -> None:
         self.refresh_tasks()
@@ -425,7 +427,7 @@ class UpcomingTasksView(Container):
                 task_widget = Task(task_with_date)
                 tasks_list.mount(task_widget)
         else:
-            tasks_list.mount(Static("No upcoming tasks", classes="empty-schedule"))
+            tasks_list.mount(Static("No tasks - Head to your calendar to add some!", classes="empty-schedule"))
 
 
 

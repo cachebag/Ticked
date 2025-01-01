@@ -33,6 +33,7 @@ ENV/
 *.db
 *.sqlite3
 *.sqlite
+*.json
 .coverage
 htmlcov/
 .pytest_cache/

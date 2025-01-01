@@ -1,15 +1,17 @@
 from textual.app import App
-from src.ui.screens.home import HomeScreen
+from textual.screen import Screen
+from .ui.views.nest import NewFileDialog 
+from .ui.views.pomodoro import PomodoroView
+from .ui.screens.home import HomeScreen
 from textual.binding import Binding
-from src.core.database.calendar_db import CalendarDB
+from .core.database.calendar_db import CalendarDB
 import os
-
+import json
 
 class Tick(App):
     CSS_PATH = "config/theme.tcss"
     SCREENS = {"home": HomeScreen}
     TITLE = "TICK"
-    
     BINDINGS = [
         Binding("q", "quit", "Quit", show=True),
         Binding("up", "focus_previous", "Move Up", show=True),
@@ -20,11 +22,42 @@ class Tick(App):
         Binding("escape", "toggle_menu", "Toggle Menu", show=True),
     ]
 
-    
     def __init__(self):
         super().__init__()
         self.db = CalendarDB()
-    
+        self.pomodoro_settings = self.load_settings()
+
+    def load_settings(self):
+        default_settings = {
+            "work_duration": 25,
+            "break_duration": 5,
+            "total_sessions": 4,
+            "long_break_duration": 15
+        }
+        try:
+            with open("pomodoro_settings.json", "r") as f:
+                return json.load(f)
+        except FileNotFoundError:
+            with open("pomodoro_settings.json", "w") as f:
+                json.dump(default_settings, f)
+            return default_settings
+
+    def get_current_settings(self):
+        return self.pomodoro_settings
+
+    def update_settings(self, new_settings):
+        self.pomodoro_settings = new_settings
+        if isinstance(self.screen, Screen):
+            for view in self.screen.walk_children(PomodoroView):
+                view.work_duration = new_settings["work_duration"]
+                view.break_duration = new_settings["break_duration"]
+                view.total_sessions = new_settings["total_sessions"]
+                view.long_break_duration = new_settings["long_break_duration"]
+
+    async def on_shutdown(self) -> None:
+        await self.db.close()
+        await super().on_shutdown()
+
     def on_mount(self) -> None:
         self.push_screen("home")
         self.theme = "gruvbox"
@@ -38,20 +71,16 @@ class Tick(App):
             pass
 
     async def action_new_file(self) -> None:
-        """Create a new file."""
         current_path = os.getcwd()
         dialog = NewFileDialog(current_path)
         result = await self.push_screen(dialog)
-        
         if result:
             self.notify(f"Created new file: {os.path.basename(result)}")
 
     def action_toggle_menu(self) -> None:
-        """Toggle the main menu visibility."""
         try:
             menu = self.query_one("MainMenu")
             is_hidden = "hidden" in menu.classes
-            
             if is_hidden:
                 menu.remove_class("hidden")
                 for item in menu.query("MenuItem"):
@@ -60,17 +89,14 @@ class Tick(App):
                 menu.add_class("hidden")
                 for item in menu.query("MenuItem"):
                     item.can_focus = False
-                
                 current_view = self.screen.query_one(".content").children[0]
                 if hasattr(current_view, 'get_initial_focus'):
                     initial_focus = current_view.get_initial_focus()
                     if (initial_focus):
                         initial_focus.focus()
-                        
         except Exception as e:
             self.notify(f"Error toggling menu: {str(e)}", severity="error")
 
 if __name__ == "__main__":
     app = Tick()
     app.run()
-
