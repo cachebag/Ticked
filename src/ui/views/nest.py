@@ -11,6 +11,11 @@ from rich.syntax import Syntax
 from rich.text import Text
 import os
 
+class FileCreated(Message):
+    def __init__(self, path: str) -> None:
+        super().__init__()
+        self.path = path
+
 class FilterableDirectoryTree(DirectoryTree):
     def __init__(self, path: str, show_hidden: bool = False) -> None:
         super().__init__(path)
@@ -20,6 +25,11 @@ class FilterableDirectoryTree(DirectoryTree):
         if self.show_hidden:
             return paths
         return [path for path in paths if not os.path.basename(path).startswith('.')]
+
+    def refresh_tree(self) -> None:
+        self.path = self.path  # Force path refresh
+        self.reload()
+        self.refresh(layout=True)
 
 class NewFileDialog(ModalScreen):
     BINDINGS = [
@@ -60,12 +70,14 @@ class NewFileDialog(ModalScreen):
 
     def on_input_submitted(self) -> None:
         self.action_submit()
+        
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "cancel":
             self.dismiss(None)
         elif event.button.id == "submit":
             self._handle_submit()
+            
 
     def _handle_submit(self) -> None:
         filename = self.query_one("#filename").value
@@ -83,8 +95,11 @@ class NewFileDialog(ModalScreen):
             with open(full_path, 'w') as f:
                 f.write("")
             self.dismiss(full_path)
+            self.app.post_message(FileCreated(full_path))
         except Exception as e:
             self.notify(f"Error creating file: {str(e)}", severity="error")
+            self.dismiss(None)  
+
 
     async def action_cancel(self) -> None:
         self.dismiss(None)
@@ -126,7 +141,6 @@ class StatusBar(Static):
     def _update_content(self) -> None:
         parts = []
         
-        # Mode indicator
         mode_style = {
             "NORMAL": "cyan",
             "INSERT": "green",
@@ -135,11 +149,9 @@ class StatusBar(Static):
         mode_color = mode_style.get(self.mode, "white")
         parts.append(f"[{mode_color}]{self.mode}[/]")
         
-        # File info
         if self.file_info:
             parts.append(self.file_info)
             
-        # Command
         if self.command:
             parts.append(f"[yellow]{self.command}[/]")
             
@@ -597,30 +609,34 @@ class CodeEditor(TextArea):
             current_path = os.path.expanduser("~")
             
         dialog = NewFileDialog(current_path)
-        result = await self.app.push_screen(dialog)
+        await self.app.push_screen(dialog)
         
-        if result:
-            try:
-                with open(result, 'r', encoding='utf-8') as file:
-                    self.load_text("")
-                    self._undo_stack = []
-                    self._redo_stack = []
-                    self._last_text = ""
-                    self.current_file = result
-                    self.set_language_from_file(result)
-                    self.mode = "normal"
-                    self.focus()
-                    self.notify(f"Created new file: {os.path.basename(result)}")
-            except Exception as e:
-                self.notify(f"Error loading new file: {str(e)}", severity="error")
+
+    def open_file(self, filepath: str) -> None:
+        """Open a file in the editor."""
+        try:
+            with open(filepath, 'r', encoding='utf-8') as file:
+                content = file.read()
+                self.load_text(content)
+                self._undo_stack = []
+                self._redo_stack = []
+                self._last_text = content
+                self.current_file = filepath
+                self.set_language_from_file(filepath)
+                self.mode = "normal"
+                self._modified = False
+                self.focus()
+                self._update_status_info()
+        except Exception as e:
+            self.notify(f"Error opening file: {str(e)}", severity="error")
 
 class NestView(Container, InitialFocusMixin):
     BINDINGS = [
         Binding("ctrl+h", "toggle_hidden", "Toggle Hidden Files", show=True),
         Binding("ctrl+b", "toggle_sidebar", "Toggle Sidebar", show=True),
-        Binding("ctrl+f", "find", "Find", show=True),
         Binding("ctrl+right", "focus_editor", "Focus Editor", show=True),
         Binding("ctrl+left", "focus_tree", "Focus Tree", show=True),
+        Binding("r", "refresh_tree", "Refresh Tree", show=True),  # Add this binding
     ]
 
     def __init__(self) -> None:
@@ -630,11 +646,11 @@ class NestView(Container, InitialFocusMixin):
         self.editor = None
 
     async def action_new_file(self) -> None:
-        if hasattr(self.app, "action_new_file"):
-            await self.app.action_new_file()
-        else:
-            editor = self.query_one(CodeEditor)
-            await editor.action_new_file()
+        editor = self.query_one(CodeEditor)
+        await editor.action_new_file()
+
+    def on_file_created(self, event: FileCreated) -> None:
+        self.notify(f"Created file: {os.path.basename(event.path)}")
 
     def compose(self) -> ComposeResult:
         yield Container(
@@ -700,12 +716,20 @@ class NestView(Container, InitialFocusMixin):
     def action_focus_tree(self) -> None:
         self.query_one(FilterableDirectoryTree).focus()
 
+    def action_refresh_tree(self) -> None:
+        tree = self.query_one(FilterableDirectoryTree)
+        tree.refresh_tree()
+        self.notify("Tree refreshed")
+
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "toggle_hidden":
             self.action_toggle_hidden()
             event.stop()
         elif event.button.id == "new_file":
-            self.run_worker(self.action_new_file())
+            self.run_worker(self.editor.action_new_file())
+            event.stop()
+        elif event.button.id == "refresh_tree": 
+            self.action_refresh_tree()
             event.stop()
 
     def on_directory_tree_file_selected(self, event: DirectoryTree.FileSelected) -> None:
@@ -718,27 +742,20 @@ class NestView(Container, InitialFocusMixin):
 
             if is_binary:
                 self.notify("Cannot open binary file", severity="warning")
+                event.stop()
                 return
 
             editor = self.query_one(CodeEditor)
-            with open(event.path, 'r', encoding='utf-8') as file:
-                content = file.read()
-                editor.load_text(content)
-                editor._undo_stack = []
-                editor._redo_stack = []
-                editor._last_text = content
-                editor.current_file = event.path
-                editor.set_language_from_file(event.path)
-                editor.mode = "normal"
-                editor.focus()
+            editor.open_file(event.path)
+            editor.focus()
+            event.stop()
 
         except UnicodeDecodeError:
             self.notify("Cannot open file: Not a valid UTF-8 text file", severity="warning")
+            event.stop()
         except (IOError, OSError) as e:
             self.notify(f"Error opening file: {str(e)}", severity="error")
-
-    def on_code_editor_file_modified(self, event: CodeEditor.FileModified) -> None:
-        pass
+            event.stop()
 
     def get_initial_focus(self) -> Optional[Widget]:
         return self.query_one(FilterableDirectoryTree)
