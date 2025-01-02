@@ -1,8 +1,10 @@
-from textual.app import App
+# app.py
+from textual.app import App, ComposeResult
 from textual.screen import Screen
 from .ui.views.nest import NewFileDialog 
 from .ui.views.pomodoro import PomodoroView
 from .ui.screens.home import HomeScreen
+from .ui.views.nest import NestView
 from textual.binding import Binding
 from .core.database.calendar_db import CalendarDB
 import os
@@ -12,6 +14,7 @@ class Tick(App):
     CSS_PATH = "config/theme.tcss"
     SCREENS = {"home": HomeScreen}
     TITLE = "TICK"
+    COMMANDS = {}
     BINDINGS = [
         Binding("q", "quit", "Quit", show=True),
         Binding("up", "focus_previous", "Move Up", show=True),
@@ -96,6 +99,9 @@ class Tick(App):
                         initial_focus.focus()
         except Exception as e:
             self.notify(f"Error toggling menu: {str(e)}", severity="error")
+
+    def compose(self) -> ComposeResult:
+        yield NestView() 
 
 if __name__ == "__main__":
     app = Tick()

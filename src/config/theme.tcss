@@ -4,6 +4,8 @@ Screen {
     layout: grid;
     grid-size: 1;
     overflow: auto;
+    background: $surface-darken-2;
+    color: $text;
 }
 
 /* Header and Footer */
@@ -336,6 +338,7 @@ DayView {
     padding: 1;
     border: wide white 35%;
     margin-bottom: 1;
+    position: relative;
 }
 
 .task-item:hover {
@@ -586,7 +589,8 @@ UpcomingTasksView {
 .nav-header {
     width: 100%;
     height: 3;
-    background: $secondary;
+    background: $primary-darken-1;
+    color: $accent;
     padding: 0 1;
 }
 
@@ -614,6 +618,8 @@ FilterableDirectoryTree {
     width: 100%;
     height: 1fr;
     scrollbar-size: 1 1;
+    overflow-x: hidden;
+    border: gray;
 }
 
 .file-nav {
@@ -621,8 +627,8 @@ FilterableDirectoryTree {
     min-width: 30;
     max-width: 50;
     height: 100%;
-    background: $boost;
-    border-right: solid $panel;
+    background: transparent;
+    border: solid $panel;
 }
 
 .file-nav.hidden {
@@ -630,11 +636,6 @@ FilterableDirectoryTree {
     min-width: 0 !important;
     overflow: hidden !important;
     display: none !important;
-}
-
-.editor-container {
-    width: 2fr;
-    height: 100%;
 }
 
 /* File Navigation */
@@ -653,15 +654,10 @@ FilterableDirectoryTree {
     width: 1fr;
     min-width: 30;
     max-width: 50;
-    height: 100%;
-    background: $boost;
-    border-right: solid $panel;
+    height: 99%;
+    border: solid $panel;
 }
 
-.editor-container {
-    width: 2fr;
-    height: 100%;
-}
 
 TextArea {
     height: 100%;
@@ -671,7 +667,7 @@ TextArea {
 
 /* Editor Styling */
 CodeEditor {
-    border: none;
+    border: solid $panel;
     height: 100%;
     dock: left;
     width: 100%;
@@ -721,22 +717,18 @@ CodeEditor .selection {
 }
 
 /* Selection and Focus */
-*:focus {
+*:focus { 
 }
 
-FilterableDirectoryTree:focus {
-    border: solid $accent;
-}
-
-CodeEditor:focus {
-    border: solid $accent;
+FilterableDirectoryTree:focus, CodeEditor:focus {
+    border: $accent;
+    
 }
 
 .file-nav, .editor-container {
-    border: solid transparent;  /* Default transparent border to prevent layout shifts */
+    border: solid $secondary;
 }
 
-/* Update your CSS file with these modifications */
 
 /* Fix the overflow issue */
 Screen {
@@ -767,7 +759,6 @@ Tooltip {
     dock: right;
     width: auto;
     max-width: 60;
-    offset-x: 1;
 }
 
 /* Status indicators */
@@ -918,6 +909,7 @@ PomodoroView {
     height: auto;
     align: center middle;
     padding: 2;
+    margin-top: 10;  /* Add top margin to move everything down */
 }
 
 #timer_display {
@@ -925,8 +917,9 @@ PomodoroView {
     height: auto;
     content-align: center middle;
     text-align: center;
-    padding: 2;
     background: $accent 0%;  /* Optional: adds a subtle background */
+    margin-bottom: 0;
+    
 }
 
 #session_counter {
@@ -939,8 +932,8 @@ PomodoroView {
 .timer-controls {
     align: center middle;
     width: 100%;
-    margin-top: 2;
     text-style: none;
+    margin-bottom: 10;
 }
  
 .control-button {
@@ -957,11 +950,3 @@ PomodoroView {
 .control-button:focus {
     background: $accent;
 }
- 
-#timer {
-    text-align: center;
-    padding: 2;
-    height: 1fr;
-    width: 100%;
-
- }

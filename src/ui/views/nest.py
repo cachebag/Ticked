@@ -27,7 +27,7 @@ class FilterableDirectoryTree(DirectoryTree):
         return [path for path in paths if not os.path.basename(path).startswith('.')]
 
     def refresh_tree(self) -> None:
-        self.path = self.path  # Force path refresh
+        self.path = self.path
         self.reload()
         self.refresh(layout=True)
 
@@ -96,6 +96,9 @@ class NewFileDialog(ModalScreen):
                 f.write("")
             self.dismiss(full_path)
             self.app.post_message(FileCreated(full_path))
+            tree = self.app.query_one(FilterableDirectoryTree)
+            tree.refresh_tree() 
+            self.dismiss(full_path)
         except Exception as e:
             self.notify(f"Error creating file: {str(e)}", severity="error")
             self.dismiss(None)  
@@ -213,6 +216,7 @@ class CodeEditor(TextArea):
         self.in_command_mode = False
         self.pending_command = ""
         self.status_bar = StatusBar()
+        self.cursor_type = "line"
 
     def compose(self) -> ComposeResult:
         yield self.status_bar
@@ -264,6 +268,7 @@ class CodeEditor(TextArea):
         else:
             if self.mode == "insert":
                 if event.is_printable:
+                    self.cursor_type = "line"
                     self._save_undo_state()  
                     self.insert(event.character)
                     event.prevent_default()
@@ -318,6 +323,7 @@ class CodeEditor(TextArea):
                 elif event.character == "i":
                     self.mode = "insert"
                     self.status_bar.update_mode("INSERT")
+                    self.cursor_blink = True
                     event.prevent_default()
                     event.stop()
                 elif event.character == ":":
@@ -475,10 +481,12 @@ class CodeEditor(TextArea):
     def action_enter_normal_mode(self) -> None:
         self.mode = "normal"
         self.status_bar.update_mode("NORMAL")
+        self.cursor_blink = False
 
     def action_enter_insert_mode(self) -> None:
         self.mode = "insert"
         self.status_bar.update_mode("INSERT")
+        self.cursor_blink = True
 
     def action_move_left(self) -> None:
         if self.mode == "normal":
@@ -651,6 +659,8 @@ class NestView(Container, InitialFocusMixin):
 
     def on_file_created(self, event: FileCreated) -> None:
         self.notify(f"Created file: {os.path.basename(event.path)}")
+        tree = self.query_one(FilterableDirectoryTree)
+        tree.refresh_tree()
 
     def compose(self) -> ComposeResult:
         yield Container(
