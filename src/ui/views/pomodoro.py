@@ -8,6 +8,8 @@ from textual.binding import Binding
 from textual.screen import ModalScreen
 import asyncio
 import json
+import pyfiglet
+
 
 class CustomizeModal(ModalScreen[dict]):
     def compose(self) -> ComposeResult:
@@ -57,74 +59,6 @@ class PomodoroView(Container):
         Binding("r", "reset", "Reset"),
     ]
 
-    ASCII_NUMBERS = {
-        "0": ["██████",
-              "██  ██",
-              "██  ██", 
-              "██  ██",
-              "██████"],
-              
-        "1": ["   ██ ",
-              "   ██ ",
-              "   ██ ",
-              "   ██ ",
-              "   ██ "],
-              
-        "2": ["██████",
-              "    ██",
-              "██████",
-              "██    ",
-              "██████"],
-              
-        "3": ["██████",
-              "    ██",
-              "██████",
-              "    ██",
-              "██████"],
-              
-        "4": ["██  ██",
-              "██  ██",
-              "██████",
-              "    ██",
-              "    ██"],
-              
-        "5": ["██████",
-              "██    ",
-              "██████",
-              "    ██",
-              "██████"],
-              
-        "6": ["██████",
-              "██    ",
-              "██████",
-              "██  ██",
-              "██████"],
-              
-        "7": ["██████",
-              "    ██",
-              "    ██",
-              "    ██",
-              "    ██"],
-              
-        "8": ["██████",
-              "██  ██",
-              "██████",
-              "██  ██", 
-              "██████"],
-              
-        "9": ["██████",
-              "██  ██",
-              "██████",
-              "    ██",
-              "██████"],
-              
-        ":": ["      ",
-              "  ██  ",
-              "      ",
-              "  ██  ",
-              "      "]
-    }
-
     def __init__(self):
         super().__init__()
         self._is_running = False
@@ -140,14 +74,6 @@ class PomodoroView(Container):
                 yield Button("Start/Pause", id="toggle", classes="control-button")
                 yield Button("Reset", id="reset", classes="control-button")
                 yield Button("Customize", id="customize", classes="control-button")
-
-    def create_ascii_display(self, time_str: str) -> str:
-        display_lines = [""] * 12
-        for char in time_str:
-            ascii_char = self.ASCII_NUMBERS[char]
-            for i in range(5):
-                display_lines[i] += ascii_char[i] + "  "
-        return "\n".join(display_lines)
 
     async def timer_countdown(self):
         while self.time_left > 0 and self._is_running:
@@ -190,13 +116,17 @@ class PomodoroView(Container):
     def update_session_counter(self):
         self.session_counter.update(f"Session {self.current_session}/{self.total_sessions}")
 
+
     def update_display(self):
-        minutes = self.time_left // 60
-        seconds = self.time_left % 60
-        time_str = f"{minutes:02d}:{seconds:02d}"
-        ascii_display = self.create_ascii_display(time_str)
-        self.timer_display.update(ascii_display)
+        minutes = f"{self.time_left // 60:02d}".replace("", " ")[1:-1]
+        seconds = f"{self.time_left % 60:02d}".replace("", " ")[1:-1]
+        time_string = f"{minutes}  :  {seconds}"
+        ascii_art = pyfiglet.figlet_format(time_string, font="colossal")
+        self.timer_display.update(ascii_art)
         self.timer_display.refresh(layout=True)
+
+
+
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         event.stop()

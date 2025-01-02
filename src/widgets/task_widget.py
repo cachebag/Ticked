@@ -1,3 +1,4 @@
+# task_widget.py
 from textual.widgets import Static
 from textual.containers import Horizontal
 from textual.message import Message
@@ -39,6 +40,7 @@ class Task(Static):
         )
         
         self.tooltip = tooltip_text
+        TOOLTIP_DELAY = 0.1
         
         if self.completed:
             self.add_class("completed-task")
@@ -88,16 +90,14 @@ class Task(Static):
         if self.in_progress:
             self.in_progress = False
             self.remove_class("in-progress")
-            self.query_one(".progress-indicator").update("[-]")
-            self.query_one(".complete-indicator").update("[ ]")
+            self.query_one(".progress-indicator").remove_class("active")
         else:
             self.in_progress = True
-            self.completed = False
+            self.completed = False  # Can't be completed and in progress
             self.add_class("in-progress")
             self.remove_class("completed-task")
-            self.query_one(".task-text").remove_class("completed")
-            self.query_one(".progress-indicator").update("→")
-            self.query_one(".complete-indicator").update("[ ]")
+            self.query_one(".progress-indicator").add_class("active")
+            self.query_one(".complete-indicator").remove_class("active")
     
         self.update_task_status()
         self.post_message(self.Updated(self.task_id))
