@@ -644,7 +644,7 @@ class NestView(Container, InitialFocusMixin):
         Binding("ctrl+b", "toggle_sidebar", "Toggle Sidebar", show=True),
         Binding("ctrl+right", "focus_editor", "Focus Editor", show=True),
         Binding("ctrl+left", "focus_tree", "Focus Tree", show=True),
-        Binding("r", "refresh_tree", "Refresh Tree", show=True),  # Add this binding
+        Binding("r", "refresh_tree", "Refresh Tree", show=True),  
     ]
 
     def __init__(self) -> None:

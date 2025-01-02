@@ -116,6 +116,7 @@ class LibrarySection(Container):
             id="playlists-container"
         )
 
+    # debug log to test pulling of user playlists
     def load_playlists(self, spotify_client):
         with open("spotify_debug.log", "a") as f:
             f.write("\n--- Starting playlist load ---\n")
@@ -136,10 +137,8 @@ class LibrarySection(Container):
                     container.mount(Static("Your Library", classes="section-header"))
                     container.mount(Static("Playlists", classes="subsection-header"))
                     
-                    # Add Liked Songs
                     container.mount(PlaylistItem("Liked Songs", "liked_songs"))
                     
-                    # Add each playlist
                     for playlist in playlists['items']:
                         name = playlist['name'] if playlist['name'] else "Untitled Playlist"
                         container.mount(PlaylistItem(name, playlist['id']))
@@ -182,7 +181,7 @@ class PlaylistView(Container):
             self.current_playlist_id = playlist_id
             tracks_container = self.query_one("#tracks-container")
             if tracks_container:
-                tracks_container.remove_children()  # Clear old results
+                tracks_container.remove_children() 
 
             if playlist_id == "liked_songs":
                 results = spotify_client.current_user_saved_tracks()
@@ -236,7 +235,7 @@ class SpotifyView(Container):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "auth-btn":
             self.notify("Starting Spotify authentication...")
-            self.action_authenticate()  # Removes the old synchronous code
+            self.action_authenticate() 
             event.stop()
 
 
