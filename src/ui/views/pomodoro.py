@@ -1,7 +1,9 @@
+# pomodoro.py - Pomodoro timer view
 from textual.app import ComposeResult, App
 from textual.containers import Container, Vertical, Horizontal
 from textual.widgets import Button, Static, Input, Label
 from textual.reactive import reactive
+from textual import work
 from textual.binding import Binding
 from textual.screen import ModalScreen
 import asyncio
@@ -35,9 +37,6 @@ class CustomizeModal(ModalScreen[dict]):
                 with open("pomodoro_settings.json", "w") as f:
                     json.dump(settings, f)
                 self.app.update_settings(settings)
-                self.app.pop_screen()
-                self.app.push_screen("home")
-                self.app.refresh() 
                 self.dismiss(settings)
             except ValueError:
                 self.app.notify("Please enter valid numbers")
@@ -59,118 +58,72 @@ class PomodoroView(Container):
     ]
 
     ASCII_NUMBERS = {
-        "0": ["000000000000",
-              "000000000000", 
-              "000  00  000",
-              "000  00  000",
-              "000  00  000",
-              "000  00  000",
-              "000  00  000",
-              "000  00  000",
-              "000000000000",
-              "000000000000"],
-        "1": ["1111111111  ",
-              "1111111111  ",
-              "      1111  ",
-              "      1111  ",
-              "      1111  ",
-              "      1111  ",
-              "      1111  ", 
-              "      1111  ",
-              "111111111111",
-              "111111111111"],
-        "2": ["222222222222",
-              "222222222222",
-              "         222",
-              "         222",
-              "222222222222",
-              "222222222222",
-              "222         ",
-              "222         ",
-              "222222222222",
-              "222222222222"],
-        "3": ["333333333333",
-              "333333333333",
-              "        3333",
-              "        3333",
-              "333333333333",
-              "333333333333",
-              "        3333",
-              "        3333",
-              "333333333333",
-              "333333333333"],
-        "4": ["44        44",
-              "44        44",
-              "44        44",
-              "44        44",
-              "444444444444",
-              "444444444444",
-              "          44",
-              "          44",
-              "          44",
-              "          44"],
-        "5": ["555555555555",
-              "555555555555",
-              "555         ",
-              "555         ",
-              "555555555555",
-              "555555555555",
-              "        5555",
-              "        5555",
-              "555555555555",
-              "555555555555"],
-        "6": ["666666666666",
-              "666666666666",
-              "666         ",
-              "666         ",
-              "666666666666",
-              "666666666666",
-              "666  66  666",
-              "666  66  666",
-              "666666666666",
-              "666666666666"],
-        "7": ["777777777777",
-              "777777777777",
-              "        7777",
-              "        7777",
-              "        7777",
-              "        7777",
-              "        7777",
-              "        7777",
-              "        7777",
-              "        7777"],
-        "8": ["888888888888",
-              "888888888888",
-              "888  88  888",
-              "888  88  888",
-              "888888888888",
-              "888888888888",
-              "888  88  888",
-              "888  88  888",
-              "888888888888",
-              "888888888888"],
-        "9": ["999999999999",
-              "999999999999",
-              "999  99  999",
-              "999  99  999",
-              "999999999999",
-              "999999999999",
-              "        9999",
-              "        9999",
-              "999999999999",
-              "999999999999"],
-        ":": ["            ",
-              "            ",
-              "    ::::    ",
-              "    ::::    ",
-              "            ",
-              "            ",
-              "    ::::    ",
-              "    ::::    ",
-              "            ",
-              "            "]
+        "0": ["██████",
+              "██  ██",
+              "██  ██", 
+              "██  ██",
+              "██████"],
+              
+        "1": ["   ██ ",
+              "   ██ ",
+              "   ██ ",
+              "   ██ ",
+              "   ██ "],
+              
+        "2": ["██████",
+              "    ██",
+              "██████",
+              "██    ",
+              "██████"],
+              
+        "3": ["██████",
+              "    ██",
+              "██████",
+              "    ██",
+              "██████"],
+              
+        "4": ["██  ██",
+              "██  ██",
+              "██████",
+              "    ██",
+              "    ██"],
+              
+        "5": ["██████",
+              "██    ",
+              "██████",
+              "    ██",
+              "██████"],
+              
+        "6": ["██████",
+              "██    ",
+              "██████",
+              "██  ██",
+              "██████"],
+              
+        "7": ["██████",
+              "    ██",
+              "    ██",
+              "    ██",
+              "    ██"],
+              
+        "8": ["██████",
+              "██  ██",
+              "██████",
+              "██  ██", 
+              "██████"],
+              
+        "9": ["██████",
+              "██  ██",
+              "██████",
+              "    ██",
+              "██████"],
+              
+        ":": ["      ",
+              "  ██  ",
+              "      ",
+              "  ██  ",
+              "      "]
     }
-
 
     def __init__(self):
         super().__init__()
@@ -192,7 +145,7 @@ class PomodoroView(Container):
         display_lines = [""] * 12
         for char in time_str:
             ascii_char = self.ASCII_NUMBERS[char]
-            for i in range(10):
+            for i in range(5):
                 display_lines[i] += ascii_char[i] + "  "
         return "\n".join(display_lines)
 
@@ -243,6 +196,7 @@ class PomodoroView(Container):
         time_str = f"{minutes:02d}:{seconds:02d}"
         ascii_display = self.create_ascii_display(time_str)
         self.timer_display.update(ascii_display)
+        self.timer_display.refresh(layout=True)
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         event.stop()
@@ -251,11 +205,13 @@ class PomodoroView(Container):
         elif event.button.id == "reset":
             self.action_reset()
         elif event.button.id == "customize":
-            await self.action_customize()
+            self.action_customize()
 
+
+    @work
     async def action_customize(self):
         modal = CustomizeModal()
-        settings = await self.app.push_screen(modal)
+        settings = await self.app.push_screen_wait(modal)
         if settings:
             self._is_running = False
             if self.timer_task and not self.timer_task.done():
@@ -270,7 +226,8 @@ class PomodoroView(Container):
             self.query_one("#toggle").label = "Start"
             self.update_display()
             self.update_session_counter()
-            self.refresh()
+            
+
 
     def action_toggle(self):
         self._is_running = not self._is_running
