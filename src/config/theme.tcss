@@ -939,4 +939,41 @@ PomodoroView {
     padding: 0 1;               /* spacing around each statistic */
 }
 
+.connect-spotify-button {
+    margin: 2 2;
+    background: $primary;
+    color: $accent;
+    border: none;
+    text-style: bold;
+    transition: background 0.3s;
+}
 
+.connect-spotify-button:hover {
+    background: $secondary;
+}
+
+.spotify-playlist-item {
+    background: $surface;
+    margin: 1 2;
+    padding: 1;
+    text-align: center;
+    border: none;
+    transition: background 0.3s;
+}
+
+.spotify-playlist-item:hover {
+    background: $surface-lighten-1;
+}
+
+.spotify-track-button {
+    background: transparent;
+    border: none;
+    margin: 1 0;
+    padding: 1;
+    text-align: left;
+    transition: background 0.3s;
+}
+
+.spotify-track-button:hover {
+    background: $surface-lighten-1;
+}
