@@ -1,3 +1,4 @@
+# home.py
 from textual.app import ComposeResult
 from textual.containers import Container, ScrollableContainer 
 from textual.screen import Screen
@@ -11,6 +12,7 @@ from src.ui.mixins.focus_mixin import InitialFocusMixin
 from textual.widget import Widget
 from typing import Optional
 from ..views.pomodoro import PomodoroView   
+from ..views.spotify import SpotifyView  # Import SpotifyView
 
 
 class MenuItem(Button):
@@ -175,7 +177,8 @@ class HomeScreen(Screen, InitialFocusMixin):
                 content_container.mount(pomo_view)
             elif button_id == "menu_spotify":
                 menu.add_class("hidden")
-                self.notify("Coming Soon!", severity="warning")
+                spotify_view = SpotifyView()
+                content_container.mount(spotify_view)
             elif button_id == "menu_settings":
                 menu.add_class("hidden")
                 self.notify("Coming Soon!", severity="warning")

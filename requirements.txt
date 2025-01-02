@@ -5,3 +5,6 @@ rich
 psutil
 pygments
 textual[syntax]
+pyfiglet
+spotipy
+python-dotenv
