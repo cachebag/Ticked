@@ -1,4 +1,4 @@
-/* Base Layout */
+
 Screen {
     align: center middle;
     layout: grid;
@@ -8,7 +8,7 @@ Screen {
     color: $text;
 }
 
-/* Header and Footer */
+
 Header {
     height: 3;
     dock: top;
@@ -21,7 +21,7 @@ Footer {
     height: auto;
 }
 
-/* Main Menu */
+
 MainMenu {
     dock: left;
     width: 30;
@@ -61,7 +61,7 @@ MenuItem:focus {
     background: $secondary;
 }
 
-/* Content Area */
+
 .content {
     height: 100%;
     width: 100%;
@@ -80,7 +80,7 @@ MenuItem:focus {
     overflow: hidden;
 }
 
-/* Welcome View */
+
 WelcomeView {
     width: 100%;
     height: auto;
@@ -186,7 +186,7 @@ CalendarDayButton.current-day {
     border: tall white;
 }
 
-/* System Stats */
+
 SystemStats {
     padding: 0 1;
     width: 80%;
@@ -207,7 +207,7 @@ SystemStatsHeader {
     padding: 0 1;
 }
 
-/* Day View */
+
 DayView {
     padding: 2;
     overflow: auto;
@@ -228,7 +228,7 @@ DayView {
     margin-top: 1;
 }
 
-/* Schedule Section */
+
 .schedule-section {
     background: black 30%;
     height: auto;
@@ -256,7 +256,7 @@ DayView {
     padding: 1;
 }
 
-/* Notes Section */
+
 .notes-container {
     height: 40;
 }
@@ -280,7 +280,7 @@ DayView {
     padding: 1;
 }
 
-/* Section Headers */
+
 .section-header, .task-header, .middle-header {
     dock: top;
     height: 3;
@@ -325,10 +325,10 @@ DayView {
   width: 1fr;
 }
 
-/* Tasks Section */
+
 .tasks-list {
     margin: 1 2;
-    height: 90%;  /* Use a percentage instead of calc() */
+    height: 90%;  
     overflow-y: auto;
     position: relative;  
 }
@@ -367,7 +367,7 @@ DayView {
     text-align: center;
 }
 
-/* Task Form */
+
 .task-form-container {
     width: 60;
     height: 65%;
@@ -391,7 +391,7 @@ DayView {
     align-vertical: middle;
 }
 
-/* Navigation */
+
 Horizontal {
     align: center middle;
     height: auto;
@@ -409,7 +409,7 @@ Horizontal {
     border: tall white;
 }
 
-/* Tab Bar */
+
 .tab-bar {
     width: 100%;
     height: auto;
@@ -433,7 +433,7 @@ Horizontal {
     background: $primary;
 }
 
-/* Dashboard Layout */
+
 .dashboard-grid {
     grid-size-columns: 2;
     grid-size-rows: 1;
@@ -508,7 +508,7 @@ DashboardCard {
     background: $warning-darken-2 50%;
 }
 
-/* Update hover states */
+
 .complete-button:hover {
     background: $success-darken-2;
     color: $text;
@@ -578,7 +578,7 @@ UpcomingTasksView {
     dock: none;
 }
 
-/* Nav Header Styling */
+
 .nav-header {
     width: 100%;
     height: 3;
@@ -606,7 +606,7 @@ UpcomingTasksView {
     background: $primary-darken-2;
 }
 
-/* Directory Tree Styling */
+
 FilterableDirectoryTree {
     width: 100%;
     height: 1fr;
@@ -631,7 +631,7 @@ FilterableDirectoryTree {
     display: none !important;
 }
 
-/* File Navigation */
+
 #nest-view {
     width: 100%;
     height: 100%;
@@ -658,7 +658,7 @@ TextArea {
     width: 100%;
 }
 
-/* Editor Styling */
+
 CodeEditor {
     border: solid $panel;
     height: 100%;
@@ -667,7 +667,7 @@ CodeEditor {
     padding: 1;
 }
 
-/* Syntax highlighting */
+
 CodeEditor .string { 
     color: $success; 
 }
@@ -692,7 +692,7 @@ CodeEditor .function {
     color: $success; 
 }
 
-/* Editor features */
+
 CodeEditor .line-numbers {
     background: $surface-darken-1;
     color: $surface-lighten-2;
@@ -709,7 +709,7 @@ CodeEditor .selection {
     background: $primary-darken-1;
 }
 
-/* Selection and Focus */
+
 *:focus { 
 }
 
@@ -723,13 +723,13 @@ FilterableDirectoryTree:focus, CodeEditor:focus {
 }
 
 
-/* Fix the overflow issue */
+
 Screen {
     align: center middle;
-    overflow: auto;  /* Changed from visible to auto */
+    overflow: auto;  
 }
 
-/* Task item styling */
+
 .task-item {
     padding: 1;
     border: wide white 35%;
@@ -748,9 +748,9 @@ Screen {
 .task-container {
     width: 100%;
     height: auto;
-    layout: horizontal; /* Use horizontal layout for a row-like structure */
-    align-horizontal: center; /* Horizontal alignment */
-    align-vertical: middle; /* Vertical alignment */
+    layout: horizontal; 
+    align-horizontal: center; 
+    align-vertical: middle; 
     
 }
 
@@ -758,7 +758,7 @@ Screen {
     background: $surface-lighten-1;
 }
 
-/* Tooltip styling */
+
 Tooltip {
     background: $surface-lighten-1;
     color: $text;
@@ -770,7 +770,7 @@ Tooltip {
     offset-x: 1;
 }
 
-/* Status indicators */
+
 .status-indicator {
     width: auto;
     min-width: 2;
@@ -838,11 +838,11 @@ PomodoroView {
 }
  
 .pomodoro-container {
-    width: 80%;  /* Increased to give more room for ASCII art */
+    width: 80%;  
     height: auto;
     align: center middle;
     padding: 2;
-    margin-top: 10;  /* Add top margin to move everything down */
+    margin-top: 10;  
 }
 
 #timer_display {
@@ -912,7 +912,7 @@ PomodoroView {
     height: 3;
 }
 
-/* Remove background color from task states */
+
 .task-item.in-progress {
     border-title-color: $text;
 }
@@ -921,12 +921,12 @@ PomodoroView {
     border-title-color: $text;
 }
 
-/* Example Textual CSS (e.g. in "styles.css") */
+
 
 .stats-container {
-    border: round $accent;     /* round / heavy / wide, etc. */
-    padding: 1 2;               /* top-bottom: 1, left-right: 2 */
-    margin: 1 2;                /* margin around the container */
+    border: round $accent;     
+    padding: 1 2;               
+    margin: 1 2;                
     width: 100%;
     height: 80%;
     content-align: center middle;
@@ -936,7 +936,7 @@ PomodoroView {
 .stat-item {
     color: $text;
     text-align: center;
-    padding: 0 1;               /* spacing around each statistic */
+    padding: 0 1;               
 }
 
 .connect-spotify-button {

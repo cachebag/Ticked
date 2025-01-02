@@ -12,7 +12,7 @@ from src.ui.mixins.focus_mixin import InitialFocusMixin
 from textual.widget import Widget
 from typing import Optional
 from ..views.pomodoro import PomodoroView   
-from ..views.spotify import SpotifyView  # Import SpotifyView
+from ..views.spotify import SpotifyView 
 
 
 class MenuItem(Button):
