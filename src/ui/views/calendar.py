@@ -1,3 +1,4 @@
+# calendar.py
 from textual.containers import Container, Grid, Horizontal, Vertical
 from textual.widgets import Button, Input, Label, Static, TextArea
 from textual.screen import ModalScreen
@@ -7,7 +8,7 @@ from datetime import datetime
 import calendar
 from ...widgets.task_widget import Task
 from textual.binding import Binding
-from src.ui.mixins.focus_mixin import InitialFocusMixin
+from ...core.database.calendar_db import CalendarDB
 from typing import Optional
 from textual.widget import Widget
 
@@ -31,11 +32,14 @@ class NavBar(Horizontal):
         yield next_btn
 
 class CalendarDayButton(Button):
-    def __init__(self, day: int, is_current: bool = False) -> None:
-        super().__init__(str(day))
+    def __init__(self, day: int, is_current: bool = False, task_display: str = "", tooltip_text: str = "") -> None:
+        label = f"{day}\n{task_display}" if task_display else str(day)
+        super().__init__(label)
         self.day = day
         self.is_current = is_current
-        self.styles.content_align = ("center", "middle")
+        self.tooltip = tooltip_text
+        self.styles.content_align = ("center", "top")
+        self.styles.text_align = "center"
         self.styles.width = "100%"
         self.styles.height = "100%"
         if is_current:
@@ -59,7 +63,34 @@ class CalendarGrid(Grid):
         self.styles.grid_size_columns = 7
         self.styles.padding = 1
 
+    def _create_stats_container(self) -> Grid:
+        stats = self.app.db.get_month_stats(self.current_date.year, self.current_date.month)
+        
+        stats_grid = Grid(
+            Static(f"Total Tasks: {stats.get('total', 0)}", classes="stat-item"),
+            Static(f"Completed: {stats.get('completed', 0)}", classes="stat-item"),
+            Static(f"In Progress: {stats.get('in_progress', 0)}", classes="stat-item"),
+            Static(f"Completion: {stats.get('completion_pct', 0):.1f}%", classes="stat-item"),
+            Static(f"Grade: {stats.get('grade', 'N/A')}", classes="stat-item"),
+            classes="stats-container"
+        )
+
+        
+        stats_grid.styles.height = "auto"
+        stats_grid.styles.grid_size_columns = 5
+        stats_grid.styles.padding = (1, 2)
+        return stats_grid
+
+    def refresh_stats(self) -> None:
+        old_stats = self.query_one(".stats-container")
+        if old_stats:
+            old_stats.remove()
+        new_stats = self._create_stats_container()
+        self.mount(new_stats, before=0)  # Insert at start
+
     def compose(self) -> ComposeResult:
+        yield self._create_stats_container()
+        
         weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
         for day in weekdays:
             header = Static(day, classes="calendar-weekday")
@@ -84,9 +115,25 @@ class CalendarGrid(Grid):
                     yield empty_day
                 else:
                     is_current = (day == today.day and
-                                self.current_date.month == today.month and
-                                self.current_date.year == today.year)
-                    day_btn = CalendarDayButton(day, is_current)
+                        self.current_date.month == today.month and
+                        self.current_date.year == today.year)
+                    
+                    tasks = self.app.db.get_tasks_for_date(
+                    f"{self.current_date.year}-{self.current_date.month:02d}-{day:02d}"
+                    )
+                    task_display = ""
+                    tooltip_text = ""
+                    if tasks:
+                        task_display = "\n".join(
+                            f"[{'green' if task['completed'] else 'yellow' if task['in_progress'] else 'white'}]- {task['title'][:15] + '...' if len(task['title']) > 15 else task['title']}"
+                            for task in tasks[:5]
+                        )
+                        tooltip_text = "\n".join(
+                            f"[{'green' if task['completed'] else 'yellow' if task['in_progress'] else 'white'}]- {task['title']}"
+                            for task in tasks
+                        )
+
+                    day_btn = CalendarDayButton(day, is_current, task_display, tooltip_text)
                     if is_current:
                         day_btn.focus()
                     yield day_btn
@@ -224,6 +271,8 @@ class CalendarView(Container):
         day_button = calendar_grid.query_one(CalendarDayButton)
         return day_button if day_button else calendar_grid
 
+ 
+
 class TaskForm(ModalScreen):
     BINDINGS = [
         Binding("escape", "cancel", "Cancel"),
@@ -239,21 +288,23 @@ class TaskForm(ModalScreen):
         with Container(classes="task-form-container"):
             with Vertical(classes="task-form"):
                 yield Static("Add New Task", classes="form-header")
-                
                 yield Static(f"Date: {self.date.strftime('%B %d, %Y')}", classes="selected-date")
-
+                
                 with Vertical():
                     yield Label("Title")
                     yield Input(placeholder="Enter task title", id="task-title")
-
+                
                 with Vertical():
                     yield Label("Due Time")
-                    yield Input(placeholder="HH:MM", id="task-time")
-
+                    with Horizontal(classes="time-input-container"):
+                        yield Input(id="task-time", placeholder="Enter time (e.g. 230)")
+                        yield Button("AM", id="am-btn", classes="time-meridian")
+                        yield Button("PM", id="pm-btn", classes="time-meridian")
+                
                 with Vertical():
                     yield Label("Description (optional)")
                     yield TextArea(id="task-description")
-
+                
                 with Horizontal(classes="form-buttons"):
                     yield Button("Cancel", variant="error", id="cancel")
                     yield Button("Add Task", variant="success", id="submit")
@@ -277,56 +328,78 @@ class TaskForm(ModalScreen):
             self.app.pop_screen()
         elif event.button.id == "submit":
             self._submit_form()
+        elif event.button.id in ["am-btn", "pm-btn"]:
+            self.query_one("#am-btn").remove_class("active")
+            self.query_one("#pm-btn").remove_class("active")
+            event.button.add_class("active")
+            event.stop()
 
     def _submit_form(self) -> None:
         title = self.query_one("#task-title", Input).value
-        time = self.query_one("#task-time", Input).value
+        time_input = self.query_one("#task-time", Input).value
         description = self.query_one("#task-description", TextArea).text
 
-        if not title or not time:
+        if not title or not time_input:
             self.notify("Title and Time are required", severity="error")
             return
-
+        
+        time_input = time_input.replace(":", "").strip()
         try:
-            datetime.strptime(time, "%H:%M")
-        except ValueError:
-            self.notify("Invalid time format", severity="error")
-            return
-
-        date = self.date.strftime('%Y-%m-%d')
-
-        task_id = self.app.db.add_task(
-            title=title,
-            due_date=date,
-            due_time=time,
-            description=description
-        )
-
-        task = {
-            "id": task_id,
-            "title": title,
-            "due_date": date,
-            "due_time": time,
-            "description": description
-        }
-
-        self.dismiss(task)
-
-        try:
-            day_view = self.app.screen.query_one(DayView)
-            if day_view:
-                day_view.refresh_tasks()
-                self.notify("Task added successfully!")
-        except Exception:
-            pass
+            if len(time_input) <= 2:
+                time_input = time_input.zfill(2) + "00"
+            elif len(time_input) == 3:
+                time_input = "0" + time_input
             
-        try:
-            from .welcome import TodayContent
-            today_content = self.app.screen.query_one(TodayContent)
-            if today_content:
-                today_content.refresh_tasks()
-        except Exception:
-            pass 
+            hour = int(time_input[:2])
+            minute = int(time_input[2:])
+            
+            meridian = "PM" if self.query_one("#pm-btn").has_class("active") else "AM"
+            if meridian == "PM" and hour < 12:
+                hour += 12
+            elif meridian == "AM" and hour == 12:
+                hour = 0
+            
+            if hour > 23 or minute > 59:
+                raise ValueError
+                
+            time = f"{hour:02d}:{minute:02d}"
+            date = self.date.strftime('%Y-%m-%d')
+
+            task_id = self.app.db.add_task(
+                title=title,
+                due_date=date,
+                due_time=time,
+                description=description
+            )
+
+            task = {
+                "id": task_id,
+                "title": title,
+                "due_date": date,
+                "due_time": time,
+                "description": description
+            }
+
+            self.dismiss(task)
+
+            try:
+                day_view = self.app.screen.query_one(DayView)
+                if day_view:
+                    day_view.refresh_tasks()
+                    self.notify("Task added successfully!")
+            except Exception:
+                pass
+                
+            try:
+                from .welcome import TodayContent
+                today_content = self.app.screen.query_one(TodayContent)
+                if today_content:
+                    today_content.refresh_tasks()
+            except Exception:
+                pass
+
+        except ValueError:
+            self.notify("Invalid time format. Use HH:MM (24-hour)", severity="error")
 
 class TaskEditForm(TaskForm):
     BINDINGS = [
@@ -351,7 +424,10 @@ class TaskEditForm(TaskForm):
 
                 with Vertical():
                     yield Label("Due Time")
-                    yield Input(value=self.task_data['due_time'], id="task-time")
+                    with Horizontal():
+                        yield Input(value=self.task_data['due_time'], id="task-time")
+                        yield Button("AM", id="am-btn", classes="time-meridian")
+                        yield Button("PM", id="pm-btn", classes="time-meridian")
 
                 with Vertical():
                     yield Label("Description (optional)")
@@ -362,11 +438,19 @@ class TaskEditForm(TaskForm):
                     yield Button("Cancel", variant="primary", id="cancel")
                     yield Button("Save", variant="success", id="submit")
 
+    def on_mount(self) -> None:
+        try:
+            time_obj = datetime.strptime(self.task_data['due_time'], "%H:%M")
+            if time_obj.hour >= 12:
+                self.query_one("#pm-btn").add_class("active")
+            else:
+                self.query_one("#am-btn").add_class("active")
+        except:
+            pass
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "cancel":
             event.stop()
-            # self.app.pop_screen() I'm not sure why but adding this breaks the screen
         elif event.button.id == "delete":
             self.app.db.delete_task(self.task_data['id'])
             self.dismiss(None)
@@ -391,56 +475,79 @@ class TaskEditForm(TaskForm):
         elif event.button.id == "submit":
             self._submit_form()
             event.stop()
+        elif event.button.id in ["am-btn", "pm-btn"]:
+            self.query_one("#am-btn").remove_class("active")
+            self.query_one("#pm-btn").remove_class("active")
+            event.button.add_class("active")
+            event.stop()
 
     def _submit_form(self) -> None:
         title = self.query_one("#task-title", Input).value
-        time = self.query_one("#task-time", Input).value
+        time_input = self.query_one("#task-time", Input).value
         description = self.query_one("#task-description", TextArea).text
 
-        if not title or not time:
+        if not title or not time_input:
             self.notify("Title and Time are required", severity="error")
             return
-
-        try:
-            datetime.strptime(time, "%H:%M")
-        except ValueError:
-            self.notify("Invalid time format", severity="error")
-            return
-
-        task_id = self.app.db.update_task(
-            self.task_data['id'],
-            title=title,
-            due_date=self.date.strftime('%Y-%m-%d'),
-            due_time=time,
-            description=description
-        )
-
-        task = {
-            "id": task_id,
-            "title": title,
-            "due_date": self.date.strftime('%Y-%m-%d'),
-            "due_time": time,
-            "description": description
-        }
-
-        self.dismiss(task)
         
+        time_input = time_input.replace(":", "").strip()
         try:
-            day_view = self.app.screen.query_one(DayView)
-            if day_view:
-                day_view.refresh_tasks()
-                self.notify("Task updated successfully!")
-        except Exception:
-            pass
+            if len(time_input) <= 2:
+                time_input = time_input.zfill(2) + "00"
+            elif len(time_input) == 3:
+                time_input = "0" + time_input
             
-        try:
-            from .welcome import TodayContent
-            today_content = self.app.screen.query_one(TodayContent)
-            if today_content:
-                today_content.refresh_tasks()
-        except Exception:
-            pass
- 
+            hour = int(time_input[:2])
+            minute = int(time_input[2:])
+            
+            meridian = "PM" if self.query_one("#pm-btn").has_class("active") else "AM"
+            if meridian == "PM" and hour < 12:
+                hour += 12
+            elif meridian == "AM" and hour == 12:
+                hour = 0
+            
+            if hour > 23 or minute > 59:
+                raise ValueError
+                
+            time = f"{hour:02d}:{minute:02d}"
+
+            task_id = self.app.db.update_task(
+                self.task_data['id'],
+                title=title,
+                due_date=self.date.strftime('%Y-%m-%d'),
+                due_time=time,
+                description=description
+            )
+
+            task = {
+                "id": task_id,
+                "title": title,
+                "due_date": self.date.strftime('%Y-%m-%d'),
+                "due_time": time,
+                "description": description
+            }
+
+            self.dismiss(task)
+            
+            try:
+                day_view = self.app.screen.query_one(DayView)
+                if day_view:
+                    day_view.refresh_tasks()
+                    self.notify("Task updated successfully!")
+            except Exception:
+                pass
+                
+            try:
+                from .welcome import TodayContent
+                today_content = self.app.screen.query_one(TodayContent)
+                if today_content:
+                    today_content.refresh_tasks()
+            except Exception:
+                pass
+
+        except ValueError:
+            self.notify("Invalid time format. Use HH:MM (24-hour)", severity="error")
+
 
 class ScheduleSection(Vertical):
     def __init__(self, date: datetime) -> None:
@@ -467,6 +574,7 @@ class NotesSection(Vertical):
     BINDINGS = [
         Binding("ctrl+left", "exit_notes", "Exit Notes", show=True, priority=True),
         Binding("shift+tab", "cycle_focus", "Cycle Focus", show=True),
+        Binding("ctrl+s", "save_notes", "Save Notes", show=True),
     ]
 
     def __init__(self, date: datetime | None = None):
@@ -490,6 +598,20 @@ class NotesSection(Vertical):
         add_task_button = self.app.screen.query_one("#add-task")
         if add_task_button:
             add_task_button.focus()
+
+    async def action_save_notes(self) -> None:
+        notes_editor = self.query_one("#notes-editor")
+        content = notes_editor.text
+        
+        try:
+            db = CalendarDB()
+            success = db.save_notes(self.date.strftime('%Y-%m-%d'), content)
+            if success:
+                self.notify("Notes saved successfully!", severity="information")
+            else:
+                self.notify("Failed to save notes", severity="error")
+        except Exception as e:
+            self.notify(f"Error saving notes: {str(e)}", severity="error")
 
 class DayView(Vertical):
 
@@ -546,6 +668,20 @@ class DayView(Vertical):
                 tasks_list.mount(Task(task))
         else:
             tasks_list.mount(Static("No tasks scheduled for today", classes="empty-schedule"))
+
+        async def action_save_notes(self) -> None:
+            notes_editor = self.query_one("#notes-editor")
+            content = notes_editor.text
+            
+            try:
+                db = CalendarDB()
+                success = db.save_notes(str(self.date), content)
+                if success:
+                    self.notify("Notes saved successfully!", severity="information")
+                else:
+                    self.notify("Failed to save notes", severity="error")
+            except Exception as e:
+                self.notify(f"Error saving notes: {str(e)}", severity="error")
 
     def load_notes(self) -> None:
         notes = self.app.db.get_notes(self.date.strftime('%Y-%m-%d'))

@@ -73,11 +73,8 @@ class TodayContent(Container):
     }
     
     .right-column {
-        height: 100%;
-        column-span: 1;
-        grid-size: 2;
-        grid-rows: 1fr 1fr;
-        grid-gutter: 1;
+        layout: vertical; 
+        height: auto;  /* changed from 100% */
     }
     
     .right-top-grid {
@@ -89,8 +86,7 @@ class TodayContent(Container):
     }
     
     .bottom-card {
-        height: 100%;
-        grid-size: 1;
+        height: auto;  /* changed from 100% */
     }
     """
     
@@ -382,7 +378,7 @@ class UpcomingTasksView(Container):
 
     def compose(self) -> ComposeResult:
         with Horizontal(classes="header-row"):
-            yield Static("Upcoming", classes="card-title")
+            yield Static("Upcoming Tasks", classes="card-title")
             yield Static("", classes="header-spacer")
             with Horizontal(classes="filter-buttons"):
                 yield Button("7d", id="filter-7", classes="filter-btn active")

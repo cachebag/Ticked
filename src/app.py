@@ -1,11 +1,12 @@
-# app.py
 from textual.app import App, ComposeResult
 from textual.screen import Screen
-from .ui.views.nest import NewFileDialog 
+from .ui.views.nest import NewFileDialog
 from .ui.views.pomodoro import PomodoroView
 from .ui.screens.home import HomeScreen
 from .ui.views.nest import NestView
+from textual.dom import NoMatches
 from textual.binding import Binding
+from textual import events
 from .core.database.calendar_db import CalendarDB
 import os
 import json
@@ -14,7 +15,6 @@ class Tick(App):
     CSS_PATH = "config/theme.tcss"
     SCREENS = {"home": HomeScreen}
     TITLE = "TICK"
-    COMMANDS = {}
     BINDINGS = [
         Binding("q", "quit", "Quit", show=True),
         Binding("up", "focus_previous", "Move Up", show=True),
@@ -65,13 +65,15 @@ class Tick(App):
         self.push_screen("home")
         self.theme = "gruvbox"
 
-    def on_screen_resume(self) -> None:
+    async def on_mouse_move(self, event: events.MouseMove) -> None:
         try:
-            first_menu_item = self.screen.query_one("MenuItem")
-            if (first_menu_item):
-                first_menu_item.focus()
-        except Exception:
+            hover_target = self.query_one(".hoverable")
+            hover_target.focus()
+        except NoMatches:
             pass
+
+    async def on_mouse_down(self, event: events.MouseDown) -> None:
+        pass
 
     async def action_new_file(self) -> None:
         current_path = os.getcwd()
@@ -95,13 +97,13 @@ class Tick(App):
                 current_view = self.screen.query_one(".content").children[0]
                 if hasattr(current_view, 'get_initial_focus'):
                     initial_focus = current_view.get_initial_focus()
-                    if (initial_focus):
+                    if initial_focus:
                         initial_focus.focus()
         except Exception as e:
             self.notify(f"Error toggling menu: {str(e)}", severity="error")
 
     def compose(self) -> ComposeResult:
-        yield NestView() 
+        yield NestView()
 
 if __name__ == "__main__":
     app = Tick()
