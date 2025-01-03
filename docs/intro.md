@@ -27,7 +27,11 @@ Please read the [Development Guide](development.md) if you'd like to contribute 
 For detailed information on installation, usage, and contribution guidelines, please refer to our documentation sections on the left.
 
 
-     - Akrm Al-Hakimi
-     Data Engineer @ Cummins Inc.
-     alhakimiakrmj@gmail.com
+--------
+---------
+
+
+Akrm Al-Hakimi
+Data Engineer @ Cummins Inc.
+alhakimiakrmj@gmail.com
 
