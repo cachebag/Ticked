@@ -1,4 +1,3 @@
-# calendar.py
 from textual.containers import Container, Grid, Horizontal, Vertical
 from textual.widgets import Button, Input, Label, Static, TextArea
 from textual.screen import ModalScreen
@@ -8,7 +7,7 @@ from datetime import datetime
 import calendar
 from ...widgets.task_widget import Task
 from textual.binding import Binding
-from ...core.database.calendar_db import CalendarDB
+from ...core.database.tick_db import CalendarDB
 from typing import Optional
 from textual.widget import Widget
 
@@ -86,7 +85,7 @@ class CalendarGrid(Grid):
         if old_stats:
             old_stats.remove()
         new_stats = self._create_stats_container()
-        self.mount(new_stats, before=0)  # Insert at start
+        self.mount(new_stats, before=0)  
 
     def compose(self) -> ComposeResult:
         yield self._create_stats_container()
@@ -247,7 +246,6 @@ class CalendarView(Container):
             self.action_back_to_calendar()
 
     def action_focus_previous(self) -> None:
-        """Only allow menu navigation when menu is visible"""
         try:
             menu = self.app.screen.query_one("MainMenu")
             if "hidden" in menu.classes:
@@ -256,7 +254,6 @@ class CalendarView(Container):
             pass
 
     def action_focus_next(self) -> None:
-        """Only allow menu navigation when menu is visible"""
         try:
             menu = self.app.screen.query_one("MainMenu")
             if "hidden" in menu.classes:
@@ -265,9 +262,7 @@ class CalendarView(Container):
             pass
 
     def get_initial_focus(self) -> Optional[Widget]:
-        """Return the calendar grid as the default focus target"""
         calendar_grid = self.query_one(CalendarGrid)
-        # Find first day button in grid
         day_button = calendar_grid.query_one(CalendarDayButton)
         return day_button if day_button else calendar_grid
 
