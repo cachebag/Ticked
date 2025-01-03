@@ -17,7 +17,7 @@
 
 
 --- 
-**_Tick_** is a TUI-based task and productivity manager built with Python using the Textual library. Intended for University Students, but usable for everyone. 
+**_Tick_** is a TUI task and productivity manager built in Python over the Textual library. Intended for University Students, but usable for everyone. 
 ---
 
 #  **Features**
