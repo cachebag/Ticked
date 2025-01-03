@@ -8,6 +8,7 @@ from src.ui.views.welcome import WelcomeView
 from src.ui.views.calendar import CalendarView
 from src.utils.system_stats import SystemStatsHeader
 from src.ui.views.nest import NestView
+from src.ui.views.settings import SettingsView
 from src.ui.mixins.focus_mixin import InitialFocusMixin
 from textual.widget import Widget
 from typing import Optional
@@ -181,7 +182,8 @@ class HomeScreen(Screen, InitialFocusMixin):
                 content_container.mount(spotify_view)
             elif button_id == "menu_settings":
                 menu.add_class("hidden")
-                self.notify("Coming Soon!", severity="warning")
+                settings_view = SettingsView()
+                content_container.mount(settings_view)
             elif button_id == "menu_exit":
                 self.action_quit_app()
         except Exception as e:

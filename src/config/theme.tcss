@@ -1246,3 +1246,106 @@ SpotifyView {
     height: auto;
     margin-left: 1;
 }
+
+
+
+SettingsView {
+    width: 60%;
+    height: 90%;
+    padding: 1;
+    align: center middle;
+    offset: 35% 5%;  /* Adjust these values to move it more center */
+    layout: grid;     /* Add this to help with centering */
+}
+.settings-container {
+    width: 90%;
+    height: 80%;
+    margin: 2;
+    border: round $accent;
+    padding: 1 2;
+    align: center middle;
+    layout: grid;  /* Add this as well */
+}
+
+.settings-layout {
+    height: 100%;
+    layout: horizontal;
+    align: center middle;
+}
+
+.settings-sidebar {
+    width: 30;
+    height: 100%;
+    border-right: solid $accent;
+    padding: 1;
+}
+
+.settings-content {
+    width: 100%;
+    height: 100%;
+    padding: 1 2;
+}
+
+.setting-button {
+    width: 100%;
+    height: 3;
+    margin-bottom: 1;
+    background: $surface;
+    color: $text;
+    border: none;
+}
+
+.setting-button:hover {
+    background: $accent;
+}
+
+.setting-button.active {
+    text-style: none;
+    border-right: thick $secondary;
+}
+
+.settings-title {
+    text-style: italic;
+    margin-bottom: 4;
+    margin-left: 1;
+}
+
+ThemeButton {
+    background: transparent;
+
+    width: 30;
+    height: 3;  /* Reduced height for better compactness */
+    content-align: center middle;
+    color: $text;
+    padding: 0 0;  /* Add minimal horizontal padding */
+}
+
+ThemeButton:hover {
+    background: transparent;
+    color: $accent;
+    text-style: none;
+}
+
+ThemeButton.active {
+    border-top: transparent;
+    border-bottom: transparent;
+    color: $text;
+    text-style: none;
+}
+
+ThemeButton:focus {
+    background: $accent;
+    color: $text;
+    text-style: none;
+}
+
+.theme-buttons-grid {
+    layout: grid;
+    grid-size: 2;
+    grid-columns: 1fr 1fr;
+    grid-rows: auto;
+    grid-gutter: 2 1;  /* Reduced gutter, horizontal spacing only */
+    padding: 0;  /* Remove padding */
+    align: center middle;  /* Center the entire grid */
+    margin-right: 44;  /* Add right margin to center the grid */
+}

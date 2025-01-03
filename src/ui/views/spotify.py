@@ -421,8 +421,7 @@ class SpotifyView(Container):
     def compose(self) -> ComposeResult:
         yield SpotifyPlayer()
         yield Container(
-            Static("Spotify", id="status-bar-title", classes="status-item"),
-            Static("Connected 🟢", id="status-bar-connection", classes="status-item-right"),
+            Static("Spotify - Connected 🟢", id="status-bar-title", classes="status-item"),
             classes="status-bar"
         )
         yield Container(
@@ -433,7 +432,7 @@ class SpotifyView(Container):
                 ),
                 Container(
                     Static("Instructions", classes="section-title"),
-                    Static("⌘+R: Refresh", classes="instruction-item"),
+                    Static("CTRL+R: Refresh", classes="instruction-item"),
                     Static("Space: Play/Pause", classes="instruction-item"),
                     Button("Authenticate Spotify", id="auth-btn", variant="primary", classes="connect-spotify-button"),
                     classes="instructions-section"
