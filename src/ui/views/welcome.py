@@ -128,7 +128,6 @@ class NowPlayingCard(Container):
             else:
                 self.update_track("No track playing - Make sure you authenticate in the Spotify page", "")
         except Exception as e:
-            # if there's an error just log or silently fail
             print(f"Error fetching Spotify playback: {e}")
             self.update_track("No track playing - Make sure you authenticate in the Spotify page", "")
 
@@ -150,13 +149,26 @@ class NowPlayingCard(Container):
             elif event.button.id == "prev-btn":
                 event.stop()
                 spotify_client.previous_track()
-                self.poll_spotify_now_playing()  
+                self.poll_spotify_now_playing()
+                # Wait briefly for track info to update
+                playback = spotify_client.current_playback()
+                if playback and playback.get("item"):
+                    track_name = playback["item"]["name"]
+                    artist_name = ", ".join(a["name"] for a in playback["item"]["artists"])
+                    self.notify(f"Now playing: {track_name} by {artist_name}")
             elif event.button.id == "next-btn":
                 event.stop()
                 spotify_client.next_track()
-                self.poll_spotify_now_playing()  
+                self.poll_spotify_now_playing()
+                # Wait briefly for track info to update
+                playback = spotify_client.current_playback()
+                if playback and playback.get("item"):
+                    track_name = playback["item"]["name"]
+                    artist_name = ", ".join(a["name"] for a in playback["item"]["artists"])
+                    self.notify(f"Now playing: {track_name} by {artist_name}")
         except Exception as e:
             self.notify(f"Playback error: {str(e)}", severity="error")
+
 
 class TodayContent(Container):
     DEFAULT_CSS = """

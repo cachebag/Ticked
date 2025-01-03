@@ -127,16 +127,29 @@ class SearchResult(Static):
 
     def on_click(self) -> None:
         self.post_message(self.Selected(self.result_id, self.result_type))
+        self.notify(f"Now playing - {self.title}{f' by {self.artist}' if self.artist else ''}")
 
 class SpotifyPlayer(Container):
+    def notify_current_track(self, spotify_client):
+        """Helper method to notify current track info."""
+        try:
+            current = spotify_client.current_playback()
+            if current and current.get('item'):
+                track = current['item']
+                artist_names = ", ".join(artist['name'] for artist in track['artists'])
+                self.notify(f"Now playing - {track['name']} by {artist_names}")
+        except Exception as e:
+            print(f"Error getting track info: {e}")
+
     def compose(self) -> ComposeResult:
         yield Horizontal(
             Button("Play/Pause", id="play-pause"),
             Button("Previous", id="prev-track"),
             Button("Next", id="next-track"),
         )
-
-    def on_button_pressed(self, event: Button.Pressed):
+        
+    @work
+    async def on_button_pressed(self, event: Button.Pressed):
         spotify_client = self.app.get_spotify_client()
         if not spotify_client:
             self.notify("No Spotify client available", severity="error")
@@ -145,23 +158,21 @@ class SpotifyPlayer(Container):
         try:
             current_playback = spotify_client.current_playback()
             
-            # print(f"Current playback state: {current_playback}")
-            
             if not current_playback:
                 self.notify("No active playback found. Start playing something first.", severity="error")
                 return
             
-            # set our context
             context = current_playback.get('context')
-            print(f"Current context: {context}")
             
             if event.button.id == "play-pause":
                 event.stop()
                 try:
                     if current_playback["is_playing"]:
                         spotify_client.pause_playback()
+                        self.notify("Paused")
                     else:
                         spotify_client.start_playback()
+                        self.notify_current_track(spotify_client)
                 except Exception as e:
                     print(f"Playback error: {str(e)}")
                     self.notify("Error controlling playback", severity="error")
@@ -169,11 +180,12 @@ class SpotifyPlayer(Container):
             elif event.button.id == "next-track":
                 event.stop()
                 try:
-                    # we check if we have a valid context of the playlist
                     if not context:
                         self.notify("No playlist context found. Try selecting a track from a playlist.", severity="warning")
                         return
                     spotify_client.next_track()
+                    await asyncio.sleep(0.5)  # Wait for track change
+                    self.notify_current_track(spotify_client)
                 except Exception as e:
                     print(f"Next track error: {str(e)}")
                     self.notify("Error skipping to next track", severity="error")
@@ -181,11 +193,12 @@ class SpotifyPlayer(Container):
             elif event.button.id == "prev-track":
                 event.stop()
                 try:
-                    # same thing here
                     if not context:
                         self.notify("No playlist context found. Try selecting a track from a playlist.", severity="warning")
                         return
                     spotify_client.previous_track()
+                    await asyncio.sleep(0.5)  # Wait for track change
+                    self.notify_current_track(spotify_client)
                 except Exception as e:
                     print(f"Previous track error: {str(e)}")
                     self.notify("Error going to previous track", severity="error")
@@ -274,7 +287,6 @@ class SearchResult(Static):
 
 class LibrarySection(Container):
     def compose(self) -> ComposeResult:
-        yield Button("Authenticate Spotify", id="auth-btn", variant="primary", classes="connect-spotify-button")
         yield ScrollableContainer(
             id="playlists-container",
             classes="playlists-scroll"
@@ -298,7 +310,7 @@ class LibrarySection(Container):
                     f.write("Found container, clearing children...\n")
                     container.remove_children()
                     
-                    container.mount(Static("Your Library", classes="section-header"))
+                    container.mount(Static("Your Library", classes="section-header-lib"))
                     container.mount(Static("Playlists", classes="subsection-header"))
                     
                     container.mount(PlaylistItem("Liked Songs", "liked_songs"))
@@ -335,7 +347,7 @@ class PlaylistView(Container):
 
     def compose(self) -> ComposeResult:
         """Create the playlist view components."""
-        yield Static("Select a playlist", id="playlist-title", classes="content-header")
+        yield Static("Select a playlist", id="playlist-title", classes="content-header-cont")
         yield ScrollableContainer(
             id="tracks-container",
             classes="tracks-scroll"
@@ -386,7 +398,6 @@ class MainContent(Container):
 
 class SpotifyView(Container):
     BINDINGS = [
-        Binding("ctrl+l", "focus_search", "Search"),
         Binding("ctrl+r", "refresh", "Refresh"),
     ]
 
@@ -408,7 +419,6 @@ class SpotifyView(Container):
             library_section.load_playlists(self.auth.spotify_client)
     
     def compose(self) -> ComposeResult:
-        # Dock the player at the top
         yield SpotifyPlayer()
         yield Container(
             Static("Spotify", id="status-bar-title", classes="status-item"),
@@ -418,15 +428,14 @@ class SpotifyView(Container):
         yield Container(
             Container(
                 Container(
-                    Static("Playlists", classes="section-title"),
                     LibrarySection(),
                     classes="playlists-section"
                 ),
                 Container(
                     Static("Instructions", classes="section-title"),
-                    Static("⌘+L: Search", classes="instruction-item"),
                     Static("⌘+R: Refresh", classes="instruction-item"),
                     Static("Space: Play/Pause", classes="instruction-item"),
+                    Button("Authenticate Spotify", id="auth-btn", variant="primary", classes="connect-spotify-button"),
                     classes="instructions-section"
                 ),
                 classes="sidebar"
@@ -475,13 +484,13 @@ class SpotifyView(Container):
 
         query = event.value.strip()
         if not query:
-            self.query_one(SearchResults).query_one("#results-container").remove_children()
+            self.query_one(SearchResult).query_one("#results-container").remove_children()
             return
 
         try:
             results = self.auth.spotify_client.search(q=query, type='track,playlist', limit=5)
             
-            results_container = self.query_one(SearchResults).query_one("#results-container")
+            results_container = self.query_one(SearchResult).query_one("#results-container")
             results_container.remove_children()
 
             if results['tracks']['items']:
@@ -535,6 +544,12 @@ class SpotifyView(Container):
                             context_uri=f"spotify:playlist:{current_playlist_id}",
                             offset={"position": message.position}
                         )
+                        # Get current playing track info
+                        current = self.auth.spotify_client.current_playback()
+                        if current and current.get('item'):
+                            track = current['item']
+                            artist_names = ", ".join(artist['name'] for artist in track['artists'])
+                            self.notify(f"Now playing - {track['name']} by {artist_names}")
                     else:
                         # Otherwise fall back to searching for the track in the playlist
                         playlist = self.auth.spotify_client.playlist(current_playlist_id)
