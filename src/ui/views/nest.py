@@ -216,7 +216,12 @@ class CodeEditor(TextArea):
         self.in_command_mode = False
         self.pending_command = ""
         self.status_bar = StatusBar()
-        self.cursor_type = "line"
+        self.status_bar.update_mode("NORMAL")  
+
+    def on_focus(self) -> None:
+        self.mode = "normal"
+        self.status_bar.update_mode("NORMAL")
+        self.cursor_blink = False
 
     def compose(self) -> ComposeResult:
         yield self.status_bar
@@ -487,6 +492,7 @@ class CodeEditor(TextArea):
         self.mode = "insert"
         self.status_bar.update_mode("INSERT")
         self.cursor_blink = True
+        self.cursor_style = "underline" 
 
     def action_move_left(self) -> None:
         if self.mode == "normal":
