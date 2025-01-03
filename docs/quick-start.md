@@ -19,7 +19,7 @@ Users can install Tick through pip or brew
    pip install tick
    ```
    ```bash
-   [brew install tick]
+   brew install tick
    ```
    (If you're using tap)
    ```bash
