@@ -12,21 +12,9 @@ const docs = {
                 },
                 { 
                     id: 'quick-start', 
-                    title: 'Quick Start', 
-                    type: 'embedded',
-                    content: `
-# Quick Start Guide
-
-Get up and running in minutes!
-
-\`\`\`javascript
-// Example code
-const docs = new Docs({
-    container: '#app',
-    theme: 'light'
-});
-\`\`\`
-                    `
+                    title: 'Setup and Spotify Access', 
+                    type: 'markdown',
+                    path: 'quick-start.md'
                 }
             ]
         },
