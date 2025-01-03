@@ -1,3 +1,4 @@
+# app.py
 from textual.app import App, ComposeResult
 from textual.screen import Screen
 from .ui.views.nest import NewFileDialog
@@ -7,7 +8,7 @@ from .ui.views.nest import NestView
 from textual.dom import NoMatches
 from textual.binding import Binding
 from textual import events
-from .core.database.calendar_db import CalendarDB
+from .core.database.tick_db import CalendarDB
 import os
 import json
 
@@ -29,6 +30,14 @@ class Tick(App):
         super().__init__()
         self.db = CalendarDB()
         self.pomodoro_settings = self.load_settings()
+
+    def get_spotify_client(self):
+        if hasattr(self, '_spotify_auth') and self._spotify_auth:
+            return self._spotify_auth.spotify_client
+        return None
+        
+    def set_spotify_auth(self, auth):
+        self._spotify_auth = auth
 
     def load_settings(self):
         default_settings = {

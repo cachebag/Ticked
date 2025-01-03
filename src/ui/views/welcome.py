@@ -62,6 +62,102 @@ class DashboardCard(Container):
         yield Static(self.title, classes="card-title")
         yield Static(self.content, classes="card-content")
 
+class NowPlayingCard(Container):
+    DEFAULT_CSS = """
+    NowPlayingCard {
+        width: 100%;
+        height: 100%;
+        padding: 1;
+        border-bottom: tall $primary;
+        border: $accent;
+    }
+    
+    .now-playing-title {
+        text-align: center;
+        margin-bottom: 1;
+    }
+    
+    .track-info {
+        text-align: center;
+        margin-bottom: 1;
+    }
+    
+    .track-controls {
+        layout: horizontal;
+        align: center middle;
+        width: 100%;
+    }
+    
+    .control-btn {
+        width: 3;
+        min-width: 3;
+        height: 3;
+        margin: 0 1;
+        text-align: center;
+    }
+    """
+
+    def compose(self) -> ComposeResult:
+        yield Static("Now Playing", classes="card-title")
+        yield Static("No track playing - Make sure you authenticate in the Spotify page", id="track-name", classes="track-info")
+        yield Static("", id="artist-name", classes="track-info")
+        with Horizontal(classes="track-controls"):
+            yield Button("⏮", id="prev-btn", classes="control-btn")
+            yield Button("⏯", id="play-pause-btn", classes="control-btn")
+            yield Button("⏭", id="next-btn", classes="control-btn")
+
+    def update_track(self, track_name: str, artist_name: str) -> None:
+        self.query_one("#track-name").update(track_name)
+        self.query_one("#artist-name").update(artist_name)
+
+    async def on_mount(self) -> None:
+        self.set_interval(3, self.poll_spotify_now_playing)
+
+    def poll_spotify_now_playing(self) -> None:
+        spotify_client = self.app.get_spotify_client()
+        if not spotify_client:
+            self.update_track("No track playing - Make sure you authenticate in the Spotify page", "")
+            return
+
+        try:
+            playback = spotify_client.current_playback()
+            if playback and playback.get("item"):
+                track_name = playback["item"]["name"]
+                artist_name = ", ".join(a["name"] for a in playback["item"]["artists"])
+                self.update_track(track_name, artist_name)
+            else:
+                self.update_track("No track playing - Make sure you authenticate in the Spotify page", "")
+        except Exception as e:
+            # if there's an error just log or silently fail
+            print(f"Error fetching Spotify playback: {e}")
+            self.update_track("No track playing - Make sure you authenticate in the Spotify page", "")
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        spotify_client = self.app.get_spotify_client()
+        if not spotify_client:
+            self.notify("No Spotify connection", severity="error")
+            return
+
+        try:
+            if event.button.id == "play-pause-btn":
+                event.stop()
+                current_playback = spotify_client.current_playback()
+                if current_playback and current_playback["is_playing"]:
+                    spotify_client.pause_playback()
+                else:
+                    spotify_client.start_playback()
+                self.poll_spotify_now_playing()  
+            elif event.button.id == "prev-btn":
+                event.stop()
+                spotify_client.previous_track()
+                self.poll_spotify_now_playing()  
+            elif event.button.id == "next-btn":
+                event.stop()
+                spotify_client.next_track()
+                self.poll_spotify_now_playing()  
+        except Exception as e:
+            self.notify(f"Playback error: {str(e)}", severity="error")
+
 class TodayContent(Container):
     DEFAULT_CSS = """
     .dashboard-grid {
@@ -105,8 +201,7 @@ class TodayContent(Container):
                 with Grid(classes="right-top-grid"):
                     quote = self.get_cached_quote()
                     yield DashboardCard("Quote of the Day", quote)
-                    with DashboardCard("Nothing to see here yet"):
-                        yield ASCIIAnimation()
+                    yield NowPlayingCard()
                 
                 with Container(classes="bottom-card"):
                     yield UpcomingTasksView()
@@ -180,6 +275,12 @@ class TodayContent(Container):
                 print(f"Failed to fetch quotes: {response.status_code}")
         except requests.RequestException as e:
             print(f"Error fetching quotes: {e}")
+
+    # Add method to update Now Playing info
+    def update_now_playing(self, track_name: str, artist_name: str) -> None:
+        now_playing = self.query_one(NowPlayingCard)
+        if now_playing:
+            now_playing.update_track(track_name, artist_name)
 
 class WelcomeMessage(Static):
     DEFAULT_CSS = """
