@@ -1,6 +1,5 @@
-# calendar_db.py
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional, List, Dict, Any
 
 class CalendarDB:
@@ -12,7 +11,6 @@ class CalendarDB:
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
 
-            # Create tasks table (remove 'date', 'content', 'updated_at' here)
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS tasks (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -26,7 +24,6 @@ class CalendarDB:
                 )
             """)
 
-            # Create notes table (this table was missing)
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS notes (
                     date TEXT PRIMARY KEY,
@@ -35,7 +32,16 @@ class CalendarDB:
                 )
             """)
 
-            # Migrate existing time data in tasks to 12-hour format if needed
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS spotify_auth (
+                    id INTEGER PRIMARY KEY CHECK (id = 1),
+                    access_token TEXT,
+                    refresh_token TEXT,
+                    token_expiry TIMESTAMP,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+
             cursor.execute("SELECT id, due_time FROM tasks")
             tasks = cursor.fetchall()
             for task_id, due_time in tasks:
@@ -47,10 +53,8 @@ class CalendarDB:
                     pass
 
             conn.commit()
-
     
     def add_task(self, title: str, due_date: str, due_time: str, description: str = "") -> int:
-        # Convert time to 12-hour format
         time_obj = datetime.strptime(due_time, "%H:%M")
         formatted_time = time_obj.strftime("%I:%M %p")
         
@@ -79,7 +83,6 @@ class CalendarDB:
         valid_fields = {'title', 'description', 'due_date', 'due_time', 'completed', 'in_progress'}
         update_fields = {k: v for k, v in kwargs.items() if k in valid_fields}
         
-        # Convert time format if due_time is being updated
         if 'due_time' in update_fields:
             time_obj = datetime.strptime(update_fields['due_time'], "%H:%M")
             update_fields['due_time'] = time_obj.strftime("%I:%M %p")
@@ -150,10 +153,8 @@ class CalendarDB:
                 ORDER BY due_date, due_time
             """, (start_date, start_date, days))
             return [dict(row) for row in cursor.fetchall()]
-        
-
+    
     def get_month_stats(self, year: int, month: int) -> dict:
-        """Calculate statistics for a given month."""
         try:
             start_date = f"{year}-{month:02d}-01"
             if month == 12:
@@ -165,7 +166,6 @@ class CalendarDB:
             end_date = f"{next_year}-{next_month:02d}-01"
 
             with sqlite3.connect(self.db_path) as conn:
-                # Make rows dict-like
                 conn.row_factory = sqlite3.Row
                 cursor = conn.cursor()
 
@@ -181,8 +181,8 @@ class CalendarDB:
                 cursor.execute(query, (start_date, end_date))
                 result = cursor.fetchone()
 
-                total       = result["total"] or 0
-                completed   = result["completed"] or 0
+                total = result["total"] or 0
+                completed = result["completed"] or 0
                 in_progress = result["in_progress"] or 0
 
                 completion_pct = round((completed / total * 100) if total > 0 else 0, 1)
@@ -210,4 +210,22 @@ class CalendarDB:
                 "completion_pct": 0,
                 "grade": "N/A",
             }
-
+    
+    def save_spotify_tokens(self, access_token: str, refresh_token: str, expires_at: datetime) -> bool:
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT OR REPLACE INTO spotify_auth 
+                (id, access_token, refresh_token, token_expiry)
+                VALUES (1, ?, ?, ?)
+            """, (access_token, refresh_token, expires_at))
+            conn.commit()
+            return True
+    
+    def get_spotify_tokens(self) -> Optional[Dict[str, Any]]:
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM spotify_auth WHERE id = 1")
+            result = cursor.fetchone()
+            return dict(result) if result else None

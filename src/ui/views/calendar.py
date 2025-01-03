@@ -7,7 +7,7 @@ from datetime import datetime
 import calendar
 from ...widgets.task_widget import Task
 from textual.binding import Binding
-from ...core.database.calendar_db import CalendarDB
+from ...core.database.tick_db import CalendarDB
 from typing import Optional
 from textual.widget import Widget
 
