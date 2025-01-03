@@ -5,11 +5,11 @@
 ![image](https://github.com/user-attachments/assets/f092a9ba-5b99-4763-8259-6af2b54f3cd4)
 
 <div align="center">
-  <img src="images/ss1.png" alt="Screenshot 1" width="500">
-  <img src="images/ss2.png" alt="Screenshot 2" width="500">
-  <img src="images/ss3.png" alt="Screenshot 3" width="500">
-  <img src="images/ss4.png" alt="Screenshot 4" width="500">
-  <img src="images/ss5.png" alt="Screenshot 5" width="500">
+  <img src="images/ss1.png" alt="Screenshot 1" width="400">
+  <img src="images/ss2.png" alt="Screenshot 2" width="400">
+  <img src="images/ss3.png" alt="Screenshot 3" width="400">
+  <img src="images/ss4.png" alt="Screenshot 4" width="400">
+  <img src="images/ss5.png" alt="Screenshot 5" width="400">
 </div>
 
 
