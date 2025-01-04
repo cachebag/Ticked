@@ -627,7 +627,6 @@ class CodeEditor(TextArea):
         
 
     def open_file(self, filepath: str) -> None:
-        """Open a file in the editor."""
         try:
             with open(filepath, 'r', encoding='utf-8') as file:
                 content = file.read()

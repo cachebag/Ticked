@@ -29,7 +29,6 @@ MainMenu {
     height: 100%;
     overflow: hidden;
     padding: 1;
-    transition: width 0.10s;
     
 }
 
@@ -80,8 +79,8 @@ MenuItem:focus {
 .main-container {
     width: 100%;
     height: 100%;
+    background: $surface-darken-2;
     layout: horizontal;
-    overflow: hidden;
 }
 
 
@@ -562,19 +561,23 @@ DashboardCard {
     width: auto;
     align: right middle;
     padding: 0;
+    text-style: none;
+}
+
+.filter-btn:hover {
+    background: $surface-lighten-1;
+    color: $text;
+    height: 2;
 }
 
 .filter-btn {
     background: transparent;
     min-width: 4;
-    height: 3;
+    height: 2;
     padding: 0 1;
     margin-left: 1;
     border: none;
-}
-
-.filter-btn:hover {
-    background: $surface-lighten-1;
+    text-style: none;
 }
 
 .filter-btn.active {
@@ -665,13 +668,6 @@ FilterableDirectoryTree:focus {
 #nest-view {
     width: 100%;
     height: 100%;
-}
-
-.main-container {
-    width: 100%;
-    height: 100%;
-    layout: horizontal;
-    
 }
 
 .new-file-btn {
@@ -1049,14 +1045,15 @@ SpotifyPlayer Horizontal {
     background: $surface-darken-2;
     padding: 1;
     dock: right;
+    border-left: solid $accent;
 }
 
-/* Main Content Area */
 .main-content {
     width: 1fr;
     height: 100%;
     padding: 1;
     background: $surface-darken-2;
+    layout: horizontal;
 }
 
 /* Ensure the playlists section fills available space */
@@ -1157,6 +1154,10 @@ SpotifyView {
     color: $accent;
 }
 
+.track-title:hover {
+    color: $accent;
+}
+
 .result-artist:hover {
     background: transparent;
     color: $accent; 
@@ -1172,8 +1173,9 @@ SpotifyView {
 }
 
 .tracks-scroll {
-    height: 100%;
-    border: solid $background;
+    height: 1fr;        
+    overflow-y: auto;   
+    width: 100%;
 }
 
 .result-artist {
@@ -1265,6 +1267,7 @@ SettingsView {
     padding: 1 2;
     align: center middle;
     layout: grid;  /* Add this as well */
+    overflow: auto;
 }
 
 .settings-layout {
@@ -1284,6 +1287,8 @@ SettingsView {
     width: 100%;
     height: 100%;
     padding: 1 2;
+    padding-left: 10;
+    overflow: auto;
 }
 
 .setting-button {
@@ -1344,8 +1349,80 @@ ThemeButton:focus {
     grid-size: 2;
     grid-columns: 1fr 1fr;
     grid-rows: auto;
-    grid-gutter: 2 1;  /* Reduced gutter, horizontal spacing only */
-    padding: 0;  /* Remove padding */
-    align: center middle;  /* Center the entire grid */
-    margin-right: 44;  /* Add right margin to center the grid */
+    grid-gutter: 2 1; 
+    padding: 0;  
+    align: center middle;
+    margin-right: 44; 
+    overflow: auto;
+}
+
+.playlist-view {
+    width: 33%;        
+    height: 100%;
+    dock: left;
+    border-right: solid $secondary;  
+    
+}
+
+.recently-played-view {
+    width: 33%;
+    dock: right;        
+    height: 100%;
+}
+
+.search-view {
+    width: 100%;
+    height: 100%;
+    layout: vertical;
+    border-right: solid $secondary;
+}
+
+
+.results-section-header {
+    dock: top;
+    padding: 1;
+    background: $surface-darken-2;
+    color: $text;
+    text-style: bold;
+    border-bottom: solid $primary;
+}
+.search-input {
+    width: 100%;
+    height: 3;
+    padding: 1;
+    background: $primary 19%;
+    border: none;
+    color: $text;
+}
+
+.search-input:focus {
+    background: white 20%;
+    color: $text;
+}
+
+.search-results-area {
+    width: 100%;
+    height: 1fr;
+}
+
+LoadingScreen {
+    background: $surface-darken-2;
+}
+
+.loading-container {
+    width: 100%;
+    height: 100%;
+    align: center middle;
+    dock: right;
+}
+
+.loading-text {
+    color: $text;
+    text-align: center;
+    margin-bottom: 1;
+}
+
+.loading-animation {
+    color: $accent;
+    text-align: center;
 }

@@ -1,4 +1,3 @@
-# app.py
 from textual.app import App, ComposeResult
 from textual.screen import Screen
 from .ui.views.nest import NewFileDialog
