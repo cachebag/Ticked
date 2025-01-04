@@ -41,6 +41,13 @@ class CalendarDB:
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
+                           
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS settings (
+                key TEXT PRIMARY KEY,
+                value TEXT
+                )
+            """)
 
             cursor.execute("SELECT id, due_time FROM tasks")
             tasks = cursor.fetchall()
@@ -66,7 +73,23 @@ class CalendarDB:
             """, (title, description, due_date, formatted_time))
             conn.commit()
             return cursor.lastrowid or 0
-    
+        
+    def is_first_launch(self) -> bool:
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT value FROM settings WHERE key = 'first_launch'")
+            result = cursor.fetchone()
+            return result is None
+
+    def mark_first_launch_complete(self) -> None:
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT OR REPLACE INTO settings (key, value)
+                VALUES ('first_launch', 'completed')
+            """)
+            conn.commit()
+        
     def get_tasks_for_date(self, date: str) -> List[Dict[str, Any]]:
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row  

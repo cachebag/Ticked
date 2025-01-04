@@ -150,7 +150,6 @@ class NowPlayingCard(Container):
                 event.stop()
                 spotify_client.previous_track()
                 self.poll_spotify_now_playing()
-                # Wait briefly for track info to update
                 playback = spotify_client.current_playback()
                 if playback and playback.get("item"):
                     track_name = playback["item"]["name"]
@@ -160,7 +159,6 @@ class NowPlayingCard(Container):
                 event.stop()
                 spotify_client.next_track()
                 self.poll_spotify_now_playing()
-                # Wait briefly for track info to update
                 playback = spotify_client.current_playback()
                 if playback and playback.get("item"):
                     track_name = playback["item"]["name"]
@@ -207,7 +205,7 @@ class TodayContent(Container):
             with Container(classes="tasks-card"):
                 with DashboardCard("Today's Tasks"):
                     with Vertical(id="today-tasks-list", classes="tasks-list"):
-                        yield Static("Loading tasks...", classes="empty-schedule")
+                        yield Static("No Tasks - Head over to your calendar to add some!", classes="empty-schedule")
             
             with Container(classes="right-column"):
                 with Grid(classes="right-top-grid"):
@@ -288,7 +286,6 @@ class TodayContent(Container):
         except requests.RequestException as e:
             print(f"Error fetching quotes: {e}")
 
-    # Add method to update Now Playing info
     def update_now_playing(self, track_name: str, artist_name: str) -> None:
         now_playing = self.query_one(NowPlayingCard)
         if now_playing:
@@ -315,16 +312,16 @@ class WelcomeContent(Container):
     }
     """
     
-    def compose(self):
+    def compose(self) -> ComposeResult:
         yield WelcomeMessage("║       Welcome to TICK        ║")
         yield WelcomeMessage("")
-        yield WelcomeMessage("For detailed instructions, reference the docs on the GitHub | https://github.com/cachebag/tick ")
+        yield WelcomeMessage("For detailed instructions, [yellow]reference the docs on the GitHub[/yellow] | [link=https://github.com/cachebag/tick]https://github.com/cachebag/tick[/link]")
         yield WelcomeMessage("")
         yield WelcomeMessage("Navigation:")
-        yield WelcomeMessage("• Use ↑/↓ arrows to navigate the menu")
-        yield WelcomeMessage("• Press Enter to select a menu item")
-        yield WelcomeMessage("• Press Ctrl+Q to quit")
-        yield WelcomeMessage("• Press Esc to toggle the menu")
+        yield WelcomeMessage("• Use [red]↑/↓ ←/→ [/red] arrows to navigate the program")
+        yield WelcomeMessage("• Press [red]Enter[/red] to select an item")
+        yield WelcomeMessage("• Press [red]Ctrl+Q[/red] to quit")
+        yield WelcomeMessage("• Press [red]Esc[/red] to toggle the main menu options")
         yield WelcomeMessage("")
         yield WelcomeMessage("Select an option from the menu to begin (you can use your mouse too, we don't judge.)")
 
@@ -393,18 +390,33 @@ class WelcomeView(Container):
             yield WelcomeContent()
             
     def on_mount(self) -> None:
+        is_first_time = self.app.db.is_first_launch()
+        
         today_tab = self.query_one("TabButton#tab_today")
-        today_tab.toggle_active(True)
-        today_tab.focus()  
+        welcome_tab = self.query_one("TabButton#tab_welcome")
         
-        welcome_content = self.query_one(WelcomeContent)
-        welcome_content.styles.display = "none"
-        today_content = self.query_one(TodayContent)
-        today_content.styles.display = "block"
-        
-        today = datetime.now().strftime('%Y-%m-%d')
-        tasks = self.app.db.get_tasks_for_date(today)
-        today_content.mount_tasks(tasks)
+        if is_first_time:
+            welcome_tab.toggle_active(True)
+            welcome_tab.focus()
+            
+            welcome_content = self.query_one(WelcomeContent)
+            welcome_content.styles.display = "block"
+            today_content = self.query_one(TodayContent)
+            today_content.styles.display = "none"
+            
+            self.app.db.mark_first_launch_complete()
+        else:
+            today_tab.toggle_active(True)
+            today_tab.focus()
+            
+            welcome_content = self.query_one(WelcomeContent)
+            welcome_content.styles.display = "none"
+            today_content = self.query_one(TodayContent)
+            today_content.styles.display = "block"
+            
+            today = datetime.now().strftime('%Y-%m-%d')
+            tasks = self.app.db.get_tasks_for_date(today)
+            today_content.mount_tasks(tasks)
 
     def get_initial_focus(self) -> Optional[Widget]:
         return self.query_one(TabButton, id="tab_today")

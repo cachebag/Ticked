@@ -1,4 +1,3 @@
-# pomodoro.py - Pomodoro timer view
 from textual.app import ComposeResult, App
 from textual.containers import Container, Vertical, Horizontal
 from textual.widgets import Button, Static, Input, Label
