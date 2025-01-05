@@ -4,7 +4,7 @@ from textual.containers import Horizontal, Container, Vertical
 from textual.screen import ModalScreen
 from textual.widgets import DirectoryTree, Static, Button, TextArea, Input, Label
 from textual.binding import Binding
-from src.ui.mixins.focus_mixin import InitialFocusMixin
+from ...ui.mixins.focus_mixin import InitialFocusMixin
 from typing import Optional
 from textual.message import Message
 from rich.syntax import Syntax

@@ -3,12 +3,12 @@ from textual.containers import Container, ScrollableContainer
 from textual.screen import Screen
 from textual.widgets import Header, Button, Static, Footer
 from textual.binding import Binding
-from src.ui.views.welcome import WelcomeView
-from src.ui.views.calendar import CalendarView
-from src.utils.system_stats import SystemStatsHeader
-from src.ui.views.nest import NestView
-from src.ui.views.settings import SettingsView
-from src.ui.mixins.focus_mixin import InitialFocusMixin
+from ticked.ui.views.welcome import WelcomeView
+from ticked.ui.views.calendar import CalendarView
+from ticked.utils.system_stats import SystemStatsHeader
+from ticked.ui.views.nest import NestView
+from ticked.ui.views.settings import SettingsView
+from ticked.ui.mixins.focus_mixin import InitialFocusMixin
 from textual.widget import Widget
 from typing import Optional
 from ..views.pomodoro import PomodoroView   
