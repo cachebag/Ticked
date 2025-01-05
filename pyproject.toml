@@ -1,0 +1,54 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ticked"
+version = "0.1.2"
+description = "A terminal-based task management and productivity tool."
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "Akrm Al-Hakimi", email = "alhakimiakrmj@gmail.com"}
+]
+keywords = ["terminal-ui", "task-management", "productivity", "spotify", "vim-like", "code-editor", "pomodoro", "student", "STEM", "university"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Office/Business :: Scheduling",
+    "Topic :: Utilities"
+]
+dependencies = [
+    "requests",
+    "textual",
+    "textual-dev",
+    "rich",
+    "psutil",
+    "pygments",
+    "textual[syntax]",
+    "pyfiglet",
+    "spotipy",
+    "python-dotenv",
+    "setuptools"
+]
+
+[project.urls]
+Homepage = "https://github.com/cachebag/Ticked"
+
+[project.scripts]
+ticked = "ticked.app:main"
+
+[tool.setuptools]
+packages = ["ticked"]
+
+[tool.setuptools.package-data]
+ticked = ["config/*.tcss"]

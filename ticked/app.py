@@ -8,11 +8,12 @@ from textual.dom import NoMatches
 from textual.binding import Binding
 from textual import events
 from .core.database.ticked_db import CalendarDB
+from pathlib import Path
 import os
 import json
 
 class Ticked(App):
-    CSS_PATH = "config/theme.tcss"
+    CSS_PATH = str(Path(__file__).parent / "config" / "theme.tcss")
     SCREENS = {"home": HomeScreen}
     TITLE = "TICKED"
     COMMANDS = {}
@@ -114,6 +115,9 @@ class Ticked(App):
     def compose(self) -> ComposeResult:
         yield NestView()
 
-if __name__ == "__main__":
+def main():
     app = Ticked()
     app.run()
+
+if __name__ == "__main__":
+    main()

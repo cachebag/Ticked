@@ -6,7 +6,7 @@ from typing import Optional
 from textual.binding import Binding
 from datetime import datetime
 import requests
-from src.widgets.task_widget import Task
+from ticked.widgets.task_widget import Task
 import random
 import json
 
