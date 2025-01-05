@@ -1,10 +1,18 @@
 import sqlite3
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict, Any
+from xdg_base_dirs import xdg_data_home
 
 class CalendarDB:
-    def __init__(self, db_path: str = "tick.db"):
-        self.db_path = db_path
+    def __init__(self, db_path: str = None):
+    
+        if db_path is None:
+            data_dir = xdg_data_home() / "ticked"
+            data_dir.mkdir(parents=True, exist_ok=True)
+            self.db_path = str(data_dir / "tick.db")
+        else:
+            self.db_path = db_path
+        
         self._create_tables()
     
     def _create_tables(self) -> None:
