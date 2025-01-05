@@ -157,7 +157,7 @@ function saveCurrentPage(pageId) {
 
 // Load page content
 async function loadPage(pageId) {
-    // Scroll to top immediately when starting page load
+    // Always scroll to top first
     window.scrollTo(0, 0);
     
     const page = docs.sections
@@ -165,7 +165,6 @@ async function loadPage(pageId) {
         .find(item => item.id === pageId);
     
     if (!page) {
-        // Default to introduction page if pageId not found
         loadPage('introduction');
         return;
     }
@@ -217,7 +216,6 @@ async function loadPage(pageId) {
         history.pushState(null, '', `#${pageId}`);
     } catch (error) {
         console.error('Error loading page:', error);
-        // Load introduction page on error
         if (pageId !== 'introduction') {
             loadPage('introduction');
         } else {
@@ -251,30 +249,32 @@ document.addEventListener('DOMContentLoaded', () => {
     themeManager.init();
     buildNavigation();
     
-    // Handle initial page load
-    try {
+    // Check if this is the first visit to the site
+    const hasVisited = localStorage.getItem('hasVisited');
+    
+    if (!hasVisited) {
+        // First visit - load intro and set visited flag
+        localStorage.setItem('hasVisited', 'true');
+        loadPage('introduction');
+    } else {
+        // Return visitor - load page based on hash or stored page
         const pageId = window.location.hash.slice(1) || 
                       localStorage.getItem('currentPage') || 
                       'introduction';
         loadPage(pageId);
-    } catch (error) {
-        console.error('Error during initialization:', error);
-        loadPage('introduction');
     }
     
-    // Set up menu toggle
+    // Rest of initialization code
     const menuToggle = document.getElementById('menu-toggle');
     if (menuToggle) {
         menuToggle.addEventListener('click', toggleSidebar);
     }
     
-    // Handle back/forward navigation
+    // Always load introduction page on back/forward navigation
     window.addEventListener('popstate', () => {
-        const pageId = window.location.hash.slice(1) || 'introduction';
-        loadPage(pageId);
+        loadPage('introduction');
     });
 
-    // Add scroll spy initialization
     window.addEventListener('load', initScrollSpy);
 });
 

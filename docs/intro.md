@@ -25,7 +25,7 @@ Initially developed in C with ncurses, then migrated to Python with pycurses, Ti
 
 ## Development
 
-Please read the [Development Guide](development.md) if you'd like to contribute or work with the code yourself. It is open source under the MIT license.
+Please read the <a href="#dev" onclick="event.preventDefault(); loadPage('dev');">Development Guide</a> if you'd like to contribute or work with the code yourself. It is open source under the MIT license.
 
 ## Documentation
 
