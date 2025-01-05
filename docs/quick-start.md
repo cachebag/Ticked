@@ -1,10 +1,11 @@
-# Setup Guide
+# Setup Guide | Installation
+<br>
 
-# Installation
-
-### Windows
+##  Windows
 
 I've found the best terminals for this are WezTerm and Microsoft's Windows Terminal - `wt`
+
+<br>
 
 Python 3.8+ is required (grab the latest, if you are able to)
 
@@ -13,19 +14,22 @@ Install Tick using pip
    pip install tick
    ```
 
-### macOS/Linux
-Users can install Tick through pip or ~~brew~~ (Brew access coming soon)
-   ```bash
+## macOS/Linux
+Users can install Tick through pip or via Homebrew
+   ```powershell
    pip install tick
    ```
-   ```bash
-   brew install tick
+   Homebrew
+   ```powershell
+   -> brew tap cachebag/ticked
+
+   -> brew install ticked
    ```
-   (If you're using tap)
-   ```bash
-   brew tap cachebag/tick
-   ```
-macOS users can also utilize iTerm2's terminal window customization settings to achieve the look seen in these images where the window is transparent/blurred: 
+   <br>
+
+### macOS users can also utilize [iTerm2's](https://iterm2.com/) terminal window customization settings to achieve the look seen in these images where the window is transparent/blurred: 
+
+<br>
 
 <img src="./images/ss1.png" alt="Screenshot of Tick interface" width="800">
 <img src="./images/ss2.png" alt="Screenshot of Tick interface" width="800">
@@ -33,6 +37,8 @@ macOS users can also utilize iTerm2's terminal window customization settings to 
 #### I'm sure Linux users using environments like Hyprland can achieve a similar look.
 
 # Theme Customization
+
+<br>
 
 ### Default Themes
 Tick comes with several built-in themes via Textual:
@@ -54,7 +60,7 @@ To change your theme, you can toggle your main menu with `Esc` and head over to 
 
 
 
-### Creating Custom Themes (NOT DONE)
+### Creating Custom Themes (COMING SOON)
 
 # Keyboard Navigation
 
@@ -71,12 +77,12 @@ Currently, the app is listed as "Under Development" through the Spotify Develope
 
  **Please note:** This is only available to Premium users. Spotify currently does not grant access to users using a free subscription plan.
 
-Please email me at alhakimiakrmj@gmail.com or message me on discord: cachebag, if you would like access to Spotify within Tick. Note: You will need to provide access to the email that you you have access to premium on in order to use the API.
+Please email me at alhakimiakrmj@gmail.com or message me on discord: cachebag, if you would like access to Spotify within Tick. *Note:* You will need to provide the email address that you you have access to premium on in order to use the API and be given developer access.
 
 A request has already been submitted to Spotify for extended access to all users.
 
 ### Usage
-- Once you have been added to my user list, you need to create a .env file in the root directory where ticked was installed (i.e. ```/installfolder/venv/bin/ticked```) 
+- Once you have been added to my user list, you need to create a .env file in the root directory where ticked was installed (i.e. ```/opt/homebrew/bin/ticked```) 
 - Log into the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard) and fill that .env file with the following information:
 ```
 SPOTIFY_CLIENT_ID=client-id
@@ -86,13 +92,13 @@ SPOTIFY_REDIRECT_URI=http://localhost:8888/callback
 ```
 - Head over to the Spotfify page on Ticked and click the Authenticate button on the bottom right. 
 
-<img src="./images/ss6.png" alt="Screenshot of Tick interface" width="800">
-
-
-
-
-
 <img src="./images/ss7.png" alt="Screenshot of Tick interface" width="800">
+
+
+
+
+
+<img src="./images/ss6.png" alt="Screenshot of Tick interface" width="800">
 
 
  Control playback from your home view
@@ -115,3 +121,9 @@ SPOTIFY_REDIRECT_URI=http://localhost:8888/callback
     - You _do_ need an internet connection to access Spotify. There is no offline access. 
 
 For additional support or questions, please don't hesitate to open an issue on the [GitHub](https://github.com/cachebag/Tick) or contact me directly.
+
+<div align="right">
+<a href="#basics" onclick="event.preventDefault(); loadPage('basics');">
+    <kbd>Next: Calendar and Task Management →</kbd>
+</a>
+</div>
