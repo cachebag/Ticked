@@ -14,7 +14,7 @@ Install Tick using pip
    ```
 
 ### macOS/Linux
-Users can install Tick through pip or brew
+Users can install Tick through pip or ~~brew~~ (Brew access coming soon)
    ```bash
    pip install tick
    ```
@@ -30,7 +30,7 @@ macOS users can also utilize iTerm2's terminal window customization settings to 
 <img src="./images/ss1.png" alt="Screenshot of Tick interface" width="800">
 <img src="./images/ss2.png" alt="Screenshot of Tick interface" width="800">
 
-I'm sure Linux users using environments like Hyprland can achieve a similar look.
+#### I'm sure Linux users using environments like Hyprland can achieve a similar look.
 
 # Theme Customization
 
@@ -67,16 +67,24 @@ In general, you can navigate the entire app with your arrow, esc and enter keys,
 
 # Spotify Integration (Premium Users Only)
 
-Currently, the app is listed as "Under Development" through my Spotify dashboard. I can onboard up to 25 users and give them access to the API so that you can listen to your Spotify playlists and access other features within Tick.
+Currently, the app is listed as "Under Development" through the Spotify Developer dashboard. I can onboard up to 25 users and give them access to the API so that you can listen to your Spotify playlists and access other features within Tick.
 
  **Please note:** This is only available to Premium users. Spotify currently does not grant access to users using a free subscription plan.
 
-Please email me at alhakimiakrmj@gmail.com or message me on discord: cachebag, if you would like access to Spotify within Tick.
+Please email me at alhakimiakrmj@gmail.com or message me on discord: cachebag, if you would like access to Spotify within Tick. Note: You will need to provide access to the email that you you have access to premium on in order to use the API.
 
-Once enough concurrent users are using Tick, I will submit a request to extend access for all users to Spotify.
+A request has already been submitted to Spotify for extended access to all users.
 
 ### Usage
-Once you have been added to my user list, you can head over to Spotify in Tick, and click the Authenticate button near the instructions at the bottom right to gain access to your playlists.
+- Once you have been added to my user list, you need to create a .env file in the root directory where ticked was installed (i.e. ```/installfolder/venv/bin/ticked```) 
+- Log into the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard) and fill that .env file with the following information:
+```
+SPOTIFY_CLIENT_ID=client-id
+SPOTIFY_CLIENT_SECRET=client-secret
+SPOTIFY_REDIRECT_URI=http://localhost:8888/callback
+
+```
+- Head over to the Spotfify page on Ticked and click the Authenticate button on the bottom right. 
 
 <img src="./images/ss6.png" alt="Screenshot of Tick interface" width="800">
 
@@ -92,14 +100,15 @@ Once you have been added to my user list, you can head over to Spotify in Tick, 
 <img src="./images/ss8.png" alt="Screenshot of Tick interface" width="800">
 
 
-### Troubleshooting
-#### Common issues and their solutions:
+# Troubleshooting
+### Common issues and their solutions:
 1. Authentication Failed
     - Please make sure you have a _premium_ account. Spotify API does not give access to free users.
     - Ensure you gave me the right email to ensure access is properly granted.
 
 2. 403 Error - Playback issues
     - The way Spotify's API works, you need to have either Spotify open in a Web Browser, or open on your Desktop app in order to listen to the music. Once you've opened either of those, you can minimize Spotify and return to Tick and continue listening to Spotify.
+    - You are also able to simply turn Spotify on from your phone and control it's features from Ticked itself.
     - Please make sure you have a _premium_ account. Spotify API does not give access to free users.
 
 3. Connection Problems
