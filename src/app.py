@@ -7,14 +7,15 @@ from .ui.views.nest import NestView
 from textual.dom import NoMatches
 from textual.binding import Binding
 from textual import events
-from .core.database.tick_db import CalendarDB
+from .core.database.ticked_db import CalendarDB
 import os
 import json
 
-class Tick(App):
+class Ticked(App):
     CSS_PATH = "config/theme.tcss"
     SCREENS = {"home": HomeScreen}
-    TITLE = "TICK"
+    TITLE = "TICKED"
+    COMMANDS = {}
     BINDINGS = [
         Binding("q", "quit", "Quit", show=True),
         Binding("up", "focus_previous", "Move Up", show=True),
@@ -114,5 +115,5 @@ class Tick(App):
         yield NestView()
 
 if __name__ == "__main__":
-    app = Tick()
+    app = Ticked()
     app.run()
