@@ -144,6 +144,11 @@ function updateActiveLink(clickedLink) {
     clickedLink.classList.add('active');
 }
 
+// Add this function to store current page
+function saveCurrentPage(pageId) {
+    localStorage.setItem('currentPage', pageId);
+}
+
 // Load page content
 async function loadPage(pageId) {
     const page = docs.sections
@@ -151,6 +156,9 @@ async function loadPage(pageId) {
         .find(item => item.id === pageId);
     
     if (page) {
+        // Save current page when loading
+        saveCurrentPage(pageId);
+        
         let content;
         
         try {
@@ -212,8 +220,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // Build navigation
     buildNavigation();
     
-    // Load default page or page from URL hash
-    const pageId = window.location.hash.slice(1) || 'introduction';
+    // Load page based on priority: URL hash > localStorage > default
+    const pageId = window.location.hash.slice(1) || 
+                  localStorage.getItem('currentPage') || 
+                  'introduction';
+    
     loadPage(pageId);
     
     // Set up menu toggle
@@ -221,7 +232,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Handle back/forward navigation
     window.addEventListener('popstate', () => {
-        const pageId = window.location.hash.slice(1) || 'introduction';
+        const pageId = window.location.hash.slice(1) || 
+                      localStorage.getItem('currentPage') || 
+                      'introduction';
         loadPage(pageId);
     });
 });
