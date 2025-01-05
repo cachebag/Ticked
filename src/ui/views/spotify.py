@@ -4,7 +4,7 @@ from textual.widgets import Button, Static, Input
 from textual import work
 from textual.worker import get_current_worker
 import asyncio
-from ...core.database.tick_db import CalendarDB
+from ...core.database.ticked_db import CalendarDB
 from textual.binding import Binding
 from textual.message import Message
 from datetime import datetime, timedelta

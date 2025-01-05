@@ -8,3 +8,4 @@ textual[syntax]
 pyfiglet
 spotipy
 python-dotenv
+setuptools
