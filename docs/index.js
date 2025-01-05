@@ -19,19 +19,25 @@ const docs = {
             ]
         },
         {
-            title: 'Core Concepts',
+            title: 'Core Features',
             items: [
                 { 
                     id: 'basics', 
-                    title: 'Basic Concepts',
-                    type: 'embedded',
-                    content: `# Basic Concepts...` 
+                    title: 'Calendar and Task Management',
+                    type: 'markdown',
+                    path: 'task.md'
                 },
                 { 
                     id: 'advanced', 
-                    title: 'Advanced Usage',
-                    type: 'embedded',
-                    content: `# Advanced Usage...` 
+                    title: 'NEST+',
+                    type: 'markdown',
+                    path: 'nest.md'
+                },
+                {
+                    id: 'dev',
+                    title: 'Development',
+                    type: 'markdown',
+                    path: 'dev.md'
                 }
             ]
         }
@@ -151,47 +157,75 @@ function saveCurrentPage(pageId) {
 
 // Load page content
 async function loadPage(pageId) {
+    // Scroll to top immediately when starting page load
+    window.scrollTo(0, 0);
+    
     const page = docs.sections
         .flatMap(section => section.items)
         .find(item => item.id === pageId);
     
-    if (page) {
-        // Save current page when loading
-        saveCurrentPage(pageId);
-        
+    if (!page) {
+        // Default to introduction page if pageId not found
+        loadPage('introduction');
+        return;
+    }
+    
+    saveCurrentPage(pageId);
+    
+    // Update page title
+    const pageTitleElement = document.getElementById('current-page-title');
+    if (pageTitleElement) {
+        pageTitleElement.textContent = page.title;
+    }
+    
+    try {
         let content;
+        if (page.type === 'markdown') {
+            const response = await fetch(page.path);
+            if (!response.ok) {
+                throw new Error(`Failed to load ${page.path}`);
+            }
+            content = await response.text();
+        } else {
+            content = page.content;
+        }
+
+        // Configure marked options
+        marked.setOptions({
+            breaks: true,
+            headerIds: true,
+            gfm: true
+        });
+
+        // Render the content
+        const docContent = document.getElementById('doc-content');
+        docContent.innerHTML = marked.parse(content);
+        docContent.classList.add('doc-content');
         
-        try {
-            if (page.type === 'markdown') {
-                console.log('Attempting to load:', page.path);
-                const response = await fetch(page.path);
-                console.log('Response status:', response.status);
-                if (!response.ok) {
-                    throw new Error(`Failed to load ${page.path} (Status: ${response.status})`);
-                }
-                content = await response.text();
-            } else {
-                content = page.content;
-            }
+        // Style headers
+        document.querySelectorAll('.doc-content h1, .doc-content h2, .doc-content h3, .doc-content h4')
+            .forEach(header => {
+                header.style.display = 'inline-block';
+                header.style.width = '100%';
+                header.style.scrollMarginTop = '100px';
+            });
 
-            // Check if marked is available
-            if (typeof marked === 'undefined') {
-                throw new Error('Markdown parser not loaded');
-            }
-
-            // Use marked.parse instead of marked directly
-            document.getElementById('doc-content').innerHTML = marked.parse(content);
-            highlightCode();
-        } catch (error) {
-            console.error('Error details:', error);
+        highlightCode();
+        updateSectionNav();
+        
+        // Update URL without triggering scroll
+        history.pushState(null, '', `#${pageId}`);
+    } catch (error) {
+        console.error('Error loading page:', error);
+        // Load introduction page on error
+        if (pageId !== 'introduction') {
+            loadPage('introduction');
+        } else {
             document.getElementById('doc-content').innerHTML = `
                 <h1>Error Loading Page</h1>
-                <p>Failed to load the documentation.</p>
-                <pre>${error.message}</pre>
+                <p>Failed to load the documentation. Please try refreshing the page.</p>
             `;
         }
-    } else {
-        document.getElementById('doc-content').innerHTML = '<h1>Page Not Found</h1>';
     }
 }
 
@@ -214,27 +248,92 @@ function toggleSidebar() {
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
-    // Initialize theme first
     themeManager.init();
-    
-    // Build navigation
     buildNavigation();
     
-    // Load page based on priority: URL hash > localStorage > default
-    const pageId = window.location.hash.slice(1) || 
-                  localStorage.getItem('currentPage') || 
-                  'introduction';
-    
-    loadPage(pageId);
-    
-    // Set up menu toggle
-    document.getElementById('menu-toggle').addEventListener('click', toggleSidebar);
-    
-    // Handle back/forward navigation
-    window.addEventListener('popstate', () => {
+    // Handle initial page load
+    try {
         const pageId = window.location.hash.slice(1) || 
                       localStorage.getItem('currentPage') || 
                       'introduction';
         loadPage(pageId);
+    } catch (error) {
+        console.error('Error during initialization:', error);
+        loadPage('introduction');
+    }
+    
+    // Set up menu toggle
+    const menuToggle = document.getElementById('menu-toggle');
+    if (menuToggle) {
+        menuToggle.addEventListener('click', toggleSidebar);
+    }
+    
+    // Handle back/forward navigation
+    window.addEventListener('popstate', () => {
+        const pageId = window.location.hash.slice(1) || 'introduction';
+        loadPage(pageId);
     });
+
+    // Add scroll spy initialization
+    window.addEventListener('load', initScrollSpy);
 });
+
+// Extract and display section headings
+function updateSectionNav() {
+    const sectionNav = document.getElementById('section-nav');
+    const headings = document.querySelectorAll('#doc-content h1, #doc-content h2');
+    
+    sectionNav.innerHTML = '';
+    
+    headings.forEach(heading => {
+        const id = heading.textContent.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+        heading.id = id;
+        
+        const li = document.createElement('li');
+        const a = document.createElement('a');
+        a.href = `#${id}`;
+        a.textContent = heading.textContent;
+        a.onclick = (e) => {
+            e.preventDefault();
+            heading.scrollIntoView({ 
+                behavior: 'smooth',
+                block: 'start'
+            });
+            updateActiveSectionLink(a);
+            // Update URL hash without triggering scroll
+            history.pushState(null, null, `#${id}`);
+        };
+        
+        // Add indent for h2
+        if (heading.tagName === 'H2') {
+            a.style.paddingLeft = '1rem';
+        }
+        
+        li.appendChild(a);
+        sectionNav.appendChild(li);
+    });
+}
+
+function updateActiveSectionLink(clickedLink) {
+    document.querySelectorAll('.section-nav a').forEach(link => {
+        link.classList.remove('active');
+    });
+    if (clickedLink) clickedLink.classList.add('active');
+}
+
+// Add scroll spy functionality
+function initScrollSpy() {
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const id = entry.target.id;
+                const link = document.querySelector(`.section-nav a[href="#${id}"]`);
+                if (link) updateActiveSectionLink(link);
+            }
+        });
+    }, { threshold: 0.5 });
+
+    document.querySelectorAll('#doc-content h1, #doc-content h2').forEach(heading => {
+        observer.observe(heading);
+    });
+}

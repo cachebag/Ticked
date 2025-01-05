@@ -5,32 +5,37 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tick Documentation</title>
     <link rel="stylesheet" href="styles.css">
+    <!-- Add this line for code font -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap">
     <!-- Add highlight.js for code syntax highlighting -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/atom-one-dark.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div class="app-container">
+    <div class="sticky-header">
+        <h1 class="page-title" id="current-page-title">Documentation</h1>
+        <div class="header-controls">
+            <button id="theme-switch" aria-label="Toggle theme">🌙</button>
+        </div>
+    </div>
+    
+    <div class="container">
         <aside class="sidebar">
-            <div class="sidebar-header">
-                <h1 class="logo">Ticked Docs</h1>
-                <button id="menu-toggle" class="menu-toggle">☰</button>
-            </div>
-            <nav id="sidebar-nav">
-                <!-- Navigation items will be dynamically inserted here -->
-            </nav>
+            <nav id="sidebar-nav"></nav>
         </aside>
+        
         <main class="content">
-            <header class="content-header">
-                <div class="theme-toggle">
-                    <button id="theme-switch" aria-label="Toggle theme">🌙</button>
-                </div>
-            </header>
-            <div id="doc-content" class="doc-content">
-                <!-- Markdown content will be rendered here -->
-            </div>
+            <div id="doc-content"></div>
         </main>
+        
+        <div class="section-nav-container">
+            <h3>On This Page</h3>
+            <ul id="section-nav" class="section-nav"></ul>
+        </div>
     </div>
     <script src="index.js"></script>
 </body>
