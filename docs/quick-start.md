@@ -14,18 +14,24 @@ Install Tick using pip
    pip install tick
    ```
 
+   ```powershell
+   ticked
+   ```
+
 ## macOS/Linux
-Users can install Tick through pip or via Homebrew
+Users can install Tick through pip or via Homebrew (**Note:** There's a bug where syntax highlighting is not applied in NEST+ if you install through Homebrew)
    ```powershell
    pip install tick
    ```
    Homebrew
    ```powershell
-   -> brew tap cachebag/ticked
+   brew tap cachebag/ticked
 
-   -> brew install ticked
+   brew install ticked
    ```
    <br>
+
+   Now, simply run `ticked` in your terminal and you're good to go.
 
 ### macOS users can also utilize [iTerm2's](https://iterm2.com/) terminal window customization settings to achieve the look seen in these images where the window is transparent/blurred: 
 
