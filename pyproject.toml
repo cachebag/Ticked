@@ -48,7 +48,23 @@ Homepage = "https://github.com/cachebag/Ticked"
 ticked = "ticked.app:main"
 
 [tool.setuptools]
-packages = ["ticked"]
+packages = [
+    "ticked",
+    "ticked.ui",
+    "ticked.ui.views",
+    "ticked.ui.screens",
+    "ticked.ui.mixins",
+    "ticked.core",
+    "ticked.core.database",
+    "ticked.config",
+    "ticked.utils",
+    "ticked.widgets"
+]
 
 [tool.setuptools.package-data]
-ticked = ["config/*.tcss"]
+ticked = [
+    "config/*.tcss",
+    "*.json",
+    "pomodoro_settings.json",
+    "quotes_cache.json"
+]

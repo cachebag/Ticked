@@ -30,6 +30,7 @@ class Ticked(App):
     def __init__(self):
         super().__init__()
         self.db = CalendarDB()
+        self.package_dir = Path(__file__).parent
         self.pomodoro_settings = self.load_settings()
 
     def get_spotify_client(self):
@@ -47,11 +48,12 @@ class Ticked(App):
             "total_sessions": 4,
             "long_break_duration": 15
         }
+        settings_path = self.package_dir / "pomodoro_settings.json"
         try:
-            with open("pomodoro_settings.json", "r") as f:
+            with open(settings_path, "r") as f:
                 return json.load(f)
         except FileNotFoundError:
-            with open("pomodoro_settings.json", "w") as f:
+            with open(settings_path, "w") as f:
                 json.dump(default_settings, f)
             return default_settings
 
