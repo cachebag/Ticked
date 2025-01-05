@@ -6,11 +6,18 @@ from textual import work
 from textual.binding import Binding
 from textual.screen import ModalScreen
 import asyncio
+from pathlib import Path    
 import json
 import pyfiglet
 
 
 class CustomizeModal(ModalScreen[dict]):
+
+    def __init__(self, name=None, id=None, classes=None):
+        super().__init__(name=name, id=id, classes=classes)  
+        self.package_dir = Path(__file__).parent.parent.parent
+
+
     def compose(self) -> ComposeResult:
         with Container(classes="customize-dialog"):
             yield Label("Session time (minutes):")
@@ -35,7 +42,8 @@ class CustomizeModal(ModalScreen[dict]):
                     "total_sessions": min(12, int(self.query_one("#total_sessions").value)),
                     "long_break_duration": int(self.query_one("#long_break_duration").value)
                 }
-                with open("pomodoro_settings.json", "w") as f:
+                pomo = self.package_dir / "pomodoro_settings.json"
+                with open(pomo, "w") as f:
                     json.dump(settings, f)
                 self.app.update_settings(settings)
                 self.dismiss(settings)

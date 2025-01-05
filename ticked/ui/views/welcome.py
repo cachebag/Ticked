@@ -5,6 +5,7 @@ from textual.app import ComposeResult
 from typing import Optional
 from textual.binding import Binding
 from datetime import datetime
+from pathlib import Path
 import requests
 from ticked.widgets.task_widget import Task
 import random
@@ -199,6 +200,7 @@ class TodayContent(Container):
     def __init__(self) -> None:
         super().__init__()
         self.tasks_to_mount = None
+        self.package_dir = Path(__file__).parent.parent.parent
 
     def compose(self) -> ComposeResult:
         with Grid(classes="dashboard-grid"):
@@ -264,8 +266,9 @@ class TodayContent(Container):
             upcoming_view.refresh_tasks()
 
     def get_cached_quote(self):
+        quotes_file = self.package_dir / "quotes_cache.json"
         try:
-            with open("quotes_cache.json", "r") as file:
+            with open(quotes_file, "r") as file:
                 quotes = json.load(file)
                 random_quote = random.choice(quotes)
                 return f"{random_quote['q']} \n\n — {random_quote['a']}"
@@ -277,9 +280,10 @@ class TodayContent(Container):
         try:
             response = requests.get("https://zenquotes.io/api/quotes", timeout=10)
             if response.status_code == 200:
-                quotes = response.json()
-                with open("quotes_cache.json", "w") as file:
-                    json.dump(quotes, file)
+                quotes_data = response.json()
+                quotes_file = self.package_dir / "quotes_cache.json"
+                with open(quotes_file, "w") as file:
+                    json.dump(quotes_data, file)
                 print("Quotes cached successfully!")
             else:
                 print(f"Failed to fetch quotes: {response.status_code}")
