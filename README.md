@@ -13,9 +13,11 @@
 
 
 --- 
-# **_Tick_** is a TUI task and productivity manager built in Python over the Textual library. Intended for University Students, but usable for everyone. 
+# 📟 **_Tick_** is a Terminal based task and productivity manager built in Python over the Textual library. Intended for University Students, but usable for everyone. 
 
 ## Currently in v0.1.3. [Read the release notes here.](https://github.com/cachebag/Ticked/releases/tag/v0.1.2)
+
+## [Read the docs to quickly get set up](https://cachebag.github.io/Ticked/#introduction)
 #  **Features**
 
 ### 📝 | **Task and Schedule Management**
@@ -41,11 +43,21 @@
 ---
 
 ## Want to jump in?
-You can either read the [docs](https://cachebag.github.io/Ticked/), and get quickly setup to begin working or you can go straight into it. Just ```pip install tick``` and you're ready to go.
+You can either read the [docs](https://cachebag.github.io/Ticked/), and get quickly setup to begin working or you can go straight into it. Just...
+```bash
+pip install ticked
+ticked
+```
+for Homebrew
+```bash
+brew tap cachebag/ticked
+brew install ticked
+```
+
 
 ## Contributing
 
-New issues and pull requests are welcome.
+New issues and pull requests are welcome. [Read the Development guide for details.](https://cachebag.github.io/Ticked/#dev)
 
 If you want to contribute:
 1. Fork the repository.
