@@ -1,5 +1,5 @@
 ![License](https://img.shields.io/badge/license-MIT-blue)
-![Unreleased](https://img.shields.io/badge/unreleased-in%20development-orange)
+![Unreleased](https://img.shields.io/badge/beta-pre%20release-blue)
 
 
 ![image](https://github.com/user-attachments/assets/f092a9ba-5b99-4763-8259-6af2b54f3cd4)
@@ -8,8 +8,6 @@
   <img src="images/ss1.png" alt="Screenshot 1" width="400">
   <img src="images/ss2.png" alt="Screenshot 2" width="400">
   <img src="images/ss3.png" alt="Screenshot 3" width="400">
-  <img src="images/ss4.png" alt="Screenshot 4" width="400">
-  <img src="images/ss5.png" alt="Screenshot 5" width="400">
 </div>
 
 
@@ -17,9 +15,9 @@
 
 
 --- 
-**_Tick_** is a TUI task and productivity manager built in Python over the Textual library. Intended for University Students, but usable for everyone. 
----
+# **_Tick_** is a TUI task and productivity manager built in Python over the Textual library. Intended for University Students, but usable for everyone. 
 
+## Currently in v0.1.2. [Read the release notes here.](https://github.com/cachebag/Ticked/releases/tag/v0.1.2)
 #  **Features**
 
 ### 📝 | **Task and Schedule Management**
@@ -43,6 +41,9 @@
 - Music playback from any page, and cached tokens for continuous use without re-authenticating every time you open the program.  
 
 ---
+
+## Want to jump in?
+You can either read the [docs](https://cachebag.github.io/Ticked/), and get quickly setup to begin working or you can go straight into it. Just ```pip install tick``` and you're ready to go.
 
 ## Contributing
 
