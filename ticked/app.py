@@ -8,6 +8,7 @@ from textual.dom import NoMatches
 from textual.binding import Binding
 from textual import events
 from .core.database.ticked_db import CalendarDB
+from xdg_base_dirs import xdg_config_home
 from pathlib import Path
 import os
 import json
@@ -42,13 +43,18 @@ class Ticked(App):
         self._spotify_auth = auth
 
     def load_settings(self):
+    
         default_settings = {
             "work_duration": 25,
             "break_duration": 5,
             "total_sessions": 4,
             "long_break_duration": 15
         }
-        settings_path = self.package_dir / "pomodoro_settings.json"
+    
+        config_dir = xdg_config_home() / "ticked"
+        config_dir.mkdir(parents=True, exist_ok=True)
+        settings_path = config_dir / "pomodoro_settings.json"
+    
         try:
             with open(settings_path, "r") as f:
                 return json.load(f)
