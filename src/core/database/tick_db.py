@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from typing import Optional, List, Dict, Any
 
 class CalendarDB:
-    def __init__(self, db_path: str = "calendar.db"):
+    def __init__(self, db_path: str = "tick.db"):
         self.db_path = db_path
         self._create_tables()
     

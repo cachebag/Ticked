@@ -251,50 +251,34 @@ class LibrarySection(Container):
         )
 
     def load_playlists(self, spotify_client):
-        with open("spotify_debug.log", "a") as f:
-            f.write("\n--- Starting playlist load ---\n")
-            if spotify_client:
-                try:
-                    f.write("Testing connection...\n")
-                    spotify_client.current_user()
+        if spotify_client:
+            try:
+                spotify_client.current_user()
+                playlists = spotify_client.current_user_playlists()
+                
+                container = self.query_one("#playlists-container")
+                container.remove_children()
+                
+                container.mount(Static("Your Library", classes="section-header-lib"))
+                container.mount(Static("Playlists", classes="subsection-header"))
+                container.mount(PlaylistItem("Liked Songs", "liked_songs"))
+                
+                for playlist in playlists['items']:
+                    name = playlist['name'] if playlist['name'] else "Untitled Playlist"
+                    container.mount(PlaylistItem(name, playlist['id']))
+                return True
                     
-                    f.write("Fetching playlists...\n")
-                    playlists = spotify_client.current_user_playlists()
-                    f.write(f"Found {len(playlists['items'])} playlists\n")
-                    
-                    container = self.query_one("#playlists-container")
-                    f.write("Found container, clearing children...\n")
-                    container.remove_children()
-                    
-                    container.mount(Static("Your Library", classes="section-header-lib"))
-                    container.mount(Static("Playlists", classes="subsection-header"))
-                    
-                    container.mount(PlaylistItem("Liked Songs", "liked_songs"))
-                    
-                    for playlist in playlists['items']:
-                        name = playlist['name'] if playlist['name'] else "Untitled Playlist"
-                        container.mount(PlaylistItem(name, playlist['id']))
-                        f.write(f"Added playlist: {name}\n")
-                    
-                    f.write("Finished loading playlists successfully\n")
-                    return True
-                    
-                except spotipy.exceptions.SpotifyException as e:
-                    error_msg = f"Spotify API error: {str(e)}\n"
-                    f.write(error_msg)
-                    container = self.query_one("#playlists-container")
-                    container.mount(Static("⚠️ " + error_msg, classes="error-message"))
-                    return False
-                    
-                except Exception as e:
-                    error_msg = f"Error: {str(e)}\n"
-                    f.write(error_msg)
-                    container = self.query_one("#playlists-container")
-                    container.mount(Static("⚠️ " + error_msg, classes="error-message"))
-                    return False
-            else:
-                f.write("No Spotify client available!\n")
+            except spotipy.exceptions.SpotifyException as e:
+                container = self.query_one("#playlists-container")
+                container.mount(Static("⚠️ Spotify API error", classes="error-message"))
                 return False
+                    
+            except Exception as e:
+                container = self.query_one("#playlists-container")
+                container.mount(Static("⚠️ Error loading playlists", classes="error-message"))
+                return False
+        else:
+            return False
             
 class RecentlyPlayedView(Container):
     def compose(self) -> ComposeResult:
