@@ -13,7 +13,7 @@
 
 
 --- 
-# 📟 **_Tick_** is a Terminal based task and productivity manager built in Python over the Textual library. Intended for University Students, but usable for everyone. 
+# 📟 **_Ticked_** is a Terminal based task and productivity manager built in Python over the Textual library. Intended for University Students, but usable for everyone. 
 
 ## Currently in v0.1.3. [Read the release notes here.](https://github.com/cachebag/Ticked/releases/tag/v0.1.2)
 
