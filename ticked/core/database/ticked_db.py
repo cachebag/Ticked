@@ -57,6 +57,17 @@ class CalendarDB:
                 )
             """)
 
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS caldav_config (
+                    id INTEGER PRIMARY KEY CHECK (id = 1),
+                    url TEXT NOT NULL,
+                    username TEXT NOT NULL,
+                    password TEXT NOT NULL,
+                    last_sync TIMESTAMP,
+                    selected_calendar TEXT
+                )
+            """)
+
             cursor.execute("SELECT id, due_time FROM tasks")
             tasks = cursor.fetchall()
             for task_id, due_time in tasks:
@@ -66,6 +77,8 @@ class CalendarDB:
                     cursor.execute("UPDATE tasks SET due_time = ? WHERE id = ?", (formatted_time, task_id))
                 except:
                     pass
+
+            
 
             conn.commit()
     
@@ -88,6 +101,25 @@ class CalendarDB:
             cursor.execute("SELECT value FROM settings WHERE key = 'first_launch'")
             result = cursor.fetchone()
             return result is None
+        
+    def save_caldav_config(self, url: str, username: str, password: str, calendar: str) -> bool:
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT OR REPLACE INTO caldav_config 
+                (id, url, username, password, selected_calendar, last_sync)
+                VALUES (1, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            """, (url, username, password, calendar))
+            conn.commit()
+            return True
+
+    def get_caldav_config(self) -> Optional[Dict[str, Any]]:
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM caldav_config WHERE id = 1")
+            result = cursor.fetchone()
+            return dict(result) if result else None
 
     def mark_first_launch_complete(self) -> None:
         with sqlite3.connect(self.db_path) as conn:
