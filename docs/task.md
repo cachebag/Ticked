@@ -62,7 +62,7 @@ This feature will be fleshed out some more, as I've got a lot of ideas to gameif
 
 
 ## Day view in Home section
-All tasks are stored in the home section as well, in the "Day" tab. Here, you will get a view of the current day's tasks, quote of the day, Spotify playback widget, and a view of your "Upcoming" tasks that can be filtered between the next 7 days, and the next 30 days.
+All tasks are stored in the home section as well, in the "Today" tab. Here, you will get a view of the current day's tasks, quote of the day, Spotify playback widget, and a view of your "Upcoming" tasks that can be filtered between the next 7 days, and the next 30 days.
 
 <br>
 
