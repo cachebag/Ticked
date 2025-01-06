@@ -11,7 +11,7 @@ Python 3.8+ is required (grab the latest, if you are able to)
 
 Install Tick using pip
    ```powershell
-   pip install tick
+   pip install ticked
    ```
 
    ```powershell
@@ -21,7 +21,7 @@ Install Tick using pip
 ## macOS/Linux
 Users can install Tick through pip or via Homebrew (**Note:** There's a bug where syntax highlighting is not applied in NEST+ if you install through Homebrew)
    ```powershell
-   pip install tick
+   pip install ticked
    ```
    Homebrew
    ```powershell
