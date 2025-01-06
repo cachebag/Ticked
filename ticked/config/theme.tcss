@@ -1426,3 +1426,54 @@ LoadingScreen {
     color: $accent;
     text-align: center;
 }
+
+CalendarSetupScreen {
+    align: center middle;
+}
+
+.calendar-setup-container {
+    width: 60;
+    height: auto;
+    border: thick $background;
+    background: $surface;
+    padding: 1;
+}
+
+.calendar-setup-form {
+    height: auto;
+    padding: 1;
+    background: $surface;
+}
+
+.form-header {
+    text-align: center;
+    text-style: bold;
+    padding-bottom: 1;
+}
+
+#calendar-select {
+    width: 100%;
+    margin: 1 0;
+}
+
+.form-buttons {
+    width: 100%;
+    height: auto;
+    align: center middle;
+    padding-top: 1;
+}
+
+.form-buttons Button {
+    margin: 0 1;
+    min-width: 12;
+}
+
+#server-url, #username, #password {
+    width: 100%;
+    margin-bottom: 1;
+}
+
+.stat-item {
+    padding: 1;
+    text-align: center;
+}

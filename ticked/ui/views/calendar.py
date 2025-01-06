@@ -1,3 +1,4 @@
+#calendar.py
 from textual.containers import Container, Grid, Horizontal, Vertical
 from textual.widgets import Button, Input, Label, Static, TextArea
 from textual.screen import ModalScreen
@@ -8,6 +9,8 @@ import calendar
 from ...widgets.task_widget import Task
 from textual.binding import Binding
 from ...core.database.ticked_db import CalendarDB
+from ...core.database.caldav_sync import CalDAVSync
+from .calendar_setup import CalendarSetupScreen
 from typing import Optional
 from textual.widget import Widget
 
@@ -144,6 +147,8 @@ class CalendarView(Container):
         Binding("down", "move_down", "Down", show=True),
         Binding("left", "move_left", "Left", show=True),
         Binding("right", "move_right", "Right", show=True),
+        Binding("ctrl+y", "sync_calendar", "Sync Calendar"),
+        Binding("ctrl+s", "open_settings", "Calendar Settings"),
     ]
 
     def compose(self) -> ComposeResult:
@@ -151,6 +156,10 @@ class CalendarView(Container):
         yield NavBar(self.current_date)
         yield CalendarGrid(self.current_date)
         yield DayView(self.current_date)
+
+    async def action_open_settings(self) -> None:
+        setup_screen = CalendarSetupScreen()
+        await self.app.push_screen(setup_screen)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         button_id = event.button.id
@@ -221,6 +230,20 @@ class CalendarView(Container):
             current_idx = all_buttons.index(current)
             if current_idx >= 7:  
                 all_buttons[current_idx - 7].focus()
+
+    async def action_sync_calendar(self) -> None:
+        config = self.app.db.get_caldav_config()
+        if not config:
+            setup_screen = CalendarSetupScreen()
+            await self.app.push_screen(setup_screen)
+        else:
+            sync = CalDAVSync(self.app.db)
+            if sync.connect(config['url'], config['username'], config['password']):
+                sync.sync_calendar(config['selected_calendar'])
+                self._refresh_calendar()
+                self.notify("Calendar synced successfully!", severity="information")
+            else:
+                self.notify("Sync failed. Please check your settings.", severity="error")
 
     async def action_move_down(self) -> None:
         current = self.app.focused
@@ -405,6 +428,8 @@ class TaskEditForm(TaskForm):
     ]
 
     def __init__(self, task_data: dict):
+        task_data['title'] = task_data['title'].replace('<SUMMARY>', '').replace('</SUMMARY>', '')
+        task_data['description'] = task_data['description'].replace('<DESCRIPTION>', '').replace('</DESCRIPTION>', '')
         super().__init__(date=datetime.strptime(task_data['due_date'], '%Y-%m-%d'))
         self.task_data = task_data
 
