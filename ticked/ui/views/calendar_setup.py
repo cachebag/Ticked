@@ -52,7 +52,7 @@ class CalendarSetupScreen(ModalScreen):
                         yield Select(options=default_options, id="calendar-select", disabled=True)
                 
                 with Horizontal(classes="form-buttons"):
-                    yield Button("Test Connection", variant="primary", id="test-connection")
+                    yield Button("Test", variant="primary", id="test-connection")
                     yield Button("Cancel", variant="error", id="cancel")
                     save_button = Button("Save", variant="success", id="save")
                     save_button.disabled = not config
