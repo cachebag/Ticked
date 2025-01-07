@@ -1,3 +1,4 @@
+#calendar_setup.py
 from textual.screen import ModalScreen
 from textual.containers import Container, Vertical, Horizontal
 from textual.widgets import Button, Input, Label, Static, Select
@@ -51,7 +52,7 @@ class CalendarSetupScreen(ModalScreen):
                         yield Select(options=default_options, id="calendar-select", disabled=True)
                 
                 with Horizontal(classes="form-buttons"):
-                    yield Button("Test", variant="primary", id="test")
+                    yield Button("Test Connection", variant="primary", id="test-connection")
                     yield Button("Cancel", variant="error", id="cancel")
                     save_button = Button("Save", variant="success", id="save")
                     save_button.disabled = not config
@@ -59,17 +60,11 @@ class CalendarSetupScreen(ModalScreen):
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "cancel":
-            self.dismiss()
-        elif event.button.id == "test":
+            self.app.pop_screen()
+        elif event.button.id == "test-connection":
             self._test_connection()
         elif event.button.id == "save":
             self._save_config()
-
-    async def action_cancel(self) -> None:
-        self.dismiss()
-
-    async def action_submit(self) -> None:
-        self._save_config()
 
     def _test_connection(self) -> None:
         url = self.query_one("#server-url").value
@@ -88,12 +83,24 @@ class CalendarSetupScreen(ModalScreen):
                 return
                 
             select = self.query_one("#calendar-select", Select)
+            
+            # Create new Select widget with updated options
             calendar_options = [(cal, cal) for cal in calendars]
-            select.options = calendar_options
-            select.disabled = False
-            select.value = calendars[0]  
+            new_select = Select(
+                id="calendar-select",
+                options=calendar_options,
+                value=calendars[0],
+                disabled=False
+            )
+            
+            # Replace old select with new one
+            old_select = self.query_one("#calendar-select")
+            old_select.remove()
+            old_select_parent = self.query_one("Vertical > Label").parent
+            old_select_parent.mount(new_select)
+            
             self.query_one("#save").disabled = False
-            self.notify("Connection successful!", severity="information")
+            self.notify(f"Found {len(calendars)} calendars!", severity="information")
         else:
             self.notify("Connection failed", severity="error")
 
@@ -104,7 +111,8 @@ class CalendarSetupScreen(ModalScreen):
         select = self.query_one("#calendar-select")
         calendar = select.value
         
-        if not calendar or calendar == self.DEFAULT_OPTION:
+        # Add validation for calendar selection
+        if not calendar:
             self.notify("Please select a calendar", severity="error")
             return
             
@@ -113,11 +121,9 @@ class CalendarSetupScreen(ModalScreen):
             if sync.connect(url, username, password):
                 sync.sync_calendar(calendar)
                 self.notify("Calendar synced successfully!", severity="information")
-                self.dismiss()
+                self.app.pop_screen()
             else:
                 self.notify("Failed to sync calendar", severity="error")
-        else:
-            self.notify("Failed to save configuration", severity="error")
 
     def on_select_changed(self, event: Select.Changed) -> None:
         save_button = self.query_one("#save")
