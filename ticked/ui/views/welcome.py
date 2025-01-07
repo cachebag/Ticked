@@ -18,7 +18,7 @@ class TabButton(Button):
         self.add_class("tab-button")
         
     def toggle_active(self, is_active: bool):
-        if is_active:
+        if (is_active):
             self.add_class("active")
         else:
             self.remove_class("active")
@@ -261,9 +261,13 @@ class TodayContent(Container):
         tasks = self.app.db.get_tasks_for_date(today)
         self._do_mount_tasks(tasks)
         
+        # Also refresh upcoming tasks view
         upcoming_view = self.query_one(UpcomingTasksView)
         if upcoming_view:
             upcoming_view.refresh_tasks()
+
+        # Force a screen refresh
+        self.refresh()
 
     def get_cached_quote(self):
         quotes_file = self.package_dir / "quotes_cache.json"
@@ -544,9 +548,9 @@ class UpcomingTasksView(Container):
                 date_str = date_obj.strftime('%B %d, %Y')  
                 
                 if task['description']:
-                    task_with_date['display_text'] = f"{task['title']} @ {task['due_time']} | {task['description']} | On {date_str}"
+                    task_with_date['display_text'] = f"{task['title']} @ {task['start_time']} | {task['description']} | On {date_str}"
                 else:
-                    task_with_date['display_text'] = f"{task['title']} @ {task['due_time']} | On {date_str}"
+                    task_with_date['display_text'] = f"{task['title']} @ {task['start_time']} | On {date_str}"
                 
                 task_widget = Task(task_with_date)
                 tasks_list.mount(task_widget)

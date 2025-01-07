@@ -19,19 +19,23 @@ class CalendarDB:
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
 
+            # Create tasks table
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS tasks (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     title TEXT NOT NULL,
                     description TEXT,
                     due_date DATE NOT NULL,
-                    due_time TIME NOT NULL,
+                    start_time TIME NOT NULL,
+                    end_time TIME NOT NULL,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     completed BOOLEAN DEFAULT 0,
-                    in_progress BOOLEAN DEFAULT 0
+                    in_progress BOOLEAN DEFAULT 0,
+                    caldav_uid TEXT
                 )
             """)
 
+            # Create other tables
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS notes (
                     date TEXT PRIMARY KEY,
@@ -49,36 +53,34 @@ class CalendarDB:
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
-                           
+
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS settings (
-                key TEXT PRIMARY KEY,
-                value TEXT
+                    key TEXT PRIMARY KEY,
+                    value TEXT
                 )
             """)
 
-            cursor.execute("SELECT id, due_time FROM tasks")
-            tasks = cursor.fetchall()
-            for task_id, due_time in tasks:
-                try:
-                    time_obj = datetime.strptime(due_time, "%H:%M")
-                    formatted_time = time_obj.strftime("%I:%M %p")
-                    cursor.execute("UPDATE tasks SET due_time = ? WHERE id = ?", (formatted_time, task_id))
-                except:
-                    pass
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS caldav_config (
+                    id INTEGER PRIMARY KEY CHECK (id = 1),
+                    url TEXT NOT NULL,
+                    username TEXT NOT NULL,
+                    password TEXT NOT NULL,
+                    last_sync TIMESTAMP,
+                    selected_calendar TEXT
+                )
+            """)
 
             conn.commit()
     
-    def add_task(self, title: str, due_date: str, due_time: str, description: str = "") -> int:
-        time_obj = datetime.strptime(due_time, "%H:%M")
-        formatted_time = time_obj.strftime("%I:%M %p")
-        
+    def add_task(self, title: str, due_date: str, start_time: str, end_time: str, description: str = "", caldav_uid: str = None) -> int:
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute("""
-                INSERT INTO tasks (title, description, due_date, due_time)
-                VALUES (?, ?, ?, ?)
-            """, (title, description, due_date, formatted_time))
+                INSERT INTO tasks (title, description, due_date, start_time, end_time, caldav_uid)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (title, description, due_date, start_time, end_time, caldav_uid))
             conn.commit()
             return cursor.lastrowid or 0
         
@@ -88,6 +90,25 @@ class CalendarDB:
             cursor.execute("SELECT value FROM settings WHERE key = 'first_launch'")
             result = cursor.fetchone()
             return result is None
+        
+    def save_caldav_config(self, url: str, username: str, password: str, calendar: str) -> bool:
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT OR REPLACE INTO caldav_config 
+                (id, url, username, password, selected_calendar, last_sync)
+                VALUES (1, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            """, (url, username, password, calendar))
+            conn.commit()
+            return True
+
+    def get_caldav_config(self) -> Optional[Dict[str, Any]]:
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM caldav_config WHERE id = 1")
+            result = cursor.fetchone()
+            return dict(result) if result else None
 
     def mark_first_launch_complete(self) -> None:
         with sqlite3.connect(self.db_path) as conn:
@@ -105,26 +126,22 @@ class CalendarDB:
             cursor.execute("""
                 SELECT * FROM tasks 
                 WHERE due_date = ?
-                ORDER BY due_time
+                ORDER BY start_time
             """, (date,))
             
             return [dict(row) for row in cursor.fetchall()]
     
     def update_task(self, task_id: int, **kwargs) -> bool:
-        valid_fields = {'title', 'description', 'due_date', 'due_time', 'completed', 'in_progress'}
+        valid_fields = {'title', 'description', 'due_date', 'start_time', 'end_time', 'completed', 'in_progress'}
         update_fields = {k: v for k, v in kwargs.items() if k in valid_fields}
-        
-        if 'due_time' in update_fields:
-            time_obj = datetime.strptime(update_fields['due_time'], "%H:%M")
-            update_fields['due_time'] = time_obj.strftime("%I:%M %p")
-        
+
         if not update_fields:
             return False
-        
+
         set_clause = ", ".join(f"{k} = ?" for k in update_fields)
         values = list(update_fields.values())
         values.append(task_id)
-        
+
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute(f"""
@@ -133,7 +150,7 @@ class CalendarDB:
                 WHERE id = ?
             """, values)
             conn.commit()
-            return cursor.rowcount > 0
+        return cursor.rowcount > 0
     
     def delete_task(self, task_id: int) -> bool:
         with sqlite3.connect(self.db_path) as conn:
@@ -169,7 +186,7 @@ class CalendarDB:
             cursor.execute("""
                 SELECT * FROM tasks 
                 WHERE due_date BETWEEN ? AND ?
-                ORDER BY due_date, due_time
+                ORDER BY due_date, start_time
             """, (start_date, end_date))
             
             return [dict(row) for row in cursor.fetchall()]
@@ -181,7 +198,7 @@ class CalendarDB:
             cursor.execute("""
                 SELECT * FROM tasks 
                 WHERE due_date > ? AND due_date <= date(?, '+' || ? || ' days')
-                ORDER BY due_date, due_time
+                ORDER BY due_date, start_time
             """, (start_date, start_date, days))
             return [dict(row) for row in cursor.fetchall()]
     
@@ -260,3 +277,42 @@ class CalendarDB:
             cursor.execute("SELECT * FROM spotify_auth WHERE id = 1")
             result = cursor.fetchone()
             return dict(result) if result else None
+        
+    def get_task_by_uid(self, caldav_uid: str) -> Optional[Dict[str, Any]]:
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT * FROM tasks WHERE caldav_uid = ?
+            """, (caldav_uid,))
+            result = cursor.fetchone()
+            return dict(result) if result else None
+
+    def delete_tasks_not_in_uids(self, uids: set[str]) -> None:
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            placeholders = ','.join('?' * len(uids))
+            cursor.execute(f"""
+                DELETE FROM tasks 
+                WHERE caldav_uid IS NOT NULL 
+                AND caldav_uid NOT IN ({placeholders})
+            """, tuple(uids))
+            conn.commit()
+
+    def save_calendar_view_preference(self, is_month_view: bool) -> None:
+        """Save the user's preferred calendar view."""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT OR REPLACE INTO settings (key, value)
+                VALUES ('calendar_view', ?)
+            """, (str(int(is_month_view)),))
+            conn.commit()
+
+    def get_calendar_view_preference(self) -> bool:
+        """Get the user's preferred calendar view. Returns False for week view by default."""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT value FROM settings WHERE key = 'calendar_view'")
+            result = cursor.fetchone()
+            return bool(int(result[0])) if result else False
