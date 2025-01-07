@@ -12,6 +12,10 @@ from xdg_base_dirs import xdg_config_home
 from pathlib import Path
 import os
 import json
+import requests
+from datetime import datetime
+from packaging import version
+from textual.worker import Worker, get_current_worker
 
 class Ticked(App):
     CSS_PATH = str(Path(__file__).parent / "config" / "theme.tcss")
@@ -34,6 +38,31 @@ class Ticked(App):
         self.package_dir = Path(__file__).parent
         self.pomodoro_settings = self.load_settings()
 
+    async def check_for_updates(self) -> None:
+        try:
+            worker = get_current_worker()
+            if worker and worker.is_cancelled:
+                return
+
+            if not self.db.should_check_for_updates():
+                return
+
+            response = requests.get('https://pypi.org/pypi/ticked/json')
+            if response.status_code == 200:
+                latest_version = response.json()['info']['version']
+                current_version = "0.1.4"
+                
+                if version.parse(latest_version) > version.parse(current_version):
+                    self.notify(
+                        f"New version {latest_version} available! Run 'pip install --upgrade ticked' to update.",
+                        severity="information",
+                        timeout=10
+                    )
+
+            self.db.save_last_update_check()
+        except Exception:
+            pass
+
     def get_spotify_client(self):
         if hasattr(self, '_spotify_auth') and self._spotify_auth:
             return self._spotify_auth.spotify_client
@@ -43,7 +72,6 @@ class Ticked(App):
         self._spotify_auth = auth
 
     def load_settings(self):
-    
         default_settings = {
             "work_duration": 25,
             "break_duration": 5,
@@ -82,6 +110,7 @@ class Ticked(App):
     def on_mount(self) -> None:
         self.push_screen("home")
         self.theme = "gruvbox"
+        self.run_worker(self.check_for_updates(), group="update_check")
 
     async def on_mouse_move(self, event: events.MouseMove) -> None:
         try:

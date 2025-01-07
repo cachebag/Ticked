@@ -5,7 +5,6 @@ from xdg_base_dirs import xdg_data_home
 
 class CalendarDB:
     def __init__(self, db_path: str = None):
-    
         if db_path is None:
             data_dir = xdg_data_home() / "ticked"
             data_dir.mkdir(parents=True, exist_ok=True)
@@ -14,7 +13,51 @@ class CalendarDB:
             self.db_path = db_path
         
         self._create_tables()
+        self._migrate_database()  # Add migration check
     
+    def _migrate_database(self) -> None:
+        """Migrate database to new schema while preserving user data."""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            
+            # Check if migration is needed
+            cursor.execute("PRAGMA table_info(tasks)")
+            columns = {col[1]: col[2] for col in cursor.fetchall()}
+            
+            if 'start_time' in columns and columns['start_time'] == 'TIME':
+                # Create temporary table with new schema
+                cursor.execute("""
+                    CREATE TABLE tasks_new (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        title TEXT NOT NULL,
+                        description TEXT,
+                        due_date TEXT NOT NULL,
+                        start_time TEXT NOT NULL,
+                        end_time TEXT NOT NULL,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        completed BOOLEAN DEFAULT 0,
+                        in_progress BOOLEAN DEFAULT 0,
+                        caldav_uid TEXT
+                    )
+                """)
+                
+                # Copy data from old table to new table
+                cursor.execute("""
+                    INSERT INTO tasks_new 
+                    SELECT id, title, description, 
+                           date(due_date) as due_date,
+                           time(start_time) as start_time,
+                           time(end_time) as end_time,
+                           created_at, completed, in_progress, caldav_uid
+                    FROM tasks
+                """)
+                
+                # Drop old table and rename new table
+                cursor.execute("DROP TABLE tasks")
+                cursor.execute("ALTER TABLE tasks_new RENAME TO tasks")
+                
+                conn.commit()
+
     def _create_tables(self) -> None:
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
@@ -25,9 +68,9 @@ class CalendarDB:
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     title TEXT NOT NULL,
                     description TEXT,
-                    due_date DATE NOT NULL,
-                    start_time TIME NOT NULL,
-                    end_time TIME NOT NULL,
+                    due_date TEXT NOT NULL,
+                    start_time TEXT NOT NULL,
+                    end_time TEXT NOT NULL,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     completed BOOLEAN DEFAULT 0,
                     in_progress BOOLEAN DEFAULT 0,
@@ -316,3 +359,24 @@ class CalendarDB:
             cursor.execute("SELECT value FROM settings WHERE key = 'calendar_view'")
             result = cursor.fetchone()
             return bool(int(result[0])) if result else False
+            
+    def save_last_update_check(self) -> None:
+        """Save the timestamp of the last update check."""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT OR REPLACE INTO settings (key, value)
+                VALUES ('last_update_check', CURRENT_TIMESTAMP)
+            """)
+            conn.commit()
+
+    def should_check_for_updates(self) -> bool:
+        """Check if we should look for updates (once per day)."""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT value FROM settings WHERE key = 'last_update_check'")
+            result = cursor.fetchone()
+            if not result:
+                return True
+            last_check = datetime.fromisoformat(result[0])
+            return (datetime.now() - last_check).days >= 1
