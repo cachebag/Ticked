@@ -26,13 +26,17 @@ class CalDAVSync:
             calendar_names = []
             for cal in calendars:
                 if cal.name:
-                    name = cal.name.replace('⚠️', '').strip()
-                    if name:  # Only add if name isn't empty after cleaning
-                        calendar_names.append(name)
+                    raw_name = cal.name.replace("⚠️", "").strip()
+                    # Remove both single and double quotes around the edges
+                    raw_name = raw_name.strip("'\"")
+
+                    if raw_name:
+                        calendar_names.append(raw_name)
             return calendar_names
         except Exception as e:
             print(f"Error getting calendars: {e}")
             return []
+
 
     def sync_calendar(self, calendar_name: str, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None) -> List[Dict[str, Any]]:
         if not start_date:
