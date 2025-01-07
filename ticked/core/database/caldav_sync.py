@@ -1,7 +1,7 @@
-# caldav_sync.py
 from datetime import datetime, timedelta
 import caldav
 from typing import List, Dict, Any, Optional
+import re 
 
 class CalDAVSync:
     def __init__(self, db):
@@ -26,15 +26,16 @@ class CalDAVSync:
             calendar_names = []
             for cal in calendars:
                 if cal.name:
-                    raw_name = cal.name.replace("⚠️", "").strip()
-                    # Remove both single and double quotes around the edges
-                    raw_name = raw_name.strip("'\"")
-
-                    if raw_name:
-                        calendar_names.append(raw_name)
-            return calendar_names
+                    clean_name = cal.name
+                    clean_name = clean_name.replace("⚠️", "").strip()
+                    clean_name = re.sub(r'^[\'"]|[\'"]$', '', clean_name)
+                    clean_name = clean_name.strip()
+                    
+                    if clean_name:
+                        calendar_names.append(clean_name)
+                        
+            return sorted(set(calendar_names))
         except Exception as e:
-            print(f"Error getting calendars: {e}")
             return []
 
 
@@ -48,7 +49,6 @@ class CalDAVSync:
             calendar = next((cal for cal in self.principal.calendars() 
                             if cal.name.replace('⚠️', '').strip() == calendar_name), None)
             if not calendar:
-                print(f"Calendar not found: {calendar_name}")
                 return []
 
             events = calendar.date_search(start=start_date, end=end_date)
@@ -58,24 +58,41 @@ class CalDAVSync:
             for event in events:
                 vevent = event.vobject_instance.vevent
                 
-                title = str(getattr(vevent, 'summary', 'No Title')).replace('<SUMMARY>', '').replace('</SUMMARY>', '')
-                description = str(getattr(vevent, 'description', '')).replace('<DESCRIPTION>', '').replace('</DESCRIPTION>', '')
+                summary = getattr(vevent, 'summary', None)
+                if hasattr(summary, 'value'):
+                    title = str(summary.value)
+                elif summary is not None:
+                    title = str(summary)
+                else:
+                    title = 'No Title'
+                title = re.sub(r'<[^>]+>', '', title).strip() or 'No Title'
+                
+                desc = getattr(vevent, 'description', None)
+                if hasattr(desc, 'value'):
+                    description = str(desc.value)
+                elif desc is not None:
+                    description = str(desc)
+                else:
+                    description = ''
+                description = re.sub(r'<[^>]+>', '', description).strip()
                 
                 start_time = vevent.dtstart.value
                 end_time = getattr(vevent, 'dtend', None)
-                if end_time:
-                    end_time = end_time.value
+                
+                is_all_day = not isinstance(start_time, datetime)
+                
+                if is_all_day:
+                    start_time_str = "00:00"
+                    end_time_str = "23:59"
+                    due_date = start_time.strftime('%Y-%m-%d')
                 else:
-                    end_time = start_time + timedelta(hours=1) if isinstance(start_time, datetime) else start_time
-
-                if isinstance(start_time, datetime):
                     due_date = start_time.strftime('%Y-%m-%d')
                     start_time_str = start_time.strftime('%H:%M')
-                    end_time_str = end_time.strftime('%H:%M')
-                else:
-                    due_date = start_time.strftime('%Y-%m-%d')
-                    start_time_str = '00:00'
-                    end_time_str = '23:59'
+                    if end_time:
+                        end_time = end_time.value
+                        end_time_str = end_time.strftime('%H:%M')
+                    else:
+                        end_time_str = (start_time + timedelta(hours=1)).strftime('%H:%M')
 
                 caldav_uid = str(getattr(vevent, 'uid', ''))
                 event_uids.add(caldav_uid)
@@ -116,5 +133,4 @@ class CalDAVSync:
             return imported_tasks
 
         except Exception as e:
-            print(f"Error syncing calendar: {e}")
             return []

@@ -78,29 +78,26 @@ class CalendarSetupScreen(ModalScreen):
         sync = CalDAVSync(self.app.db)
         if sync.connect(url, username, password):
             calendars = sync.get_calendars()
+            
             if not calendars:
                 self.notify("No calendars found!", severity="error")
                 return
-                
+            
             select = self.query_one("#calendar-select", Select)
+            select.clear()
             
-            # Create new Select widget with updated options
-            calendar_options = [(cal, cal) for cal in calendars]
-            new_select = Select(
-                id="calendar-select",
-                options=calendar_options,
-                value=calendars[0],
-                disabled=False
-            )
+            calendar_options = [(str(cal), str(cal)) for cal in calendars]
+            select.set_options(calendar_options)
             
-            # Replace old select with new one
-            old_select = self.query_one("#calendar-select")
-            old_select.remove()
-            old_select_parent = self.query_one("Vertical > Label").parent
-            old_select_parent.mount(new_select)
-            
-            self.query_one("#save").disabled = False
-            self.notify(f"Found {len(calendars)} calendars!", severity="information")
+            if calendar_options:
+                try:
+                    first_value = str(calendar_options[0][0])
+                    select.value = first_value
+                    select.disabled = False
+                    self.query_one("#save").disabled = False
+                    self.notify(f"Found {len(calendars)} calendars!", severity="information")
+                except Exception as e:
+                    raise
         else:
             self.notify("Connection failed", severity="error")
 
@@ -111,7 +108,6 @@ class CalendarSetupScreen(ModalScreen):
         select = self.query_one("#calendar-select")
         calendar = select.value
         
-        # Add validation for calendar selection
         if not calendar:
             self.notify("Please select a calendar", severity="error")
             return

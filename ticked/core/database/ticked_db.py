@@ -135,9 +135,6 @@ class CalendarDB:
         valid_fields = {'title', 'description', 'due_date', 'start_time', 'end_time', 'completed', 'in_progress'}
         update_fields = {k: v for k, v in kwargs.items() if k in valid_fields}
 
-        # Removed strict parsing:
-        # ...existing code...
-
         if not update_fields:
             return False
 

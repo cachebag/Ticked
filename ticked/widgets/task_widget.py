@@ -1,4 +1,3 @@
-# task_widget.py
 from textual.widgets import Static
 from textual.containers import Horizontal
 from textual.message import Message
@@ -6,7 +5,7 @@ from textual.app import ComposeResult
 from textual import on
 from textual.binding import Binding
 from textual.events import Click
-from ..utils.time_utils import convert_to_12hour  # Changed import
+from ..utils.time_utils import convert_to_12hour 
 
 
 class Task(Static):
@@ -55,11 +54,16 @@ class Task(Static):
         with Horizontal(classes="task-container"):
             start_time = convert_to_12hour(self.task_data['start_time'])
             end_time = convert_to_12hour(self.task_data['end_time'])
-            display_text = f"{start_time} - {end_time} | {self.task_data['title']}"
+            
+            if start_time == "12:00 AM" and end_time == "11:59 PM":
+                display_text = f"All Day | {self.task_data['title']}"
+            else:
+                display_text = f"{start_time} - {end_time} | {self.task_data['title']}"
+                
             yield Static(display_text, classes="task-text")
             
             with Horizontal(classes="status-group"):
-                yield Static("✓", classes="status-indicator complete-indicator") 
+                yield Static("✓", classes="status-indicator complete-indicator")
                 yield Static("→", classes="status-indicator progress-indicator")
 
  
@@ -99,7 +103,7 @@ class Task(Static):
             self.query_one(".progress-indicator").remove_class("active")
         else:
             self.in_progress = True
-            self.completed = False  # Can't be completed and in progress
+            self.completed = False 
             self.add_class("in-progress")
             self.remove_class("completed-task")
             self.query_one(".progress-indicator").add_class("active")
@@ -115,20 +119,16 @@ class Task(Static):
         result = await self.app.push_screen(task_form)
         
         if result is None:
-            # Task was deleted
             self.post_message(self.Deleted(self.task_id))
         elif result:
-            # Update the local task data with the edited values
             self.task_data = result
             self.task_id = result['id']
             
-            # Update the display text
             start_time = convert_to_12hour(result['start_time'])
             end_time = convert_to_12hour(result['end_time'])
             display_text = f"{start_time} - {end_time} | {result['title']}"
             self.query_one(".task-text").update(display_text)
             
-            # Update tooltip
             self.tooltip = (
                 f"Title: {result['title']}\n"
                 f"Time: {start_time} - {end_time}\n"
@@ -136,7 +136,6 @@ class Task(Static):
                 f"Description: {result.get('description', 'No description')}"
             )
             
-            # Post update message
             self.post_message(self.Updated(self.task_id))
 
     def toggle_complete(self) -> None:
