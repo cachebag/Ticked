@@ -516,12 +516,10 @@ class TaskForm(ModalScreen):
                     yield Button("Add Task", variant="success", id="submit")
 
     def _parse_time(self, time_input: str, meridian: str) -> str:
-        """Convert 12-hour time format to 24-hour format"""
-        # Remove any spaces and : from the input
         time_input = time_input.replace(" ", "").replace(":", "")
         
         try:
-            # Handle cases like "930" or "1030"
+            # this will handle cases like 1030, 930, etc.
             if len(time_input) == 3:
                 time_input = "0" + time_input
             elif len(time_input) == 1 or len(time_input) == 2:
@@ -533,7 +531,7 @@ class TaskForm(ModalScreen):
             if hours > 12 or minutes > 59:
                 raise ValueError
             
-            # Convert to 24-hour format
+            # convert to 24-hour format
             if meridian == "PM" and hours < 12:
                 hours += 12
             elif meridian == "AM" and hours == 12:
@@ -545,7 +543,7 @@ class TaskForm(ModalScreen):
             raise ValueError("Invalid time format")
 
     async def action_cancel(self) -> None:
-        self.dismiss(None)
+        self.app.pop_screen()
         
     async def action_submit(self) -> None:
         self._submit_form()
@@ -567,11 +565,9 @@ class TaskForm(ModalScreen):
 
     def _submit_form(self) -> None:
         title = self.query_one("#task-title", Input).value
-        # Get just the 24h value part before the | separator
         start_time_val = self.query_one("#start-time", Select).value
         end_time_val = self.query_one("#end-time", Select).value
         
-        # Extract 24-hour time values
         start_time = start_time_val.split("|")[0].strip()
         end_time = end_time_val.split("|")[0].strip()
         
@@ -664,53 +660,52 @@ class TaskEditForm(TaskForm):
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "cancel":
-            self.dismiss(None)
             event.stop()
         elif event.button.id == "delete":
+            self.app.db.delete_task(self.task_data['id'])
+            self.dismiss(None)
+            
             try:
-                self.app.db.delete_task(self.task_data['id'])
-                # Refresh views before dismissing
-                self.refresh_views()
-                self.notify("Task deleted successfully!")
-                self.dismiss(None)
-                event.stop()
-            except Exception as e:
-                self.notify(f"Error deleting task: {str(e)}", severity="error")
+                day_view = self.app.screen.query_one(DayView)
+                if day_view:
+                    day_view.refresh_tasks()
+            except Exception:
+                pass
+                
+            try:
+                from .welcome import TodayContent
+                today_content = self.app.screen.query_one(TodayContent)
+                if today_content:
+                    today_content.refresh_tasks()
+            except Exception:
+                pass
+                
+            self.notify("Task deleted successfully!")
+            event.stop()
         elif event.button.id == "submit":
             self._submit_form()
             event.stop()
-
-    def refresh_views(self) -> None:
-        try:
-            # Refresh day view if it exists
-            day_view = self.app.screen.query_one(DayView)
-            if day_view:
-                day_view.refresh_tasks()
-            
-            # Refresh calendar view if it exists
-            calendar_view = self.app.screen.query_one(CalendarView)
-            if calendar_view:
-                calendar_view._refresh_calendar()
-                
-            # Refresh grid stats
-            calendar_grid = self.app.screen.query_one(CalendarGrid)
-            if calendar_grid:
-                calendar_grid.refresh_stats()
-        except Exception as e:
-            print(f"Error refreshing views: {e}")
+        elif event.button.id in ["am-btn", "pm-btn"]:
+            self.query_one("#am-btn").remove_class("active")
+            self.query_one("#pm-btn").remove_class("active")
+            event.button.add_class("active")
+            event.stop()
 
     def _submit_form(self) -> None:
         title = self.query_one("#task-title", Input).value
-        start_time = self.query_one("#start-time", Select).value.split("|")[0].strip()
-        end_time = self.query_one("#end-time", Select).value.split("|")[0].strip()
         description = self.query_one("#task-description", TextArea).text
+        start_time_val = self.query_one("#start-time", Select).value
+        end_time_val = self.query_one("#end-time", Select).value
+        
+        start_time = start_time_val.split("|")[0].strip()
+        end_time = end_time_val.split("|")[0].strip()
 
         if not title:
             self.notify("Title is required", severity="error")
             return
 
         try:
-            self.app.db.update_task(
+            task_id = self.app.db.update_task(
                 self.task_data['id'],
                 title=title,
                 due_date=self.date.strftime('%Y-%m-%d'),
@@ -719,19 +714,32 @@ class TaskEditForm(TaskForm):
                 description=description
             )
 
-            updated_task = {
-                "id": self.task_data['id'],
+            task = {
+                "id": task_id,
                 "title": title,
                 "due_date": self.date.strftime('%Y-%m-%d'),
                 "start_time": start_time,
                 "end_time": end_time,
-                "description": description,
-                "completed": self.task_data.get('completed', False),
-                "in_progress": self.task_data.get('in_progress', False)
+                "description": description
             }
 
-            self.notify("Task updated successfully!")
-            self.dismiss(updated_task)
+            self.dismiss(task)
+            
+            try:
+                day_view = self.app.screen.query_one(DayView)
+                if day_view:
+                    day_view.refresh_tasks()
+                    self.notify("Task updated successfully!")
+            except Exception:
+                pass
+                
+            try:
+                from .welcome import TodayContent
+                today_content = self.app.screen.query_one(TodayContent)
+                if today_content:
+                    today_content.refresh_tasks()
+            except Exception:
+                pass
 
         except Exception as e:
             self.notify(f"Error updating task: {str(e)}", severity="error")
