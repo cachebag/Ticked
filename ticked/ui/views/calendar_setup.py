@@ -51,7 +51,7 @@ class CalendarSetupScreen(ModalScreen):
                         yield Select(options=default_options, id="calendar-select", disabled=True)
                 
                 with Horizontal(classes="form-buttons"):
-                    yield Button("Test Connection", variant="primary", id="test-connection")
+                    yield Button("Test", variant="primary", id="test")
                     yield Button("Cancel", variant="error", id="cancel")
                     save_button = Button("Save", variant="success", id="save")
                     save_button.disabled = not config
@@ -59,11 +59,17 @@ class CalendarSetupScreen(ModalScreen):
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "cancel":
-            self.app.pop_screen()
-        elif event.button.id == "test-connection":
+            self.dismiss()
+        elif event.button.id == "test":
             self._test_connection()
         elif event.button.id == "save":
             self._save_config()
+
+    async def action_cancel(self) -> None:
+        self.dismiss()
+
+    async def action_submit(self) -> None:
+        self._save_config()
 
     def _test_connection(self) -> None:
         url = self.query_one("#server-url").value
@@ -87,8 +93,7 @@ class CalendarSetupScreen(ModalScreen):
             select.disabled = False
             select.value = calendars[0]  
             self.query_one("#save").disabled = False
-            
-            # self.notify(f"Found {len(calendars)} calendars!", severity="information") # This will show how many calendars are found. Maybe it's useful for users, maybe not.
+            self.notify("Connection successful!", severity="information")
         else:
             self.notify("Connection failed", severity="error")
 
@@ -99,7 +104,7 @@ class CalendarSetupScreen(ModalScreen):
         select = self.query_one("#calendar-select")
         calendar = select.value
         
-        if not calendar:
+        if not calendar or calendar == self.DEFAULT_OPTION:
             self.notify("Please select a calendar", severity="error")
             return
             
@@ -108,9 +113,11 @@ class CalendarSetupScreen(ModalScreen):
             if sync.connect(url, username, password):
                 sync.sync_calendar(calendar)
                 self.notify("Calendar synced successfully!", severity="information")
-                self.app.pop_screen()
+                self.dismiss()
             else:
                 self.notify("Failed to sync calendar", severity="error")
+        else:
+            self.notify("Failed to save configuration", severity="error")
 
     def on_select_changed(self, event: Select.Changed) -> None:
         save_button = self.query_one("#save")

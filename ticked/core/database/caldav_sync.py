@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 import caldav
 from typing import List, Dict, Any, Optional
+import re
 
 class CalDAVSync:
     def __init__(self, db):
@@ -26,6 +27,26 @@ class CalDAVSync:
             print(f"Error getting calendars: {e}")
             return []
 
+    def _clean_text(self, text: str) -> str:
+        # Convert to string in case we get a non-string type
+        text = str(text)
+        
+        # Remove only XML/HTML tags while preserving content
+        cleaned = re.sub(r'<[^>]+>', '', text)
+        
+        # Clean up any extra whitespace
+        cleaned = ' '.join(cleaned.split())
+        
+        # Remove specific XML-like tags that might appear in caldav events
+        cleaned = cleaned.replace('<SUMMARY>', '').replace('</SUMMARY>', '')
+        cleaned = cleaned.replace('<DESCRIPTION>', '').replace('</DESCRIPTION>', '')
+        
+        return cleaned.strip()
+
+    def _task_exists(self, title: str, due_date: str) -> bool:
+        existing_tasks = self.db.get_tasks_for_date(due_date)
+        return any(task['title'] == title for task in existing_tasks)
+
     def sync_calendar(self, calendar_name: str, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None) -> List[Dict[str, Any]]:
         if not start_date:
             start_date = datetime.now() - timedelta(days=30)
@@ -37,37 +58,49 @@ class CalDAVSync:
             return []
 
         events = calendar.date_search(start=start_date, end=end_date)
-        
+        current_event_uids = set()
         imported_tasks = []
+
         for event in events:
             vevent = event.vobject_instance.vevent
+            current_event_uids.add(str(vevent.uid.value))
             
-            title = str(getattr(vevent, 'summary', 'No Title')).replace('<SUMMARY>', '').replace('</SUMMARY>', '')
-            description = str(getattr(vevent, 'description', '')).replace('<DESCRIPTION>', '').replace('</DESCRIPTION>', '')
+            title = self._clean_text(str(vevent.summary.value)) if hasattr(vevent, 'summary') else 'No Title'
+            description = self._clean_text(str(vevent.description.value)) if hasattr(vevent, 'description') else ''
             
+            # Handle start and end times
             start_time = vevent.dtstart.value
+            end_time = vevent.dtend.value if hasattr(vevent, 'dtend') else start_time
             
             if isinstance(start_time, datetime):
                 due_date = start_time.strftime('%Y-%m-%d')
-                due_time = start_time.strftime('%H:%M')
+                start_time_str = start_time.strftime('%H:%M')
+                end_time_str = end_time.strftime('%H:%M')
             else:
                 due_date = start_time.strftime('%Y-%m-%d')
-                due_time = '00:00'
+                start_time_str = '00:00'
+                end_time_str = '23:59'
                 
-            task_id = self.db.add_task(
-                title=title,
-                description=description,
-                due_date=due_date,
-                due_time=due_time
-            )
+            existing_task = self.db.get_task_by_uid(str(vevent.uid.value))
             
-            if task_id:
-                imported_tasks.append({
-                    'id': task_id,
-                    'title': title,
-                    'description': description,
-                    'due_date': due_date,
-                    'due_time': due_time
-                })
-        
+            if existing_task:
+                self.db.update_task(
+                    existing_task['id'],
+                    title=title,
+                    description=description,
+                    due_date=due_date,
+                    start_time=start_time_str,
+                    end_time=end_time_str
+                )
+            else:
+                self.db.add_task(
+                    title=title,
+                    description=description,
+                    due_date=due_date,
+                    start_time=start_time_str,
+                    end_time=end_time_str,
+                    caldav_uid=str(vevent.uid.value)
+                )
+
+        self.db.delete_tasks_not_in_uids(current_event_uids)
         return imported_tasks
