@@ -15,7 +15,16 @@
 --- 
 # 📟 **_Ticked_** is a Terminal based task and productivity manager built in Python over the Textual library. Intended for University Students, but usable for everyone. 
 
-## Currently in v0.1.3. [Read the release notes here.](https://github.com/cachebag/Ticked/releases/tag/v0.1.2)
+## Currently in v0.1.5. [Read the release notes here.](https://github.com/cachebag/Ticked/releases/tag/v0.1.2)
+### To update if you already have an older version installed:
+  - For Homebrew:
+```bash
+brew upgrade ticked
+```
+  - For pip:
+```bash
+pip install --upgrade ticked
+```
 
 ## [Read the docs to quickly get set up](https://cachebag.github.io/Ticked/#introduction)
 #  **Features**
