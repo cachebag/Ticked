@@ -1,5 +1,5 @@
 # Ticked 
-![License](https://img.shields.io/badge/license-MIT-blue) ![Unreleased](https://img.shields.io/badge/beta-pre%20release-yellow)![Version](https://img.shields.io/badge/version-%200.1.3-orange)
+![License](https://img.shields.io/badge/license-MIT-blue) ![Unreleased](https://img.shields.io/badge/beta-pre%20release-yellow)![Version](https://img.shields.io/badge/version-%200.1.5-orange)
 
        
 ## A terminal-based productivity suite built over [Textual](https://textual.textualize.io), designed for STEM students who need a focused work environment.
