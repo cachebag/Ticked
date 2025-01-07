@@ -6,6 +6,7 @@ from textual.app import ComposeResult
 from textual import on
 from textual.binding import Binding
 from textual.events import Click
+from ..utils.time_utils import convert_to_12hour  # Changed import
 
 
 class Task(Static):
@@ -32,9 +33,12 @@ class Task(Static):
         self.completed = task_data.get('completed', False)
         self.in_progress = task_data.get('in_progress', False)
         
+        start_time = convert_to_12hour(task_data['start_time'])
+        end_time = convert_to_12hour(task_data['end_time'])
+        
         tooltip_text = (
             f"Title: {task_data['title']}\n"
-            f"Time: {task_data['due_time']}\n"
+            f"Time: {start_time} - {end_time}\n"
             f"Date: {task_data['due_date']}\n"
             f"Description: {task_data.get('description', 'No description')}"
         )
@@ -49,7 +53,9 @@ class Task(Static):
     
     def compose(self) -> ComposeResult:
         with Horizontal(classes="task-container"):
-            display_text = f"{self.task_data['title']} @ {self.task_data['due_time']}"
+            start_time = convert_to_12hour(self.task_data['start_time'])
+            end_time = convert_to_12hour(self.task_data['end_time'])
+            display_text = f"{start_time} - {end_time} | {self.task_data['title']}"
             yield Static(display_text, classes="task-text")
             
             with Horizontal(classes="status-group"):
@@ -107,11 +113,31 @@ class Task(Static):
         from ..ui.views.calendar import TaskEditForm
         task_form = TaskEditForm(self.task_data) 
         result = await self.app.push_screen(task_form)
+        
         if result is None:
+            # Task was deleted
             self.post_message(self.Deleted(self.task_id))
         elif result:
+            # Update the local task data with the edited values
+            self.task_data = result
+            self.task_id = result['id']
+            
+            # Update the display text
+            start_time = convert_to_12hour(result['start_time'])
+            end_time = convert_to_12hour(result['end_time'])
+            display_text = f"{start_time} - {end_time} | {result['title']}"
+            self.query_one(".task-text").update(display_text)
+            
+            # Update tooltip
+            self.tooltip = (
+                f"Title: {result['title']}\n"
+                f"Time: {start_time} - {end_time}\n"
+                f"Date: {result['due_date']}\n"
+                f"Description: {result.get('description', 'No description')}"
+            )
+            
+            # Post update message
             self.post_message(self.Updated(self.task_id))
-        self.refresh_all_views()
 
     def toggle_complete(self) -> None:
         task_text = self.query_one(".task-text")

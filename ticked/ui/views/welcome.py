@@ -544,9 +544,9 @@ class UpcomingTasksView(Container):
                 date_str = date_obj.strftime('%B %d, %Y')  
                 
                 if task['description']:
-                    task_with_date['display_text'] = f"{task['title']} @ {task['due_time']} | {task['description']} | On {date_str}"
+                    task_with_date['display_text'] = f"{task['title']} @ {task['start_time']} | {task['description']} | On {date_str}"
                 else:
-                    task_with_date['display_text'] = f"{task['title']} @ {task['due_time']} | On {date_str}"
+                    task_with_date['display_text'] = f"{task['title']} @ {task['start_time']} | On {date_str}"
                 
                 task_widget = Task(task_with_date)
                 tasks_list.mount(task_widget)
