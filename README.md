@@ -13,8 +13,10 @@
 
 
 --- 
-# 📟 **_Ticked_** is a Terminal based task and productivity manager built in Python over the Textual library. Intended for University Students, but usable for everyone. 
+# 📟 **Ticked** is a Terminal based task and productivity manager built in Python over the Textual library. Intended for University Students, but usable for everyone. 
 
+
+### 🔴 **HEADS-UP**: If you are updating to 0.1.5, please note that due to some atomic database changes, you may need to delete your existing database as the migration might not work well with our new tasks format. For Unix like systems, this file should be in `~/.local/share/ticked/tick.db` I apologize for any inconvenience, but there will be no more breaking changes with the database file from here on out. 
 ## Currently in v0.1.5. [Read the release notes here.](https://github.com/cachebag/Ticked/releases/tag/v0.1.2)
 ### To update if you already have an older version installed:
   - For Homebrew:
