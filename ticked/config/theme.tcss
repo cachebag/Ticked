@@ -1,5 +1,3 @@
-
-
 Screen {
     align: center middle;
     layout: grid;
@@ -29,7 +27,7 @@ MainMenu {
     height: 100%;
     overflow: hidden;
     padding: 1;
-    
+    border-right: solid $accent;
 }
 
 MainMenu.hidden {
@@ -41,27 +39,31 @@ MainMenu.hidden {
 
 .menu-header {
     padding: 1 2;
-    text-align: left;
-}
-
-MenuItem {
-    margin: 1 2;
-    height: 3;
-    border: none;
     text-align: center;
-    min-width: 20;
-    background: transparent;
-    transition: opacity 3s;
-}
-
-MenuItem:hover {
-    border: $accent;
+    border-bottom: $primary;
+    text-style: bold;
     color: $accent;
 }
 
-MenuItem:focus {
+MenuItem {
+    width: 100%;
+    height: 3;
+    padding: 1;
+    text-align: center;
     text-style: none;
-    border: $accent;
+    border: none;
+    background: $surface-darken-2;
+    color: $text;
+    margin-top: 2;
+}
+
+MenuItem:hover {
+    color: $accent 60%;
+}
+
+MenuItem:focus {
+    color: $accent 60%;
+    text-style: none;
 }
 
 
@@ -249,9 +251,18 @@ DayView {
 }
 
 .schedule-button {
-    margin: 1 2;
-    width: 20;
+    width: 10;
+    height: 3;
+    background: $accent 40%;
+    color: $text;
     text-style: none;
+    border: none;
+    margin: 1;
+}
+
+.schedule-button:hover {
+    background: $accent 60%;
+    color: $text;
 }
 
 .schedule-container, .notes-container {
@@ -354,17 +365,11 @@ DayView {
     border: wide $accent !important;
 }
 
+
 .task-text:hover {
     color: $accent;
 }
 
-#task-description {
-    width: 100%;
-    height: 1fr;
-    padding: 1;
-    border: solid $secondary;
-    background: $surface-darken-2;
-}
 
 .empty-schedule {
     padding: 2;
@@ -374,25 +379,12 @@ DayView {
 
 .task-form-container {
     width: 50%;
-    height: 80%;
-    margin-top: 2;
+    height: 100%;
+    margin-top: 5;
     background: $surface-darken-2;
 }
 
-#submit {
-    width: 40%;
-    height: 3;
-    background: $surface-darken-2;
-    color: $text;
-    text-style: bold;
-    border: none;
-    margin: 1;
-}
 
-#submit:hover {
-    background: $surface-darken-2;
-    color: $accent;
-}
 .task-form {
     width: 100%;
     height: 100%;
@@ -420,11 +412,17 @@ Horizontal {
 
 .back-button {
     margin: 1;
+    padding: 1;
     width: auto;    
     text-style: none;
+    border: none;
+    background: $accent 40%;
 }
 
-.back-button:hover {}
+.back-button:hover {
+    background: $accent 60%;
+    color: $text;
+}
 
 .back-button:focus {
     border: tall white;
@@ -797,8 +795,7 @@ Tooltip {
     background: $surface-lighten-1;
     color: $text;
     padding: 1;
-    border: solid $primary;
-    dock: right;
+    dock: top;
     width: auto;
     max-width: 60;
     offset-x: 1;
@@ -898,10 +895,6 @@ PomodoroView {
     margin: 1;
 }
 
-#save:hover, #cancel:hover {
-    background: $surface-darken-2;
-    color: $accent;
-}
 
 #break_duration, #work_duration, #total_sessions, #long_break_duration {
     width: 1fr;
@@ -970,10 +963,16 @@ PomodoroView {
     color: $text;
 }
 
+.time-meridian:focus {
+    background: $accent;
+    color: $text;
+    text-style: none;
+}
+
 .time-meridian.active {
     background: $accent;
     color: $text;
-    text-style: bold;
+    text-style: none;
 }
 
 .time-meridian:hover {
@@ -1295,38 +1294,42 @@ SettingsView {
     width: 100%;
     height: 3;
     margin-bottom: 1;
-    background: $surface;
+    background: $primary 40%;
     color: $text;
     border: none;
 }
 
 .setting-button:hover {
-    background: $accent;
+    background: $primary 60%;
 }
 
 .setting-button.active {
     text-style: none;
-    border-right: thick $secondary;
+    border-right: thick $accent;
+    background: $secondary 60%;
 }
 
 .settings-title {
     text-style: italic;
     margin-bottom: 4;
     margin-left: 1;
+    width: 18%;
+    text-style: bold;
+    border-bottom: solid $accent;
 }
 
 ThemeButton {
-    background: transparent;
-
+    background: $primary 20%;
+    border: none;
     width: 30;
-    height: 3;  /* Reduced height for better compactness */
+    height: 3;  
     content-align: center middle;
     color: $text;
-    padding: 0 0;  /* Add minimal horizontal padding */
+    padding: 1;  
 }
 
 ThemeButton:hover {
-    background: transparent;
+    background: $primary 40%;
     color: $accent;
     text-style: none;
 }
@@ -1425,4 +1428,221 @@ LoadingScreen {
 .loading-animation {
     color: $accent;
     text-align: center;
+}
+
+CalendarSetupScreen {
+    align: center middle;
+}
+
+.calendar-setup-container {
+    width: 60;
+    height: auto;
+    border: thick $background;
+    background: $surface;
+    padding: 1;
+}
+
+Label {
+    color: $text;
+    padding: 1;
+}
+
+.description-container {
+    width: 100%;
+    height: 1fr;
+    padding: 1;
+    overflow-y: auto;
+}
+
+.description-label {
+    color: $text-muted;
+    padding: 1;
+}
+
+.form-buttons-edit {
+    width: 99%;
+    height: auto;
+    align: center middle;
+    padding-top: 1;
+    
+}
+
+#submit, #cancel {
+    width: 20%;
+    height: 3;
+    background: $accent 40%;
+    color: $text;
+    text-style: bold;
+    border: none;
+    margin: 1;
+}
+
+#submit:hover, #cancel:hover {
+    background: $accent 60%;
+}
+
+#delete {
+    width: 20%;
+    height: 3;
+    background: red 20%;
+    color: $text;
+    text-style: bold;
+    border: none;
+    margin: 1;
+}
+
+#delete:hover {
+    background: red 40%;
+}
+
+.calendar-setup-form {
+    width: 100%;
+    height: 50;
+    padding: 1;
+}
+
+.form-header {
+    text-align: center;
+    text-style: bold;
+    padding-bottom: 1;
+}
+
+#calendar-select {
+    width: 100%;
+    margin: 1 0;
+}
+
+.form-buttons {
+    margin-top: 2;
+    align-horizontal: center;
+    align-vertical: middle;
+}
+
+#save, #cancel-c {
+    width: 15%;
+    height: 3;
+    background: $accent 40%;
+    color: $text;
+    text-style: none;
+    border: none;
+    margin: 1;
+}
+
+#save:hover, #cancel-c:hover {
+    background: $accent 60%;
+    color: $text;   
+}
+
+.form-buttons Button {
+    width: 15%;
+    height: 3;
+    background: $accent 40%;
+    color: $text;
+    text-style: none;
+    border: none;
+    margin: 1;
+    padding: 1;
+}
+
+.form-buttons Button:hover {
+    background: $accent 60%;
+    color: $text; 
+}
+
+#server-url, #username, #password {
+    width: 100%;
+    margin-bottom: 1;
+}
+
+.stat-item {
+    padding: 1;
+    text-align: center;
+}
+
+
+.week-day-column {
+    width: 1fr;
+    height: 100%;
+    border: solid $secondary;
+    padding: 1;
+}
+
+.week-day-column:hover {
+    width: 1fr;
+    height: 100%;
+    border: solid $secondary;
+    padding: 1;
+}
+
+.week-day-column:focus {
+    width: 1fr;
+    height: 100%;
+    border: solid $secondary;
+    padding: 1;
+}
+
+.weekday-header {
+    text-align: center;
+    background: $surface-darken-2;
+    height: 4;
+    padding: 1;
+    border-bottom: solid $primary;
+}
+
+
+.week-day-content {
+    padding: 1;
+    height: 1fr;
+    overflow-y: auto;
+}
+
+.view-toggle {
+    width: auto;
+    height: 3;
+    margin: 1;
+    background: $accent 40%;
+    color: $text;
+    border: none;
+    dock: bottom;
+    text-style: none;
+}
+
+.view-toggle:hover {
+    background: $accent 60%;
+}
+
+.week-day-column CalendarDayButton {
+    width: 100%;
+    height: 2;
+    margin-top: 1;
+    background: $surface-darken-2;
+    border: none;
+}
+
+.week-day-column CalendarDayButton:hover {
+    background: $primary 20%;
+}
+
+.week-day-column CalendarDayButton:focus {
+    background: $primary 10%;
+    height: 150;
+}
+
+#time-inputs {
+    width: 100%;
+    margin-top: 1;
+}
+
+#time-inputs.hidden {
+    display: none;
+}
+
+Switch {
+    margin-left: 1;
+    background: $surface-darken-2;
+    color: $text;
+}
+
+Switch:focus {
+    background: $accent;
 }

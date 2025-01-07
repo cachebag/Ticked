@@ -1,0 +1,108 @@
+=== Debug Log Started at 2025-01-07 15:11:08.629452 ===
+
+[15:11:12.879] Raw calendars from server:
+    ['Reminders ⚠️', 'Calendar', 'Home', 'Work']
+
+[15:11:12.880] Processing calendar:
+    'Reminders ⚠️'
+
+[15:11:12.880] After emoji removal:
+    'Reminders'
+
+[15:11:12.880] After cleaning:
+    'Reminders'
+
+[15:11:12.881] Processing calendar:
+    'Calendar'
+
+[15:11:12.881] After emoji removal:
+    'Calendar'
+
+[15:11:12.881] After cleaning:
+    'Calendar'
+
+[15:11:12.881] Processing calendar:
+    'Home'
+
+[15:11:12.881] After emoji removal:
+    'Home'
+
+[15:11:12.882] After cleaning:
+    'Home'
+
+[15:11:12.882] Processing calendar:
+    'Work'
+
+[15:11:12.882] After emoji removal:
+    'Work'
+
+[15:11:12.882] After cleaning:
+    'Work'
+
+[15:11:12.882] Final calendar list:
+    ['Calendar', 'Home', 'Reminders', 'Work']
+
+[15:11:17.491] Successfully synced 0 tasks from calendar Reminders
+
+[15:11:20.146] Raw calendars from server:
+    ['Reminders ⚠️', 'Calendar', 'Home', 'Work']
+
+[15:11:20.147] Processing calendar:
+    'Reminders ⚠️'
+
+[15:11:20.147] After emoji removal:
+    'Reminders'
+
+[15:11:20.147] After cleaning:
+    'Reminders'
+
+[15:11:20.147] Processing calendar:
+    'Calendar'
+
+[15:11:20.148] After emoji removal:
+    'Calendar'
+
+[15:11:20.148] After cleaning:
+    'Calendar'
+
+[15:11:20.148] Processing calendar:
+    'Home'
+
+[15:11:20.148] After emoji removal:
+    'Home'
+
+[15:11:20.148] After cleaning:
+    'Home'
+
+[15:11:20.148] Processing calendar:
+    'Work'
+
+[15:11:20.148] After emoji removal:
+    'Work'
+
+[15:11:20.148] After cleaning:
+    'Work'
+
+[15:11:20.149] Final calendar list:
+    ['Calendar', 'Home', 'Reminders', 'Work']
+
+[15:11:24.542] Raw event data:
+    {'summary': <SUMMARY{}Anniversary 🤍>, 'description': None, 'raw_summary': '<SUMMARY{}Anniversary 🤍>', 'raw_description': ''}
+
+[15:11:24.543] Cleaned event data:
+    {'title': 'Anniversary 🤍', 'description': ''}
+
+[15:11:24.544] Adding task with data:
+    {'title': 'Anniversary 🤍', 'due_date': '2025-10-30', 'start_time': '00:00', 'end_time': '23:59', 'description': '', 'caldav_uid': '<UID{}522CC6C8-FDA4-4AE8-9C89-E87F66A6E05B>'}
+
+[15:11:24.546] Raw event data:
+    {'summary': <SUMMARY{}Test >, 'description': None, 'raw_summary': '<SUMMARY{}Test >', 'raw_description': ''}
+
+[15:11:24.546] Cleaned event data:
+    {'title': 'Test', 'description': ''}
+
+[15:11:24.547] Adding task with data:
+    {'title': 'Test', 'due_date': '2025-01-27', 'start_time': '00:00', 'end_time': '23:59', 'description': '', 'caldav_uid': '<UID{}624AD9CE-0F9C-4055-9BC4-FA399A0CF04F>'}
+
+[15:11:24.548] Successfully synced 2 tasks from calendar Home
+

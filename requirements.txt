@@ -9,3 +9,4 @@ pyfiglet
 spotipy
 python-dotenv
 xdg-base-dirs
+caldav
