@@ -11,6 +11,12 @@ from rich.syntax import Syntax
 from rich.text import Text
 import os
 
+class EditorTab:
+    def __init__(self, path: str, content: str):
+        self.path = path
+        self.content = content
+        self.modified = False
+
 class FileCreated(Message):
     def __init__(self, path: str) -> None:
         super().__init__()
@@ -97,11 +103,15 @@ class NewFileDialog(ModalScreen):
             self.dismiss(full_path)
             self.app.post_message(FileCreated(full_path))
             tree = self.app.query_one(FilterableDirectoryTree)
-            tree.refresh_tree() 
+            tree.refresh_tree()
+            editor = self.app.query_one(CodeEditor)
+            # open the file as soon as it's created
+            editor.open_file(full_path)
+            editor.focus()
             self.dismiss(full_path)
         except Exception as e:
             self.notify(f"Error creating file: {str(e)}", severity="error")
-            self.dismiss(None)  
+            self.dismiss(None)
 
 
     async def action_cancel(self) -> None:
@@ -189,6 +199,9 @@ class CodeEditor(TextArea):
         Binding("%d", "clear_editor", "Clear Editor", show=False), 
         Binding("ctrl+z", "noop", ""), 
         Binding("ctrl+y", "noop", ""),
+        Binding("ctrl+tab", "next_tab", "Next Tab", show=True),
+        Binding("ctrl+shift+tab", "prev_tab", "Previous Tab", show=True),
+        Binding("ctrl+w", "close_tab", "Close Tab", show=True),
     ]
 
     class FileModified(Message):
@@ -217,6 +230,8 @@ class CodeEditor(TextArea):
         self.pending_command = ""
         self.status_bar = StatusBar()
         self.status_bar.update_mode("NORMAL")  
+        self.tabs = [] 
+        self.active_tab_index = -1  
 
     def on_focus(self) -> None:
         self.mode = "normal"
@@ -232,6 +247,8 @@ class CodeEditor(TextArea):
 
     def _update_status_info(self) -> None:
         file_info = []
+        if self.tabs:
+            file_info.append(f"[{self.active_tab_index + 1}/{len(self.tabs)}]")
         if self.current_file:
             file_info.append(os.path.basename(self.current_file))
         if self._modified:
@@ -628,8 +645,23 @@ class CodeEditor(TextArea):
 
     def open_file(self, filepath: str) -> None:
         try:
+            # Check if file is already open in a tab
+            for i, tab in enumerate(self.tabs):
+                if tab.path == filepath:
+                    self.active_tab_index = i
+                    self.load_text(tab.content)
+                    self.current_file = tab.path
+                    self.set_language_from_file(filepath)
+                    self._update_status_info()
+                    return
+
+            # If not found, create new tab
             with open(filepath, 'r', encoding='utf-8') as file:
                 content = file.read()
+                new_tab = EditorTab(filepath, content)
+                self.tabs.append(new_tab)
+                self.active_tab_index = len(self.tabs) - 1
+                
                 self.load_text(content)
                 self._undo_stack = []
                 self._redo_stack = []
@@ -642,6 +674,38 @@ class CodeEditor(TextArea):
                 self._update_status_info()
         except Exception as e:
             self.notify(f"Error opening file: {str(e)}", severity="error")
+
+    def action_next_tab(self) -> None:
+        if self.tabs:
+            self.active_tab_index = (self.active_tab_index + 1) % len(self.tabs)
+            tab = self.tabs[self.active_tab_index]
+            self.load_text(tab.content)
+            self.current_file = tab.path
+            self._update_status_info()
+
+    def action_prev_tab(self) -> None:
+        if self.tabs:
+            self.active_tab_index = (self.active_tab_index - 1) % len(self.tabs)
+            tab = self.tabs[self.active_tab_index]
+            self.load_text(tab.content)
+            self.current_file = tab.path
+            self._update_status_info()
+
+    def close_current_tab(self) -> None:
+        if not self.tabs:
+            return
+            
+        self.tabs.pop(self.active_tab_index)
+        if self.tabs:
+            self.active_tab_index = max(0, min(self.active_tab_index, len(self.tabs) - 1))
+            tab = self.tabs[self.active_tab_index]
+            self.load_text(tab.content)
+            self.current_file = tab.path
+        else:
+            self.active_tab_index = -1
+            self.load_text("")
+            self.current_file = None
+        self._update_status_info()
 
 class NestView(Container, InitialFocusMixin):
     BINDINGS = [
@@ -664,8 +728,6 @@ class NestView(Container, InitialFocusMixin):
 
     def on_file_created(self, event: FileCreated) -> None:
         self.notify(f"Created file: {os.path.basename(event.path)}")
-        tree = self.query_one(FilterableDirectoryTree)
-        tree.refresh_tree()
 
     def compose(self) -> ComposeResult:
         yield Container(
