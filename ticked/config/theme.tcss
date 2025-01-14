@@ -104,9 +104,8 @@ WelcomeMessage {
 
 CalendarView {
     width: 100%;
-    height: 100%;
-    scrollbar-gutter: stable;
-    scrollbar-size: 1 1;
+    height: 90;
+    margin-bottom: -15;
 }
 
 NavBar {
@@ -126,10 +125,7 @@ CalendarHeader {
 
 CalendarGrid {
     width: 100%;
-    height: 85%;
-    grid-size: 7 7;
-    grid-gutter: 1;
-    padding: 1;
+    height: 100%;    
 }
 
 .calendar-weekday, CalendarDayButton, .calendar-empty-day {
@@ -163,18 +159,15 @@ CalendarDayButton:focus {
     background: $accent 40%;
 }
 
-
 CalendarDayButton.current-day {
-    
+    background: $accent 40%;
+    color: $text;
 }
 
 .calendar-empty-day {}
 
 .calendar-nav-left, .calendar-nav-right {
-    width: 4;
-    height: 3;
-    margin: 1;
-    text-align: center;
+    
 }
 
 .calendar-nav-left {
@@ -799,6 +792,7 @@ Tooltip {
     width: auto;
     max-width: 60;
     offset-x: 1;
+    border: solid $accent;
 }
 
 
@@ -1603,7 +1597,7 @@ Label {
     background: $accent 40%;
     color: $text;
     border: none;
-    dock: bottom;
+    dock: top;
     text-style: none;
 }
 
@@ -1626,6 +1620,11 @@ Label {
 .week-day-column CalendarDayButton:focus {
     background: $primary 10%;
     height: 150;
+}
+
+.week-day-column CalendarDayButton.current-day {
+    background: $accent 40%;
+    color: $text;
 }
 
 #time-inputs {
