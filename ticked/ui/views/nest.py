@@ -11,6 +11,12 @@ from rich.syntax import Syntax
 from rich.text import Text
 import os
 
+class EditorTab:
+    def __init__(self, path: str, content: str):
+        self.path = path
+        self.content = content
+        self.modified = False
+
 class FileCreated(Message):
     def __init__(self, path: str) -> None:
         super().__init__()
@@ -97,7 +103,11 @@ class NewFileDialog(ModalScreen):
             self.dismiss(full_path)
             self.app.post_message(FileCreated(full_path))
             tree = self.app.query_one(FilterableDirectoryTree)
-            tree.refresh_tree() 
+            tree.refresh_tree()
+            editor = self.app.query_one(CodeEditor)
+            # open the file as soon as it's created
+            editor.open_file(full_path)
+            editor.focus()
             self.dismiss(full_path)
         except Exception as e:
             self.notify(f"Error creating file: {str(e)}", severity="error")
@@ -167,7 +177,6 @@ class CodeEditor(TextArea):
         Binding("shift+tab", "unindent", "Unindent", show=False),
         Binding("ctrl+]", "indent", "Indent", show=False),
         Binding("ctrl+[", "unindent", "Unindent", show=False),
-        Binding("ctrl+/", "toggle_comment", "Toggle Comment", show=True),
         Binding("ctrl+s", "save_file", "Save File", show=True),
         Binding("escape", "enter_normal_mode", "Enter Normal Mode", show=False),
         Binding("i", "enter_insert_mode", "Enter Insert Mode", show=False),
@@ -216,7 +225,9 @@ class CodeEditor(TextArea):
         self.in_command_mode = False
         self.pending_command = ""
         self.status_bar = StatusBar()
-        self.status_bar.update_mode("NORMAL")  
+        self.status_bar.update_mode("NORMAL")
+        self.tabs = []
+        self.active_tab_index = -1  
 
     def on_focus(self) -> None:
         self.mode = "normal"
@@ -232,6 +243,8 @@ class CodeEditor(TextArea):
 
     def _update_status_info(self) -> None:
         file_info = []
+        if self.tabs:
+            file_info.append(f"[{self.active_tab_index + 1}/{len(self.tabs)}]")
         if self.current_file:
             file_info.append(os.path.basename(self.current_file))
         if self._modified:
@@ -276,11 +289,15 @@ class CodeEditor(TextArea):
                     self.cursor_type = "line"
                     self._save_undo_state()  
                     self.insert(event.character)
+                    self._modified = True
+                    self.post_message(self.FileModified(True))
                     event.prevent_default()
                     event.stop()
                 elif event.key == "backspace":
                     self._save_undo_state()  
                     self.action_delete_left()
+                    self._modified = True
+                    self.post_message(self.FileModified(True))
                     event.prevent_default()
                     event.stop()
                 elif event.key in ["left", "right", "up", "down"]:
@@ -345,19 +362,84 @@ class CodeEditor(TextArea):
                         event.stop()
 
     def execute_command(self) -> None:
-        command = self.command[1:].strip()  
+        command = self.command[1:].strip()
+        
         if command == "w":
             self.action_write()
+            self.status_bar.update_mode("NORMAL")
+            self.in_command_mode = False
+            self.command = ""
+            self.refresh()
         elif command == "wq":
-            self.action_write_quit()
+            if not self.current_file:
+                self.notify("No file name", severity="error")
+                return
+            self.action_save_file()
+            if self.tabs:
+                self.close_current_tab()
+            else:
+                self.clear_editor()
         elif command == "q":
-            self.action_quit()
+            if self._modified:
+                self.notify("No write since last change (add ! to override)", severity="warning")
+                self.status_bar.update_mode("NORMAL")
+                self.in_command_mode = False
+                self.command = ""
+                self.refresh()
+                return
+            
+            if self.tabs:
+                self.close_current_tab()
+            else:
+                self.clear_editor()
         elif command == "q!":
-            self.action_force_quit()
+            if self.tabs:
+                self.close_current_tab()
+            else:
+                self.clear_editor()
         elif command == "%d":
             self.clear_editor()
+        elif command == "n" or command == "bn":
+            if self.tabs:
+                self.active_tab_index = (self.active_tab_index + 1) % len(self.tabs)
+                tab = self.tabs[self.active_tab_index]
+                self.load_text(tab.content)
+                self.current_file = tab.path
+                self._update_status_info()
+        elif command == "p" or command == "bp":
+            if self.tabs:
+                self.active_tab_index = (self.active_tab_index - 1) % len(self.tabs)
+                tab = self.tabs[self.active_tab_index]
+                self.load_text(tab.content)
+                self.current_file = tab.path
+                self._update_status_info()
+        elif command == "ls":
+            buffer_list = []
+            for i, tab in enumerate(self.tabs):
+                marker = "%" if i == self.active_tab_index else " "
+                modified = "+" if tab.modified else " "
+                name = os.path.basename(tab.path)
+                buffer_list.append(f"{i + 1}{marker}{modified} {name}")
+            self.notify("\n".join(buffer_list))
         else:
             self.notify(f"Unknown command: {command}", severity="warning")
+
+
+    def close_current_tab(self) -> None:
+        if not self.tabs:
+            return
+            
+        self.tabs.pop(self.active_tab_index)
+        if self.tabs:
+            self.active_tab_index = max(0, min(self.active_tab_index, len(self.tabs) - 1))
+            tab = self.tabs[self.active_tab_index]
+            self.load_text(tab.content)
+            self.current_file = tab.path
+        else:
+            self.active_tab_index = -1
+            self.load_text("")
+            self.current_file = None
+        self._update_status_info()
 
     def render(self) -> str:
         content = str(super().render())
@@ -424,20 +506,29 @@ class CodeEditor(TextArea):
     def action_write_quit(self) -> None:
         if not self.current_file:
             self.notify("No file to save", severity="warning")
-            self.clear_editor()
             return
         
         self.action_save_file()
-        self.clear_editor()
+        if self.tabs:
+            self.close_current_tab()
+        else:
+            self.clear_editor()
 
     def action_quit(self) -> None:
         if self._modified:
-            self.notify("You have unsaved changes. Use ':q!' to override.", severity="warning")
+            self.notify("No write since last change (add ! to override)", severity="warning")
+            return
+            
+        if self.tabs:
+            self.close_current_tab()
         else:
             self.clear_editor()
 
     def action_force_quit(self) -> None:
-        self.clear_editor()
+        if self.tabs:
+            self.close_current_tab()
+        else:
+            self.clear_editor()
 
     def action_indent(self) -> None:
         cursor_location = self.cursor_location
@@ -475,9 +566,13 @@ class CodeEditor(TextArea):
                 self._undo_stack.append(old_text)
                 self._redo_stack.clear()
             
-            if not self._modified:
-                self._modified = True
-                self.post_message(self.FileModified(True))
+            self._modified = True
+            self.post_message(self.FileModified(True))
+            
+            # Update current tab content
+            if self.tabs and self.active_tab_index >= 0:
+                self.tabs[self.active_tab_index].content = new_text
+                self.tabs[self.active_tab_index].modified = True
         
             if self._syntax:
                 self.update_syntax_highlighting() 
@@ -628,15 +723,25 @@ class CodeEditor(TextArea):
 
     def open_file(self, filepath: str) -> None:
         try:
+            # Check if file is already open in a tab
+            for i, tab in enumerate(self.tabs):
+                if tab.path == filepath:
+                    self.active_tab_index = i
+                    self.load_text(tab.content)
+                    self.current_file = tab.path
+                    self.set_language_from_file(filepath)
+                    self._update_status_info()
+                    return
+
             with open(filepath, 'r', encoding='utf-8') as file:
                 content = file.read()
+                new_tab = EditorTab(filepath, content)
+                self.tabs.append(new_tab)
+                self.active_tab_index = len(self.tabs) - 1
+                
                 self.load_text(content)
-                self._undo_stack = []
-                self._redo_stack = []
-                self._last_text = content
                 self.current_file = filepath
                 self.set_language_from_file(filepath)
-                self.mode = "normal"
                 self._modified = False
                 self.focus()
                 self._update_status_info()
@@ -648,7 +753,6 @@ class NestView(Container, InitialFocusMixin):
         Binding("ctrl+h", "toggle_hidden", "Toggle Hidden Files", show=True),
         Binding("ctrl+b", "toggle_sidebar", "Toggle Sidebar", show=True),
         Binding("ctrl+right", "focus_editor", "Focus Editor", show=True),
-        Binding("ctrl+left", "focus_tree", "Focus Tree", show=True),
         Binding("r", "refresh_tree", "Refresh Tree", show=True),  
     ]
 
@@ -722,9 +826,12 @@ class NestView(Container, InitialFocusMixin):
         file_nav = self.query_one(".file-nav")
         if not self.show_sidebar:
             file_nav.add_class("hidden")
+            # If the directory tree was focused, focus the code editor
+            if self.app.focused is self.query_one(FilterableDirectoryTree):
+                self.query_one(CodeEditor).focus()
         else:
             file_nav.remove_class("hidden")
-            
+
     def action_focus_editor(self) -> None:
         self.query_one(CodeEditor).focus()
 
