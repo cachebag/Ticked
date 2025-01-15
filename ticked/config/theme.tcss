@@ -141,14 +141,11 @@ CalendarGrid {
 
 CalendarDayButton {
     background: $surface;
-    border: none;
-    padding: 1;
-    height: 1fr;
-    min-height: 8;
-    width: 1fr;
-    text-align: center;
-    content-align: center top;
-    text-style: none;
+    border: thick $surface-darken-2;   
+    text-style: bold;
+    margin: 0;
+    padding: 0;
+    
 }
 
 CalendarDayButton:hover {
@@ -792,7 +789,7 @@ Tooltip {
     width: auto;
     max-width: 60;
     offset-x: 1;
-    border: solid $accent;
+    border: thick $accent;
 }
 
 
