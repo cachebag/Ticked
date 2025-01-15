@@ -118,11 +118,11 @@ class CalendarGrid(Grid):
                     yield empty_day
                 else:
                     is_current = (day == today.day and
-                        self.current_date.month == today.month and
-                        self.current_date.year == today.year)
-                    
+                    self.current_date.month == today.month and
+                    self.current_date.year == today.year)
+                
                     full_date = self.current_date.replace(day=day)
-                    
+                
                     tasks = self.app.db.get_tasks_for_date(
                     f"{self.current_date.year}-{self.current_date.month:02d}-{day:02d}"
                     )
@@ -130,13 +130,13 @@ class CalendarGrid(Grid):
                     tooltip_text = ""
                     if tasks:
                         task_display = "\n".join(
-                            f"[{'green' if task['completed'] else 'yellow' if task['in_progress'] else 'white'}]- {task['title'][:15] + '...' if len(task['title']) > 15 else task['title']}"
-                            for task in tasks[:5]
-                        )
-                        tooltip_text = "\n".join(
-                            f"[{'green' if task['completed'] else 'yellow' if task['in_progress'] else 'white'}]- {task['title']}"
-                            for task in tasks
-                        )
+                        f"{'🟢 ' if task['completed'] else '🟠 ' if task['in_progress'] else '- '}{task['title'][:15] + '...' if len(task['title']) > 15 else task['title']}"
+                        for task in tasks[:5]
+                    )
+                    tooltip_text = "\n".join(
+                        f"{'🟢 ' if task['completed'] else '🟠 ' if task['in_progress'] else '- '}{task['title']}"
+                        for task in tasks
+                    )
 
                     day_btn = CalendarDayButton(day, is_current, task_display, tooltip_text, full_date=full_date)
                     if is_current:
