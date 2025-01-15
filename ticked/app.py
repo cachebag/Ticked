@@ -8,6 +8,7 @@ from textual.dom import NoMatches
 from textual.binding import Binding
 from textual import events
 from .core.database.ticked_db import CalendarDB
+from importlib.metadata import version as get_version
 from xdg_base_dirs import xdg_config_home
 from pathlib import Path
 import os
@@ -50,17 +51,20 @@ class Ticked(App):
             response = requests.get('https://pypi.org/pypi/ticked/json')
             if response.status_code == 200:
                 latest_version = response.json()['info']['version']
-                current_version = "0.1.4"
+                current_version = get_version("ticked")  # Dynamically get the installed version
                 
                 if version.parse(latest_version) > version.parse(current_version):
                     self.notify(
-                        f"New version {latest_version} available! Run 'pip install --upgrade ticked' to update.",
+                        f"New version {latest_version} available! Current version: {current_version}. "
+                        f"Run 'pip install --upgrade ticked' to update.",
                         severity="information",
                         timeout=10
                     )
 
             self.db.save_last_update_check()
-        except Exception:
+        except Exception as e:
+            # Log the error for debugging
+            print(f"Update check failed: {str(e)}")
             pass
 
     def get_spotify_client(self):
