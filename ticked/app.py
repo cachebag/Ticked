@@ -36,6 +36,9 @@ class Ticked(App):
     def __init__(self):
         super().__init__()
         self.db = CalendarDB()
+        saved_theme = self.db.get_theme_preference()
+        if saved_theme:
+            self.theme = saved_theme
         self.package_dir = Path(__file__).parent
         self.pomodoro_settings = self.load_settings()
 
@@ -113,7 +116,7 @@ class Ticked(App):
 
     def on_mount(self) -> None:
         self.push_screen("home")
-        self.theme = "gruvbox"
+        # self.theme = "gruvbox"  # Remove or comment out this line
         self.run_worker(self.check_for_updates(), group="update_check")
 
     async def on_mouse_move(self, event: events.MouseMove) -> None:
@@ -148,7 +151,7 @@ class Ticked(App):
                 current_view = self.screen.query_one(".content").children[0]
                 if hasattr(current_view, 'get_initial_focus'):
                     initial_focus = current_view.get_initial_focus()
-                    if initial_focus:
+                    if (initial_focus):
                         initial_focus.focus()
         except Exception as e:
             self.notify(f"Error toggling menu: {str(e)}", severity="error")

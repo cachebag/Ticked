@@ -10,3 +10,5 @@ spotipy
 python-dotenv
 xdg-base-dirs
 caldav
+canvasapi
+httpx

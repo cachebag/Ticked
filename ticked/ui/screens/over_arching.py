@@ -13,6 +13,7 @@ from textual.widget import Widget
 from typing import Optional
 from ..views.pomodoro import PomodoroView   
 from ..views.spotify import SpotifyView 
+from ..views.canvas import CanvasView
 from .loading_screen import LoadingScreen
 import asyncio
 
@@ -28,6 +29,7 @@ class MainMenu(Container):
         yield MenuItem("HOME", id="menu_home")
         yield MenuItem("CALENDAR", id="menu_calendar")
         yield MenuItem("NEST+", id="menu_nest")
+        yield MenuItem("CANVAS", id="menu_canvas")
         yield MenuItem("POMODORO", id="menu_pomodoro")
         yield MenuItem("SPOTIFY", id="menu_spotify")
         yield MenuItem("SETTINGS", id="menu_settings")
@@ -197,6 +199,19 @@ class HomeScreen(Screen, InitialFocusMixin):
                     content_container.mount(nest_view)
                     
                 asyncio.create_task(load_nest())
+
+            elif button_id == "menu_canvas":
+                loading = LoadingScreen(animation_style=2) 
+                content_container.remove_children()
+                content_container.mount(loading)
+                
+                async def load_canvas():
+                    await loading.start_loading(0)
+                    content_container.remove_children()
+                    canvas_view = CanvasView()
+                    content_container.mount(canvas_view)
+                    
+                asyncio.create_task(load_canvas())
                 
             elif button_id == "menu_pomodoro":
                 loading = LoadingScreen(animation_style=3)  
