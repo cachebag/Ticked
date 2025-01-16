@@ -227,7 +227,17 @@ class CodeEditor(TextArea):
         self.status_bar = StatusBar()
         self.status_bar.update_mode("NORMAL")
         self.tabs = []
-        self.active_tab_index = -1  
+        self.active_tab_index = -1
+        self._last_scroll_position = (0, 0)
+        self._last_cursor_position = (0, 0)
+
+    def _save_positions(self) -> None:
+        self._last_scroll_position = self.scroll_offset
+        self._last_cursor_position = self.cursor_location
+
+    def _restore_positions(self) -> None:
+        self.scroll_to(self._last_scroll_position[0], self._last_scroll_position[1])
+        self.move_cursor(self._last_cursor_position)
 
     def on_focus(self) -> None:
         self.mode = "normal"
@@ -255,6 +265,63 @@ class CodeEditor(TextArea):
             file_info.append(f"{lines}L, {chars}B")
         
         self.status_bar.update_file_info(" ".join(file_info))
+
+    def get_current_indent(self) -> str:
+        lines = self.text.split('\n')
+        if not lines:
+            return ""
+        current_line = lines[self.cursor_location[0]]
+        indent = ""
+        for char in current_line:
+            if char.isspace():
+                indent += char
+            else:
+                break
+        return indent
+
+    def should_increase_indent(self) -> bool:
+        lines = self.text.split('\n')
+        if not lines:
+            return False
+        current_line = lines[self.cursor_location[0]]
+        stripped_line = current_line.strip()
+        
+        if stripped_line.endswith(':'):
+            return True
+
+        brackets = {'(': ')', '[': ']', '{': '}'}
+        counts = {k: stripped_line.count(k) - stripped_line.count(v) for k, v in brackets.items()}
+        return any(count > 0 for count in counts.values())
+
+    def should_decrease_indent(self) -> bool:
+        lines = self.text.split('\n')
+        if not lines or self.cursor_location[0] == 0:
+            return False
+        
+        current_line = lines[self.cursor_location[0]]
+        stripped_line = current_line.strip()
+        
+        if stripped_line.startswith((')', ']', '}')):
+            return True
+            
+        dedent_keywords = {'return', 'break', 'continue', 'pass', 'raise'}
+        first_word = stripped_line.split()[0] if stripped_line else ''
+        return first_word in dedent_keywords
+
+    def handle_indent(self) -> None:
+        current_indent = self.get_current_indent()
+        
+        if not current_indent and not self.text:
+            self.insert('\n')
+            return
+            
+        if self.should_decrease_indent():
+            new_indent = current_indent[:-self.tab_size] if len(current_indent) >= self.tab_size else ""
+            self.insert('\n' + new_indent)
+        elif self.should_increase_indent():
+            self.insert('\n' + current_indent + ' ' * self.tab_size)
+        else:
+            self.insert('\n' + current_indent)
 
     def on_key(self, event) -> None:
         if self.in_command_mode:
@@ -285,16 +352,24 @@ class CodeEditor(TextArea):
             self.status_bar.update_command(self.command)
         else:
             if self.mode == "insert":
-                if event.is_printable:
+                if event.key == "enter":
                     self.cursor_type = "line"
-                    self._save_undo_state()  
+                    self._save_undo_state()
+                    self.handle_indent()
+                    self._modified = True
+                    self.post_message(self.FileModified(True))
+                    event.prevent_default()
+                    event.stop()
+                elif event.is_printable:
+                    self.cursor_type = "line"
+                    self._save_undo_state()
                     self.insert(event.character)
                     self._modified = True
                     self.post_message(self.FileModified(True))
                     event.prevent_default()
                     event.stop()
                 elif event.key == "backspace":
-                    self._save_undo_state()  
+                    self._save_undo_state()
                     self.action_delete_left()
                     self._modified = True
                     self.post_message(self.FileModified(True))
@@ -633,29 +708,21 @@ class CodeEditor(TextArea):
 
     def action_undo(self) -> None:
         if self.mode == "normal" and self._undo_stack:
+            self._save_positions()  # Save positions before undo
             self._is_undoing = True
-            current_cursor = self.cursor_location
             self._redo_stack.append(self.text)
             self.text = self._undo_stack.pop()
             self._is_undoing = False
-            max_row = len(self.text.split('\n')) - 1
-            row = min(current_cursor[0], max_row)
-            line = self.text.split('\n')[row]
-            col = min(current_cursor[1], len(line))
-            self.move_cursor((row, col))
+            self._restore_positions()  # Restore positions after undo
 
     def action_redo(self) -> None:
         if self.mode == "normal" and self._redo_stack:
+            self._save_positions()  # Save positions before redo
             self._is_undoing = True
-            current_cursor = self.cursor_location
             self._undo_stack.append(self.text)
             self.text = self._redo_stack.pop()
             self._is_undoing = False
-            max_row = len(self.text.split('\n')) - 1
-            row = min(current_cursor[0], max_row)
-            line = self.text.split('\n')[row]
-            col = min(current_cursor[1], len(line))
-            self.move_cursor((row, col))
+            self._restore_positions()  # Restore positions after redo
 
     def action_delete_char(self) -> None:
         if self.mode == "normal":
@@ -675,13 +742,17 @@ class CodeEditor(TextArea):
 
     def action_delete_line(self) -> None:
         if self.mode == "normal":
+            self._save_positions()  # Save positions before deletion
             self._save_undo_state()
             cur_row, _ = self.cursor_location
             lines = self.text.split("\n")
             if cur_row < len(lines):
                 lines.pop(cur_row)
                 self.text = "\n".join(lines)
-                self.move_cursor((cur_row, 0))
+                # Adjust cursor position if it would be out of bounds
+                target_row = min(cur_row, len(lines) - 1) if lines else 0
+                self.move_cursor((target_row, 0))
+                self._restore_positions()  # Restore positions after deletion
 
     def action_delete_to_end(self) -> None:
         if self.mode == "normal":
