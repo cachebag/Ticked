@@ -1399,31 +1399,6 @@ ThemeButton:focus {
     height: 1fr;
 }
 
-LoadingScreen {
-    background: $surface-darken-2;
-}
-
-.loading-container {
-    width: 100%;
-    height: 100%;
-    align: center middle;
-    dock: right;
-}
-
-.loading-text {
-    color: $text;
-    text-align: center;
-    margin-bottom: 1;
-}
-
-.loading-animation {
-    color: $accent;
-    text-align: center;
-}
-
-CalendarSetupScreen {
-    align: center middle;
-}
 
 .calendar-setup-container {
     width: 60;
@@ -1641,4 +1616,189 @@ Switch {
 
 Switch:focus {
     background: $accent;
+}
+
+.header {
+    background: $surface-darken-2;
+    color: $text;
+    padding: 1;
+    border-bottom: solid $primary;
+    text-align: center;
+    text-style: bold;
+}
+
+.description {
+    padding: 1;
+    color: $text-muted;
+    text-align: center;
+}
+
+#url, #token {
+    width: 30%;
+    height: 3;
+    margin: 1;
+    offset: 120% 0;
+    margin-top: 2;
+    align-horizontal: center;
+    align-vertical: middle;
+}
+
+.help {
+    width: 100%;
+    height: 2;
+    text-align: center;
+    margin-top: 1;
+}
+.help1 {
+    width: 100%;
+    height: 1;
+    text-align: center;
+    margin-top: 1;
+    text-style: bold;
+}
+
+#login {
+    width: 10%;
+    height: 3;
+    background: $accent 40%;
+    color: $text;
+    text-style: bold;
+    border: none;
+    margin: 1;
+    margin-top: 2;
+    offset: 455% 0;
+}
+
+#canvas-content {
+    width: 100%;
+    height: 100%;
+    padding: 1;
+}
+
+#refresh {
+    width: auto;
+    min-width: 10;
+    background: $primary;
+    color: $text;
+    display: none;
+}
+
+.refresh-button:hover {
+    background: $primary-lighten-1;
+}
+
+Screen {
+    background: $surface-darken-2;
+    color: $text;
+    width: 100%;
+    height: 100%;
+}
+
+#canvas-grid {
+    layout: grid;
+    grid-size-columns: 2;
+    grid-size-rows: 1;
+    width: 100%;
+    height: 100%;
+    padding: 1;
+}
+
+#left-panel {
+    width: 80%;
+    height: 100%;
+    border-right: solid $accent;
+}
+
+#right-panel {
+    width: 100%;
+    height: 100%;
+}
+
+.panel-header {
+    background: $surface-darken-2;
+    color: $text;
+    padding: 1;
+    border-bottom: solid $primary;
+    text-align: center;
+    text-style: bold;
+    height: 3;
+}
+
+DataTable {
+    background: $surface-darken-2;
+    width: 100%;
+    height: 1fr;
+    margin: 1 0;
+}
+
+.placeholder-content {
+    padding: 2;
+    text-align: center;
+}
+
+.login-container {
+    width: 100%;
+    height: 100%;
+    align: center middle;
+}
+
+#url, #token {
+    width: 30%;
+    height: 3;
+    margin: 1;
+    offset: 120% 0;
+    margin-top: 2;
+}
+
+.help {
+    width: 100%;
+    height: 2;
+    text-align: center;
+    margin-top: 1;
+}
+
+.help1 {
+    width: 100%;
+    height: 1;
+    text-align: center;
+    margin-top: 1;
+    text-style: bold;
+}
+
+#login {
+    width: 10%;
+    height: 3;
+    background: $accent 40%;
+    color: $text;
+    text-style: bold;
+    border: none;
+    margin: 1;
+    margin-top: 2;
+    offset: 455% 0;
+}
+
+.header {
+    background: $surface-darken-2;
+    color: $text;
+    padding: 1;
+    border-bottom: solid $primary;
+    text-align: center;
+    text-style: bold;
+}
+
+.description {
+    padding: 1;
+    color: $text-muted;
+    text-align: center;
+}
+
+.loading-container {
+    width: 100%;
+    height: 100%;
+    align: center middle;
+}
+
+.loading-text {
+    text-align: center;
+    margin-bottom: 1;
 }

@@ -14,8 +14,7 @@ from typing import Optional
 from ..views.pomodoro import PomodoroView   
 from ..views.spotify import SpotifyView 
 from ..views.canvas import CanvasView
-from .loading_screen import LoadingScreen
-import asyncio
+from textual import work
 
 
 class MenuItem(Button):
@@ -138,8 +137,8 @@ class HomeScreen(Screen, InitialFocusMixin):
         first_menu_item = menu.query_one("MenuItem")
         if first_menu_item:
             first_menu_item.focus()
-
-    def on_button_pressed(self, event: Button.Pressed) -> None:
+    @work(exclusive=True)   
+    async def on_button_pressed(self, event: Button.Pressed) -> None:
         content_container = self.query_one("#content")
         button_id = event.button.id
         menu = self.query_one("MainMenu")
@@ -149,108 +148,52 @@ class HomeScreen(Screen, InitialFocusMixin):
 
         try:
             if button_id == "menu_home":
-                loading = LoadingScreen(animation_style=0)
                 content_container.remove_children()
-                content_container.mount(loading)
-                
-                async def load_home():
-                    await loading.start_loading(0.2)
-                    content_container.remove_children()
-                    home_view = WelcomeView()
-                    content_container.mount(home_view)
-                    try:
-                        tab = home_view.query("TabButton").first()
-                        if tab:
-                            tab.focus()
-                    except Exception:
-                        home_view.focus()
-                        
-                asyncio.create_task(load_home())
-                
+                home_view = WelcomeView()
+                content_container.mount(home_view)
+                try:
+                    tab = home_view.query("TabButton").first()
+                    if tab:
+                        tab.focus()
+                except Exception:
+                    home_view.focus()
+                    
             elif button_id == "menu_calendar":
-                loading = LoadingScreen(animation_style=1) 
                 content_container.remove_children()
-                content_container.mount(loading)
-                
-                async def load_calendar():
-                    await loading.start_loading(0)
-                    content_container.remove_children()
-                    calendar_view = CalendarView()
-                    content_container.mount(calendar_view)
-                    try:
-                        if hasattr(calendar_view, 'get_initial_focus'):
-                            initial_focus = calendar_view.get_initial_focus()
-                            if initial_focus:
-                                initial_focus.focus()
-                    except Exception:
-                        calendar_view.focus()
-                        
-                asyncio.create_task(load_calendar())
-                
+                calendar_view = CalendarView()
+                content_container.mount(calendar_view)
+                try:
+                    if hasattr(calendar_view, 'get_initial_focus'):
+                        initial_focus = calendar_view.get_initial_focus()
+                        if initial_focus:
+                            initial_focus.focus()
+                except Exception:
+                    calendar_view.focus()
+                    
             elif button_id == "menu_nest":
-                loading = LoadingScreen(animation_style=2) 
                 content_container.remove_children()
-                content_container.mount(loading)
+                nest_view = NestView()
+                content_container.mount(nest_view)
                 
-                async def load_nest():
-                    await loading.start_loading(0)
-                    content_container.remove_children()
-                    nest_view = NestView()
-                    content_container.mount(nest_view)
-                    
-                asyncio.create_task(load_nest())
-
             elif button_id == "menu_canvas":
-                loading = LoadingScreen(animation_style=2) 
                 content_container.remove_children()
-                content_container.mount(loading)
-                
-                async def load_canvas():
-                    await loading.start_loading(0)
-                    content_container.remove_children()
-                    canvas_view = CanvasView()
-                    content_container.mount(canvas_view)
-                    
-                asyncio.create_task(load_canvas())
+                canvas_view = CanvasView()
+                content_container.mount(canvas_view)
                 
             elif button_id == "menu_pomodoro":
-                loading = LoadingScreen(animation_style=3)  
                 content_container.remove_children()
-                content_container.mount(loading)
-                
-                async def load_pomodoro():
-                    await loading.start_loading(0)
-                    content_container.remove_children()
-                    pomo_view = PomodoroView()
-                    content_container.mount(pomo_view)
-                    
-                asyncio.create_task(load_pomodoro())
+                pomo_view = PomodoroView()
+                content_container.mount(pomo_view)
                 
             elif button_id == "menu_spotify":
-                loading = LoadingScreen(animation_style=0)  
                 content_container.remove_children()
-                content_container.mount(loading)
-                
-                async def load_spotify():
-                    await loading.start_loading(2.0)
-                    content_container.remove_children()
-                    spotify_view = SpotifyView()
-                    content_container.mount(spotify_view)
-                    
-                asyncio.create_task(load_spotify())
+                spotify_view = SpotifyView()
+                content_container.mount(spotify_view)
                 
             elif button_id == "menu_settings":
-                loading = LoadingScreen(animation_style=1) 
                 content_container.remove_children()
-                content_container.mount(loading)
-                
-                async def load_settings():
-                    await loading.start_loading(0)
-                    content_container.remove_children()
-                    settings_view = SettingsView()
-                    content_container.mount(settings_view)
-                    
-                asyncio.create_task(load_settings())
+                settings_view = SettingsView()
+                content_container.mount(settings_view)
                 
             elif button_id == "menu_exit":
                 self.action_quit_app()
@@ -296,17 +239,9 @@ class HomeScreen(Screen, InitialFocusMixin):
         content_container = self.query_one("#content")
         content_container.remove_children()
         
-        loading = LoadingScreen(animation_style=0)  
-        content_container.mount(loading)
-        
         new_view = view_class(*args, **kwargs)
         
-        loading_task = asyncio.create_task(loading.start_loading(0.3)) 
-        
         try:
-            await loading_task
-            
-            content_container.remove_children()
             content_container.mount(new_view)
             
             try:
