@@ -1704,7 +1704,7 @@ Screen {
 }
 
 #left-panel {
-    width: 80%;
+    width: 100%;
     height: 100%;
     border-right: solid $accent;
 }
@@ -1712,6 +1712,7 @@ Screen {
 #right-panel {
     width: 100%;
     height: 100%;
+    overflow: auto;
 }
 
 .panel-header {
@@ -1722,6 +1723,16 @@ Screen {
     text-align: center;
     text-style: bold;
     height: 3;
+}
+
+.headerA {
+    background: $surface-darken-2;
+    color: $text;
+    padding: 1;
+    border-bottom: solid $primary;
+    text-align: center;
+    text-style: bold;
+    dock: top;
 }
 
 DataTable {
