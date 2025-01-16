@@ -1802,3 +1802,11 @@ DataTable {
     text-align: center;
     margin-bottom: 1;
 }
+
+#client_id, #client_secret {
+    width: 30%;
+    height: 3;
+    margin: 1;
+    offset: 120% 0;
+    margin-top: 2;
+}
