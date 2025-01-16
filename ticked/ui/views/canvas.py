@@ -5,17 +5,19 @@ import json
 from pathlib import Path
 from datetime import datetime
 from canvasapi import Canvas
-from textual.widgets import DataTable, Static, LoadingIndicator, Button, Input
+from textual.widgets import DataTable, Static, LoadingIndicator, Button, Input, RichLog, Markdown
 from textual.containers import Vertical, Grid
 from textual.app import ComposeResult
 from textual.widget import Widget
 from textual.reactive import reactive
 from textual.message import Message
+from bs4 import BeautifulSoup
+import re
 
 class CanvasLoginMessage(Message):
     def __init__(self, url: str, token: str) -> None:
         self.url = url
-        self.token = token
+        self.token = token 
         super().__init__()
 
 class CanvasLogin(Widget):
@@ -30,7 +32,7 @@ class CanvasLogin(Widget):
             Input(placeholder="API Token", id="token", password=True),
             Static("How to get your API token and sync your courses:", classes="help1"),
             Static("1. Log into your Canvas account through your University", classes="help"),
-            Static("2. Go to Account -> Settings", classes="help"),
+            Static("2. Go to Account -> Settings", classes="help"), 
             Static("3. Look for 'Approved Integrations' and select '+ New Access Token'", classes="help"),
             Static("4. Copy and paste the access token into the input above \n   and be sure to paste the link to your Universities Canvas site above \n   (i.e., https://canvas.college.edu)", classes="help"),
             Button("Login", variant="primary", id="login"),
@@ -66,6 +68,101 @@ class CanvasLogin(Widget):
         except Exception as e:
             self.notify(f"Failed to save credentials: {str(e)}", severity="error")
 
+from typing import List, Dict
+import re
+from datetime import datetime
+
+from bs4 import BeautifulSoup
+from textual.widgets import Markdown
+
+
+class AnnouncementsList(Markdown):
+    """
+    This class turns a list of announcements into a single Markdown string
+    and updates the Markdown widget accordingly.
+    """
+
+    def __init__(self) -> None:
+        super().__init__("")
+        self.auto_scroll = True
+
+    def clean_html(self, html_content: str) -> str:
+        """Convert basic HTML to plain text (inserting newlines for <br>, <p>, <div>, etc.)."""
+        if not html_content:
+            return ""
+
+        soup = BeautifulSoup(html_content, "html.parser")
+
+        for tag in soup.find_all(["br", "p", "div"]):
+            tag.replace_with("\n" + tag.get_text() + "\n")
+
+        text = soup.get_text()
+
+        text = re.sub(r"\n\s*\n", "\n\n", text)
+        text = re.sub(r"^\s+|\s+$", "", text)
+        return text
+
+    def wrap_text(self, text: str, width: int = 80) -> str:
+        """
+        Wrap text to fit within specified width. 
+        This is optional if you want to limit line length in the Markdown display.
+        """
+        words = text.split()
+        lines = []
+        current_line = []
+        current_length = 0
+
+        for word in words:
+            if current_length + len(word) + 1 <= width:
+                current_line.append(word)
+                current_length += len(word) + 1
+            else:
+                if current_line:
+                    lines.append(" ".join(current_line))
+                current_line = [word]
+                current_length = len(word)
+
+        if current_line:
+            lines.append(" ".join(current_line))
+
+        return "\n".join(lines)
+
+    def populate(self, announcements: List[Dict]) -> None:
+        """
+        Convert all announcements into a single Markdown string, then update
+        this Markdown widget to render them.
+        """
+        markdown_str = ""
+
+        for announcement in announcements:
+            title = announcement.get("title", "Untitled")
+            html_message = announcement.get("message", "No content")
+            posted_at = announcement.get("posted_at", "")
+            course_name = announcement.get("course_name", "Unknown Course")
+
+            cleaned_message = self.clean_html(html_message)
+            wrapped_message = self.wrap_text(cleaned_message, width=80)
+
+            if posted_at:
+                try:
+                    dt = datetime.strptime(posted_at, "%Y-%m-%dT%H:%M:%SZ")
+                    posted_at = dt.strftime("%B %d, %Y")
+                except:
+                    posted_at = "Unknown date"
+
+            markdown_str += f"# {title}\n\n"
+            markdown_str += f"**Posted on:** {posted_at}\n\n"
+            markdown_str += f"**Course:** {course_name}\n\n"
+
+            markdown_str += f"## Announcement\n\n"
+            markdown_str += f"{wrapped_message}\n\n"
+
+            markdown_str += "---\n\n"
+
+        self.update(markdown_str)
+
+            
+
 class CanvasAPI:
     def __init__(self):
         self.canvas = None
@@ -94,7 +191,12 @@ class CanvasAPI:
                             g = "N/A"
                         n = getattr(course, "name", "Unnamed Course")
                         c = getattr(course, "course_code", "No Code")
-                        courses.append({"name": n, "code": c, "grade": g})
+                        # Add padding to name and code
+                        courses.append({
+                            "name": f"{n:<40}",  # Left-align with padding
+                            "code": f"{c:<20}",  # Left-align with padding
+                            "grade": f"{g:>46}"  # Right-align with padding
+                        })
         except Exception as e:
             print(f"Error in get_courses: {str(e)}")
             raise e
@@ -132,11 +234,38 @@ class CanvasAPI:
             raise e
         return assignments
 
+    def get_announcements(self) -> List[Dict]:
+        announcements = []
+        cutoff_date = datetime(2025, 1, 1)
+        try:
+            for course in self.canvas.get_courses(enrollment_type="student", state=["available"]):
+                code = getattr(course, "course_code", "")
+                if code and "2501" in str(code):
+                    for announcement in course.get_discussion_topics(only_announcements=True):
+                        if announcement.posted_at:
+                            posted_date = datetime.strptime(announcement.posted_at, "%Y-%m-%dT%H:%M:%SZ")
+                            if posted_date >= cutoff_date:
+                                announcements.append({
+                                    "title": announcement.title,
+                                    "message": announcement.message,
+                                    "posted_at": announcement.posted_at,
+                                    "course_name": course.name
+                                })
+            announcements.sort(
+                key=lambda x: datetime.strptime(x["posted_at"], "%Y-%m-%dT%H:%M:%SZ") 
+                if x["posted_at"] else datetime.min,
+                reverse=True
+            )
+        except Exception as e:
+            print(f"Error in get_announcements: {str(e)}")
+            raise e
+        return announcements
+
 class CourseList(DataTable):
     def __init__(self):
         super().__init__()
         self.cursor_type = "row"
-        self.add_columns("Name", "Code", "Current Grade")
+        self.add_columns("Name", "Code", "                                  Current Grade")
 
     def populate(self, courses: List[Dict]):
         self.clear()
@@ -180,6 +309,8 @@ class CanvasView(Widget):
                 yield Static("Upcoming Assignments", classes="header")
                 yield TodoList()
             with Vertical(id="right-panel"):
+                yield Static("Recent Announcements", classes="headerA")
+                yield AnnouncementsList()
                 yield LoadingIndicator()
                 yield Button("Refresh", id="refresh")
 
@@ -211,9 +342,11 @@ class CanvasView(Widget):
             self.query_one(LoadingIndicator).styles.display = "block"
             c_task = asyncio.to_thread(self.canvas_api.get_courses)
             t_task = asyncio.to_thread(self.canvas_api.get_todo_assignments)
-            courses, todos = await asyncio.gather(c_task, t_task)
+            a_task = asyncio.to_thread(self.canvas_api.get_announcements)
+            courses, todos, announcements = await asyncio.gather(c_task, t_task, a_task)
             self.query_one(CourseList).populate(courses)
             self.query_one(TodoList).populate(todos)
+            self.query_one(AnnouncementsList).populate(announcements)
         except Exception as e:
             self.notify(f"Error loading data: {str(e)}", severity="error")
             print(f"Canvas API Error: {str(e)}")
