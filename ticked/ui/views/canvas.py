@@ -1,5 +1,4 @@
 import asyncio
-from asyncio import to_thread
 from typing import List, Dict
 import json
 from pathlib import Path
@@ -13,6 +12,9 @@ from textual.reactive import reactive
 from textual.message import Message
 from bs4 import BeautifulSoup
 import re
+
+from bs4 import BeautifulSoup
+from textual.widgets import Markdown
 
 class CanvasLoginMessage(Message):
     def __init__(self, url: str, token: str) -> None:
@@ -67,14 +69,6 @@ class CanvasLogin(Widget):
                 json.dump({"url": url, "token": token}, f)
         except Exception as e:
             self.notify(f"Failed to save credentials: {str(e)}", severity="error")
-
-from typing import List, Dict
-import re
-from datetime import datetime
-
-from bs4 import BeautifulSoup
-from textual.widgets import Markdown
-
 
 class AnnouncementsList(Markdown):
     """
@@ -372,6 +366,7 @@ class CanvasView(Widget):
     def compose(self) -> ComposeResult:
         yield CanvasLogin()
         with Grid(id="canvas-grid", classes="hidden"):
+            yield LoadingIndicator()
             with Vertical(id="left-panel"):
                 yield Static("Current Courses", classes="header")
                 yield CourseList()
@@ -380,7 +375,6 @@ class CanvasView(Widget):
             with Vertical(id="right-panel"):
                 yield Static("Recent Announcements", classes="headerA")
                 yield AnnouncementsList()
-                yield LoadingIndicator()
                 yield Button("Refresh", id="refresh")
 
     def on_mount(self) -> None:
