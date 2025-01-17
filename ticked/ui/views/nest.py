@@ -49,12 +49,12 @@ class NewFileDialog(ModalScreen):
         self.selected_path = initial_path
 
     def compose(self) -> ComposeResult:
-        with Container(classes="task-form-container"):
-            with Vertical(classes="task-form"):
-                yield Static("Create New File", classes="form-header")
+        with Container(classes="file-form-container"):
+            with Vertical(classes="file-form"):
+                yield Static("Create New File", classes="file-form-header")
                 
                 with Vertical():
-                    yield Label("Selected Directory:")
+                    yield Label("Selected Directory:", classes="selected-path-label")
                     yield Static(str(self.selected_path), id="selected-path")
 
                 with Vertical():
@@ -209,7 +209,7 @@ class CodeEditor(TextArea):
             pass
 
     def __init__(self) -> None:
-        super().__init__(language="python", theme="monokai", show_line_numbers=True)
+        super().__init__(language="python", theme="dracula", show_line_numbers=True)
         self.current_file = None
         self._modified = False
         self.tab_size = 4
@@ -472,7 +472,7 @@ class CodeEditor(TextArea):
                 self._syntax = Syntax(
                     self.text,
                     self.language,
-                    theme="dracula",
+                    theme="monokai",
                     line_numbers=True,
                     word_wrap=False,
                     indent_guides=True,

@@ -150,7 +150,7 @@ class SpotifyLogin(Widget):
     def compose(self) -> ComposeResult:
         client_id, client_secret = load_spotify_credentials()
         yield Vertical(
-            Static("Spotify Login", classes="header"),
+            Static("Spotify Login", classes="headerS"),
             Static("Enter your Spotify Client ID and Secret to connect.", classes="description"),
             Input(placeholder="Client ID", id="client_id", value=client_id),
             Input(placeholder="Client Secret", id="client_secret", password=True, value=client_secret),

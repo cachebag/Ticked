@@ -191,11 +191,10 @@ class CanvasAPI:
                             g = "N/A"
                         n = getattr(course, "name", "Unnamed Course")
                         c = getattr(course, "course_code", "No Code")
-                        # Add padding to name and code
                         courses.append({
-                            "name": f"{n:<40}",  # Left-align with padding
-                            "code": f"{c:<20}",  # Left-align with padding
-                            "grade": f"{g:>46}"  # Right-align with padding
+                            "name": f"{n:<40}",  
+                            "code": f"{c:<20}",  
+                            "grade": f"{g:>46}"  
                         })
         except Exception as e:
             print(f"Error in get_courses: {str(e)}")
@@ -290,6 +289,76 @@ class CanvasView(Widget):
         super().__init__()
         self.canvas_api = None
         self.is_authenticated = False
+        self.cache_dir = Path.home() / ".canvas_cache" # caching loaded data to prevent persistent loading
+        self.cache_dir.mkdir(exist_ok=True)
+
+    def _get_cache_path(self, cache_type: str) -> Path:
+        return self.cache_dir / f"{cache_type}.json"
+
+    def _save_cache(self, data: dict, cache_type: str) -> None:
+        try:
+            cache_data = {
+                "timestamp": datetime.now().isoformat(),
+                "data": data
+            }
+            with open(self._get_cache_path(cache_type), 'w') as f:
+                json.dump(cache_data, f)
+        except Exception as e:
+            print(f"Error saving cache for {cache_type}: {e}")
+
+    def _load_cache(self, cache_type: str) -> tuple[list, datetime]:
+        try:
+            cache_path = self._get_cache_path(cache_type)
+            if cache_path.exists():
+                with open(cache_path, 'r') as f:
+                    cache_data = json.load(f)
+                    timestamp = datetime.fromisoformat(cache_data['timestamp'])
+                    return cache_data['data'], timestamp
+        except Exception as e:
+            print(f"Error loading cache for {cache_type}: {e}")
+        return [], None
+
+    async def _load_cached_data(self) -> None:
+        courses, _ = self._load_cache('courses')
+        todos, _ = self._load_cache('todos')
+        announcements, _ = self._load_cache('announcements')
+        
+        if courses:
+            self.query_one(CourseList).populate(courses)
+        if todos:
+            self.query_one(TodoList).populate(todos)
+        if announcements:
+            self.query_one(AnnouncementsList).populate(announcements)
+
+    async def load_data(self) -> None:
+        try:
+            self.query_one(LoadingIndicator).styles.display = "block"
+            
+            # First load cached data
+            await self._load_cached_data()
+            
+            # Then fetch fresh data
+            c_task = asyncio.to_thread(self.canvas_api.get_courses)
+            t_task = asyncio.to_thread(self.canvas_api.get_todo_assignments)
+            a_task = asyncio.to_thread(self.canvas_api.get_announcements)
+            
+            courses, todos, announcements = await asyncio.gather(c_task, t_task, a_task)
+            
+            # Update UI with fresh data
+            self.query_one(CourseList).populate(courses)
+            self.query_one(TodoList).populate(todos)
+            self.query_one(AnnouncementsList).populate(announcements)
+            
+            # Save to cache
+            self._save_cache(courses, 'courses')
+            self._save_cache(todos, 'todos')
+            self._save_cache(announcements, 'announcements')
+            
+        except Exception as e:
+            self.notify(f"Error loading data: {str(e)}", severity="error")
+            print(f"Canvas API Error: {str(e)}")
+        finally:
+            self.query_one(LoadingIndicator).styles.display = "none"
 
     async def test_connection(self) -> bool:
         try:
@@ -335,22 +404,6 @@ class CanvasView(Widget):
             self.is_authenticated = True
             await self.load_data()
         else:
-            self.query_one(LoadingIndicator).styles.display = "none"
-
-    async def load_data(self) -> None:
-        try:
-            self.query_one(LoadingIndicator).styles.display = "block"
-            c_task = asyncio.to_thread(self.canvas_api.get_courses)
-            t_task = asyncio.to_thread(self.canvas_api.get_todo_assignments)
-            a_task = asyncio.to_thread(self.canvas_api.get_announcements)
-            courses, todos, announcements = await asyncio.gather(c_task, t_task, a_task)
-            self.query_one(CourseList).populate(courses)
-            self.query_one(TodoList).populate(todos)
-            self.query_one(AnnouncementsList).populate(announcements)
-        except Exception as e:
-            self.notify(f"Error loading data: {str(e)}", severity="error")
-            print(f"Canvas API Error: {str(e)}")
-        finally:
             self.query_one(LoadingIndicator).styles.display = "none"
 
     def on_button_pressed(self, event: Button.Pressed) -> None:

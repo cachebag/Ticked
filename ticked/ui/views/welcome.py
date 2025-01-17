@@ -323,7 +323,7 @@ class WelcomeContent(Container):
     def compose(self) -> ComposeResult:
         yield WelcomeMessage("║       Welcome to TICK        ║")
         yield WelcomeMessage("")
-        yield WelcomeMessage("For detailed instructions, [yellow]reference the docs on the GitHub[/yellow] | [link=https://github.com/cachebag/tick]https://github.com/cachebag/tick[/link]")
+        yield WelcomeMessage("For detailed instructions, [yellow]reference the docs on the GitHub[/yellow] | [link=https://github.com/cachebag/Ticked]https://github.com/cachebag/Ticked[/link]")
         yield WelcomeMessage("")
         yield WelcomeMessage("Navigation:")
         yield WelcomeMessage("• Use [red]↑/↓ ←/→ [/red] arrows to navigate the program")
