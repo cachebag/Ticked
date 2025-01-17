@@ -380,3 +380,16 @@ class CalendarDB:
                 return True
             last_check = datetime.fromisoformat(result[0])
             return (datetime.now() - last_check).days >= 1
+
+    def save_theme_preference(self, theme: str) -> None:
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('theme', ?)", (theme,))
+            conn.commit()
+
+    def get_theme_preference(self) -> Optional[str]:
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT value FROM settings WHERE key = 'theme'")
+            result = cursor.fetchone()
+            return result[0] if result else None
