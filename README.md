@@ -3,10 +3,10 @@
 
 
 <div align="center">
-  <img src="images/ss1.png" alt="Screenshot 1" width="400">
-  <img src="images/ss2.png" alt="Screenshot 2" width="400">
-  <img src="images/ss3.png" alt="Screenshot 3" width="400">
-  <img src="images/ss4.png" alt="Screenshot 3" width="400">
+  <img src="images/ss1.png" alt="Screenshot 1" width="1000">
+  <img src="images/ss2.png" alt="Screenshot 2" width="1000">
+  <img src="images/ss3.png" alt="Screenshot 3" width="1000">
+  <img src="images/ss4.png" alt="Screenshot 3" width="1000">
 </div>
 
 
