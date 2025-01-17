@@ -8,6 +8,7 @@ from textual.dom import NoMatches
 from textual.binding import Binding
 from textual import events
 from .core.database.ticked_db import CalendarDB
+from importlib.metadata import version as get_version
 from xdg_base_dirs import xdg_config_home
 from pathlib import Path
 import os
@@ -35,6 +36,9 @@ class Ticked(App):
     def __init__(self):
         super().__init__()
         self.db = CalendarDB()
+        saved_theme = self.db.get_theme_preference()
+        if saved_theme:
+            self.theme = saved_theme
         self.package_dir = Path(__file__).parent
         self.pomodoro_settings = self.load_settings()
 
@@ -50,17 +54,20 @@ class Ticked(App):
             response = requests.get('https://pypi.org/pypi/ticked/json')
             if response.status_code == 200:
                 latest_version = response.json()['info']['version']
-                current_version = "0.1.4"
+                current_version = get_version("ticked")  # Dynamically get the installed version
                 
                 if version.parse(latest_version) > version.parse(current_version):
                     self.notify(
-                        f"New version {latest_version} available! Run 'pip install --upgrade ticked' to update.",
+                        f"New version {latest_version} available! Current version: {current_version}. "
+                        f"Run 'pip install --upgrade ticked' to update.",
                         severity="information",
                         timeout=10
                     )
 
             self.db.save_last_update_check()
-        except Exception:
+        except Exception as e:
+            # Log the error for debugging
+            print(f"Update check failed: {str(e)}")
             pass
 
     def get_spotify_client(self):
@@ -109,7 +116,7 @@ class Ticked(App):
 
     def on_mount(self) -> None:
         self.push_screen("home")
-        self.theme = "gruvbox"
+        # self.theme = "gruvbox"  # Remove or comment out this line
         self.run_worker(self.check_for_updates(), group="update_check")
 
     async def on_mouse_move(self, event: events.MouseMove) -> None:
@@ -144,7 +151,7 @@ class Ticked(App):
                 current_view = self.screen.query_one(".content").children[0]
                 if hasattr(current_view, 'get_initial_focus'):
                     initial_focus = current_view.get_initial_focus()
-                    if initial_focus:
+                    if (initial_focus):
                         initial_focus.focus()
         except Exception as e:
             self.notify(f"Error toggling menu: {str(e)}", severity="error")
