@@ -1,20 +1,18 @@
 import asyncio
+from asyncio import to_thread
 from typing import List, Dict
 import json
 from pathlib import Path
 from datetime import datetime
 from canvasapi import Canvas
-from textual.widgets import DataTable, Static, LoadingIndicator, Button, Input, RichLog, Markdown
+from textual.widgets import DataTable, Static, LoadingIndicator, Button, Input, Markdown
 from textual.containers import Vertical, Grid
 from textual.app import ComposeResult
-from textual.widget import Widget
+from textual.widget import Widget, NoMatches
 from textual.reactive import reactive
 from textual.message import Message
 from bs4 import BeautifulSoup
 import re
-
-from bs4 import BeautifulSoup
-from textual.widgets import Markdown
 
 class CanvasLoginMessage(Message):
     def __init__(self, url: str, token: str) -> None:
@@ -69,6 +67,7 @@ class CanvasLogin(Widget):
                 json.dump({"url": url, "token": token}, f)
         except Exception as e:
             self.notify(f"Failed to save credentials: {str(e)}", severity="error")
+
 
 class AnnouncementsList(Markdown):
     """
@@ -313,20 +312,35 @@ class CanvasView(Widget):
         return [], None
 
     async def _load_cached_data(self) -> None:
-        courses, _ = self._load_cache('courses')
-        todos, _ = self._load_cache('todos')
-        announcements, _ = self._load_cache('announcements')
-        
-        if courses:
-            self.query_one(CourseList).populate(courses)
-        if todos:
-            self.query_one(TodoList).populate(todos)
-        if announcements:
-            self.query_one(AnnouncementsList).populate(announcements)
+        try:
+            courses, courses_time = self._load_cache('courses')
+            todos, todos_time = self._load_cache('todos')
+            announcements, announcements_time = self._load_cache('announcements')
+            
+            if courses:
+                course_list = self.query_one("CourseList")  # Use string selector
+                if course_list:
+                    course_list.populate(courses)
+            if todos:
+                todo_list = self.query_one("TodoList")
+                if todo_list:
+                    todo_list.populate(todos)
+            if announcements:
+                announcements_list = self.query_one(AnnouncementsList)
+                if announcements_list:
+                    announcements_list.populate(announcements)
+                    
+        except Exception as e:
+            print(f"Error loading cached data: {e}")
+            self.notify(f"Error loading cached data: {e}", severity="error")
 
     async def load_data(self) -> None:
         try:
-            self.query_one(LoadingIndicator).styles.display = "block"
+            try:
+                self.query_one(LoadingIndicator).styles.display = "block"
+            except NoMatches:
+                pass
+
             
             # First load cached data
             await self._load_cached_data()
@@ -352,7 +366,11 @@ class CanvasView(Widget):
             self.notify(f"Error loading data: {str(e)}", severity="error")
             print(f"Canvas API Error: {str(e)}")
         finally:
-            self.query_one(LoadingIndicator).styles.display = "none"
+            try:
+                self.query_one(LoadingIndicator).styles.display = "block"
+            except NoMatches:
+                pass
+
 
     async def test_connection(self) -> bool:
         try:
@@ -366,7 +384,6 @@ class CanvasView(Widget):
     def compose(self) -> ComposeResult:
         yield CanvasLogin()
         with Grid(id="canvas-grid", classes="hidden"):
-            yield LoadingIndicator()
             with Vertical(id="left-panel"):
                 yield Static("Current Courses", classes="header")
                 yield CourseList()
@@ -375,6 +392,7 @@ class CanvasView(Widget):
             with Vertical(id="right-panel"):
                 yield Static("Recent Announcements", classes="headerA")
                 yield AnnouncementsList()
+                yield LoadingIndicator()
                 yield Button("Refresh", id="refresh")
 
     def on_mount(self) -> None:
@@ -398,7 +416,11 @@ class CanvasView(Widget):
             self.is_authenticated = True
             await self.load_data()
         else:
-            self.query_one(LoadingIndicator).styles.display = "none"
+            try:
+                self.query_one(LoadingIndicator).styles.display = "block"
+            except NoMatches:
+                pass
+
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "refresh":

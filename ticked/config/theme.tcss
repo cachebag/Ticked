@@ -128,7 +128,7 @@ CalendarGrid {
     height: 100%;    
 }
 
-.calendar-weekday, CalendarDayButton, .calendar-empty-day {
+.calendar-weekday, .calendar-empty-day {
     width: 1fr;
     height: 1fr;
     min-height: 3;
@@ -141,11 +141,9 @@ CalendarGrid {
 
 CalendarDayButton {
     background: $surface;
-    border: thick $surface-darken-2;   
+    border: thick $surface-darken-2;
     text-style: bold;
-    margin: 0;
-    padding: 0;
-    
+    padding: 1;
 }
 
 CalendarDayButton:hover {
@@ -1558,21 +1556,21 @@ Label {
 
 .week-day-column {
     width: 1fr;
-    height: 100%;
+    height: 65%;
     border: solid $secondary;
     padding: 1;
 }
 
 .week-day-column:hover {
     width: 1fr;
-    height: 100%;
+    height: 65%;
     border: solid $secondary;
     padding: 1;
 }
 
 .week-day-column:focus {
     width: 1fr;
-    height: 100%;
+    height: 150%;
     border: solid $secondary;
     padding: 1;
 }
