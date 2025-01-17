@@ -5,6 +5,7 @@ from textual.screen import ModalScreen
 from textual.widgets import DirectoryTree, Static, Button, TextArea, Input, Label
 from textual.binding import Binding
 from ...ui.mixins.focus_mixin import InitialFocusMixin
+import time
 from typing import Optional
 from textual.message import Message
 from rich.syntax import Syntax
@@ -230,6 +231,10 @@ class CodeEditor(TextArea):
         self.active_tab_index = -1
         self._last_scroll_position = (0, 0)
         self._last_cursor_position = (0, 0)
+        self.autopairs = {"{": "}", "(": ")", "[": "]", '"': '"', "'": "'"}
+        self._last_action_time = time.time()
+        self._undo_batch = []
+        self._batch_timeout = 0.3  # we can mess around with this for more or less granular state saving
 
     def _save_positions(self) -> None:
         self._last_scroll_position = self.scroll_offset
@@ -310,6 +315,24 @@ class CodeEditor(TextArea):
 
     def handle_indent(self) -> None:
         current_indent = self.get_current_indent()
+        lines = self.text.split('\n')
+        current_line = lines[self.cursor_location[0]] if lines else ""
+        cursor_col = self.cursor_location[1]
+        
+        # Check if cursor is between brackets
+        if cursor_col > 0 and cursor_col < len(current_line):
+            prev_char = current_line[cursor_col - 1]
+            next_char = current_line[cursor_col]
+            bracket_pairs = {'{': '}', '(': ')', '[': ']'}
+            
+            # If we're between matching brackets
+            if prev_char in bracket_pairs and next_char == bracket_pairs[prev_char]:
+                # Insert two newlines and position cursor in between
+                indent_level = current_indent + ' ' * self.tab_size
+                self.insert(f'\n{indent_level}\n{current_indent}')
+                # Move cursor up one line and to end of indent
+                self.move_cursor((self.cursor_location[0] - 1, len(indent_level)))
+                return
         
         if not current_indent and not self.text:
             self.insert('\n')
@@ -322,6 +345,40 @@ class CodeEditor(TextArea):
             self.insert('\n' + current_indent + ' ' * self.tab_size)
         else:
             self.insert('\n' + current_indent)
+
+    def handle_backspace(self) -> None:
+        if not self.text:
+            return
+                
+        cur_row, cur_col = self.cursor_location
+        lines = self.text.split('\n')
+        if cur_row >= len(lines):
+            return
+                
+        current_line = lines[cur_row]
+        
+        # Check for empty bracket pairs
+        if cur_col >= 1 and cur_col < len(current_line) + 1:
+            prev_char = current_line[cur_col - 1]
+            if prev_char in self.autopairs:
+                if cur_col < len(current_line) and current_line[cur_col] == self.autopairs[prev_char]:
+                    # Delete both brackets
+                    lines[cur_row] = current_line[:cur_col - 1] + current_line[cur_col + 1:]
+                    self.text = "\n".join(lines)
+                    self.move_cursor((cur_row, cur_col - 1))
+                    return
+                
+        if cur_col == 0 and cur_row > 0:
+            self.action_delete_left()
+            return
+                
+        prefix = current_line[:cur_col]
+        if prefix.isspace():
+            spaces_to_delete = min(self.tab_size, len(prefix.rstrip()) or len(prefix))
+            for _ in range(spaces_to_delete):
+                self.action_delete_left()
+        else:
+            self.action_delete_left()
 
     def on_key(self, event) -> None:
         if self.in_command_mode:
@@ -343,9 +400,11 @@ class CodeEditor(TextArea):
                 self.refresh()
                 event.prevent_default()
                 event.stop()
-            elif event.key == "backspace" and len(self.command) > 1:
-                self.command = self.command[:-1]
-                self.refresh()
+            elif event.key == "backspace":
+                self._save_undo_state()
+                self.handle_backspace()
+                self._modified = True
+                self.post_message(self.FileModified(True))
                 event.prevent_default()
                 event.stop()
             self.status_bar.update_mode("COMMAND")
@@ -363,14 +422,20 @@ class CodeEditor(TextArea):
                 elif event.is_printable:
                     self.cursor_type = "line"
                     self._save_undo_state()
-                    self.insert(event.character)
+                    if event.character in self.autopairs:
+                        cur_pos = self.cursor_location
+                        self.insert(event.character + self.autopairs[event.character])
+                        self.move_cursor((cur_pos[0], cur_pos[1] + 1))
+
+                    else:
+                        self.insert(event.character)
                     self._modified = True
                     self.post_message(self.FileModified(True))
                     event.prevent_default()
                     event.stop()
                 elif event.key == "backspace":
                     self._save_undo_state()
-                    self.action_delete_left()
+                    self.handle_backspace()
                     self._modified = True
                     self.post_message(self.FileModified(True))
                     event.prevent_default()
@@ -378,7 +443,14 @@ class CodeEditor(TextArea):
                 elif event.key in ["left", "right", "up", "down"]:
                     return
             elif self.mode == "normal":
-                if event.key == "u":
+                if event.key == "backspace":
+                    self._save_undo_state()
+                    self.handle_backspace()
+                    self._modified = True
+                    self.post_message(self.FileModified(True))
+                    event.prevent_default()
+                    event.stop()
+                elif event.key == "u":
                     self.action_undo()
                     event.prevent_default()
                     event.stop()
@@ -644,7 +716,6 @@ class CodeEditor(TextArea):
             self._modified = True
             self.post_message(self.FileModified(True))
             
-            # Update current tab content
             if self.tabs and self.active_tab_index >= 0:
                 self.tabs[self.active_tab_index].content = new_text
                 self.tabs[self.active_tab_index].modified = True
@@ -708,12 +779,13 @@ class CodeEditor(TextArea):
 
     def action_undo(self) -> None:
         if self.mode == "normal" and self._undo_stack:
-            self._save_positions()  # Save positions before undo
+            self._save_positions()
             self._is_undoing = True
             self._redo_stack.append(self.text)
             self.text = self._undo_stack.pop()
+            self._undo_batch = []  
             self._is_undoing = False
-            self._restore_positions()  # Restore positions after undo
+            self._restore_positions()
 
     def action_redo(self) -> None:
         if self.mode == "normal" and self._redo_stack:
@@ -778,8 +850,16 @@ class CodeEditor(TextArea):
 
     def _save_undo_state(self) -> None:
         if not self._is_undoing:
-            self._undo_stack.append(self.text)
-            self._redo_stack.clear()
+            current_time = time.time()
+            if current_time - self._last_action_time > self._batch_timeout:
+                if self._undo_batch:
+                    self._undo_stack.append(self._undo_batch[-1])
+                    self._undo_batch = []
+                self._undo_stack.append(self.text)
+                self._redo_stack.clear()
+            else:
+                self._undo_batch = [self.text]
+            self._last_action_time = current_time
 
     async def action_new_file(self) -> None:
         try:
