@@ -86,3 +86,4 @@ vobject
 x-wr-timezone
 xdg-base-dirs
 yarl
+bs4
