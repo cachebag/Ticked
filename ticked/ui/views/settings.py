@@ -25,6 +25,7 @@ class ThemeButton(Button):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         event.stop()
         self.app.theme = self.theme_name
+        self.app.db.save_theme_preference(self.theme_name)
 
 class PersonalizationContent(Container):
     def compose(self) -> ComposeResult:

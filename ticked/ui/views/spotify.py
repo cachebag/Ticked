@@ -1,6 +1,7 @@
 from textual.app import ComposeResult
-from textual.containers import Container, Horizontal, ScrollableContainer
+from textual.containers import Container, Horizontal, ScrollableContainer, Vertical
 from textual.widgets import Button, Static, Input
+from textual.widget import Widget
 from textual import work
 from textual.worker import get_current_worker
 import asyncio
@@ -11,20 +12,54 @@ from datetime import datetime, timedelta
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 import webbrowser
-from dotenv import load_dotenv
-import os
 import threading
-from .spotify_auth import start_auth_server, SpotifyCallbackHandler
+from http.server import HTTPServer, BaseHTTPRequestHandler
+import urllib.parse
+from pathlib import Path
+import json
 
-load_dotenv()
+class SpotifyCallbackHandler(BaseHTTPRequestHandler):
+    callback_received = False
+    auth_code = None
+
+    def do_GET(self):
+        if '/callback' in self.path:
+            query_components = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            SpotifyCallbackHandler.auth_code = query_components.get('code', [None])[0]
+            SpotifyCallbackHandler.callback_received = True
+            self.send_response(200)
+            self.send_header('Content-type', 'text/html')
+            self.end_headers()
+            self.wfile.write(b"Authentication successful! You can close this window.")
+            threading.Thread(target=self.server.shutdown).start()
+
+def start_auth_server():
+    server = HTTPServer(('localhost', 8888), SpotifyCallbackHandler)
+    server.serve_forever()
+
+def load_spotify_credentials():
+    config_path = Path.home() / ".spotify_config.json"
+    if config_path.exists():
+        try:
+            with open(config_path, "r") as f:
+                data = json.load(f)
+                return data.get("client_id", ""), data.get("client_secret", "")
+        except:
+            return "", ""
+    return "", ""
+
+def save_spotify_credentials(client_id: str, client_secret: str) -> None:
+    config_path = Path.home() / ".spotify_config.json"
+    with open(config_path, "w") as f:
+        json.dump({"client_id": client_id, "client_secret": client_secret}, f)
 
 class SpotifyAuth:
     def __init__(self, db: CalendarDB):
         self.db = db
-        self.client_id = os.getenv("SPOTIFY_CLIENT_ID")
-        self.client_secret = os.getenv("SPOTIFY_CLIENT_SECRET")
-        self.redirect_uri = os.getenv("SPOTIFY_REDIRECT_URI", "http://localhost:8888/callback")
-        
+        client_id, client_secret = load_spotify_credentials()
+        self.client_id = client_id
+        self.client_secret = client_secret
+        self.redirect_uri = "http://localhost:8888/callback"
         self.scope = " ".join([
             "user-library-read",
             "playlist-read-private",
@@ -40,15 +75,18 @@ class SpotifyAuth:
             "playlist-read-collaborative"
         ])
         
-        self.sp_oauth = SpotifyOAuth(
-            client_id=self.client_id,
-            client_secret=self.client_secret,
-            redirect_uri=self.redirect_uri,
-            scope=self.scope
-        )
-        
-        self.spotify_client = None
-        self._try_restore_session()
+        if self.client_id and self.client_secret:
+            self.sp_oauth = SpotifyOAuth(
+                client_id=self.client_id,
+                client_secret=self.client_secret,
+                redirect_uri=self.redirect_uri,
+                scope=self.scope
+            )
+            self.spotify_client = None
+            self._try_restore_session()
+        else:
+            self.sp_oauth = None
+            self.spotify_client = None
     
     def _try_restore_session(self) -> bool:
         stored_tokens = self.db.get_spotify_tokens()
@@ -101,6 +139,39 @@ class SpotifyAuth:
                 print(f"Authentication error: {e}")
                 return False
         return False
+
+class SpotifyLoginMessage(Message):
+    def __init__(self, client_id: str, client_secret: str) -> None:
+        self.client_id = client_id
+        self.client_secret = client_secret
+        super().__init__()
+
+class SpotifyLogin(Widget):
+    def compose(self) -> ComposeResult:
+        client_id, client_secret = load_spotify_credentials()
+        yield Vertical(
+            Static("Spotify Login", classes="headerS"),
+            Static("Enter your Spotify Client ID and Secret to connect.", classes="description"),
+            Input(placeholder="Client ID", id="client_id", value=client_id),
+            Input(placeholder="Client Secret", id="client_secret", password=True, value=client_secret),
+            Static("How to get your Spotify credentials:", classes="help1"),
+            Static("1. Go to https://developer.spotify.com/dashboard", classes="help"),
+            Static("2. Log in and create a new app", classes="help"),
+            Static("3. Go to your Dashboard, then your settings, and copy the Client ID and Client Secret", classes="help"),
+            Static("4. In the settings of your App, add http://localhost:8888/callback to Redirect URIs", classes="help"),
+            Button("Connect", variant="primary", id="login"),
+            classes="login-container"
+        )
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "login":
+            client_id = self.query_one("#client_id", Input)
+            client_secret = self.query_one("#client_secret", Input)
+            if client_id.value and client_secret.value:
+                save_spotify_credentials(client_id.value, client_secret.value)
+                self.post_message(SpotifyLoginMessage(client_id.value, client_secret.value))
+            else:
+                self.notify("Please enter both Client ID and Secret", severity="error")
 
 class SpotifyPlayer(Container):
     def notify_current_track(self, spotify_client):
@@ -178,7 +249,7 @@ class SpotifyPlayer(Container):
         except Exception as e:
             print(f"Player error: {str(e)}")
             self.notify("Error controlling playback", severity="error")
-            
+
 class PlaylistItem(Static):
     class Selected(Message):
         def __init__(self, playlist_id: str) -> None:
@@ -204,7 +275,6 @@ class SearchBar(Container):
             Input(placeholder="Search tracks and playlists...", classes="search-input"),
             classes="search-container"
         )
-
 
 class SearchResult(Static):
     class Selected(Message):
@@ -378,9 +448,11 @@ class SearchView(Container):
             ),
             classes="search-results-area"
         )
+
     def on_mount(self) -> None:
         self._search_id = 0
         self._current_worker = None
+
     def on_input_changed(self, event: Input.Changed) -> None:
         query = event.value.strip()
 
@@ -390,8 +462,8 @@ class SearchView(Container):
                 results_container.remove_children()
             return
         self._search_id += 1
-
         self.run_search(query, self._search_id)
+
     @work
     async def run_search(self, query: str, search_id: int) -> None:
         await asyncio.sleep(0.5)
@@ -455,15 +527,10 @@ class MainContent(Container):
         )
 
     def on_mount(self) -> None:
-        print("MainContent mounted")
         if self.app.get_spotify_client():
-            print("Spotify client found, loading recent tracks")
             recently_played = self.query_one(RecentlyPlayedView)
             if recently_played:
-                print("Found RecentlyPlayedView, loading tracks...")
                 recently_played.load_recent_tracks(self.app.get_spotify_client())
-            else:
-                print("Failed to find RecentlyPlayedView")
 
 class SpotifyView(Container):
     BINDINGS = [
@@ -486,7 +553,10 @@ class SpotifyView(Container):
             library_section.load_playlists(self.auth.spotify_client)
     
     def compose(self) -> ComposeResult:
-        yield SpotifyPlayer()
+        if not self.auth.spotify_client:
+            yield SpotifyLogin()
+        else:
+            yield SpotifyPlayer()
         yield Container(
             Static(f"Spotify - {'Connected 🟢' if self.auth.spotify_client else 'Not Connected 🔴'}", id="status-bar-title", classes="status-item"),
             classes="status-bar"
@@ -529,6 +599,40 @@ class SpotifyView(Container):
             token_info = self.auth.sp_oauth.get_access_token(SpotifyCallbackHandler.auth_code)
             if token_info:
                 self.auth.spotify_client = spotipy.Spotify(auth=token_info["access_token"])
+                
+                # Remove SpotifyLogin and mount the new UI components
+                login_widget = self.query_one(SpotifyLogin)
+                if login_widget:
+                    login_widget.remove()
+                
+                # Mount the player and new container structure
+                self.mount(SpotifyPlayer())
+                self.mount(Container(
+                    Static("Spotify - Connected 🟢", id="status-bar-title", classes="status-item"),
+                    classes="status-bar"
+                ))
+                self.mount(Container(
+                    Container(
+                        Container(
+                            LibrarySection(),
+                            classes="playlists-section"
+                        ),
+                        Container(
+                            Static("Instructions", classes="section-title"),
+                            Static("CTRL+R: Refresh", classes="instruction-item"),
+                            Static("Space: Play/Pause", classes="instruction-item"),
+                            Button("Authenticate Spotify", id="auth-btn", variant="primary", classes="connect-spotify-button"),
+                            classes="instructions-section"
+                        ),
+                        classes="sidebar"
+                    ),
+                    Container(
+                        MainContent(),
+                        classes="main-content"
+                    ),
+                    classes="spotify-container"
+                ))
+
                 library_section = self.query_one(LibrarySection)
                 library_section.load_playlists(self.auth.spotify_client)
                 
@@ -538,13 +642,12 @@ class SpotifyView(Container):
                     recently_played.load_recent_tracks(self.auth.spotify_client)
                     
                 self.notify("Successfully connected to Spotify!")
-                status_bar = self.query_one("#status-bar-title")
-                status_bar.update("Spotify - Connected 🟢")
             else:
                 self.notify("Failed to authenticate with Spotify", severity="error")
                 status_bar = self.query_one("#status-bar-title")
                 status_bar.update("Spotify - Not Connected 🔴")
-        except:
+        except Exception as e:
+            print(f"Authentication error: {str(e)}")
             self.notify("Failed to authenticate with Spotify", severity="error")
             status_bar = self.query_one("#status-bar-title")
             status_bar.update("Spotify - Not Connected 🔴")
@@ -708,3 +811,8 @@ class SpotifyView(Container):
             recently_played = main_content.query_one(RecentlyPlayedView)
             if recently_played:
                 recently_played.load_recent_tracks(self.auth.spotify_client)
+
+    def on_spotify_login_message(self, message: SpotifyLoginMessage) -> None:
+        save_spotify_credentials(message.client_id, message.client_secret)
+        self.auth = SpotifyAuth(self.app.db)
+        self.action_authenticate()
