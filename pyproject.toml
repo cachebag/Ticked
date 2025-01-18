@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ticked"
-version = "0.1.9"
+version = "0.2.0"
 description = "A terminal-based task management and productivity tool."
 readme = "README.md"
 requires-python = ">=3.8"
@@ -113,7 +113,8 @@ dependencies = [
     "vobject",
     "x-wr-timezone",
     "xdg-base-dirs",
-    "yarl"
+    "yarl",
+    "bs4"
 ]
 
 [project.urls]
