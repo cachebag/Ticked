@@ -1,5 +1,5 @@
 include LICENSE
 include README.md
 include requirements.txt
+recursive-exclude docs *
 recursive-include src/config *.tcss
-recursive-include docs *
