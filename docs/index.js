@@ -1,4 +1,3 @@
-// Documentation content structure
 const docs = {
     sections: [
         {
@@ -12,7 +11,7 @@ const docs = {
                 },
                 { 
                     id: 'quick-start', 
-                    title: 'Setup and Spotify Access', 
+                    title: 'Setup', 
                     type: 'markdown',
                     path: 'quick-start.md'
                 }
@@ -28,10 +27,22 @@ const docs = {
                     path: 'task.md'
                 },
                 { 
-                    id: 'advanced', 
+                    id: 'nest', 
                     title: 'NEST+',
                     type: 'markdown',
                     path: 'nest.md'
+                },
+                { 
+                    id: 'canvas', 
+                    title: 'Canvas LMS',
+                    type: 'markdown',
+                    path: 'canvas.md'
+                },
+                { 
+                    id: 'spotify', 
+                    title: 'Spotify',
+                    type: 'markdown',
+                    path: 'spotify.md'
                 },
                 {
                     id: 'dev',
@@ -44,7 +55,6 @@ const docs = {
     ]
 };
 
-// Initialize marked with options
 marked.setOptions({
     highlight: function(code, lang) {
         return hljs.highlightAuto(code).value;
@@ -52,32 +62,26 @@ marked.setOptions({
     breaks: true
 });
 
-// Theme management
 const themeManager = {
     init() {
-        // Get theme button
         const themeButton = document.getElementById('theme-switch');
         if (!themeButton) {
             console.error('Theme button not found');
             return;
         }
 
-        // Check for saved theme preference or system preference
         const savedTheme = localStorage.getItem('theme');
         const prefersDark = window.matchMedia('(prefers-color-scheme: dark)');
         const defaultTheme = savedTheme || (prefersDark.matches ? 'dark' : 'light');
         
-        // Initial theme setup
         this.setTheme(defaultTheme);
 
-        // Add system theme change listener
         prefersDark.addEventListener('change', (e) => {
             if (!localStorage.getItem('theme')) {
                 this.setTheme(e.matches ? 'dark' : 'light');
             }
         });
 
-        // Add click event listener directly in init
         themeButton.addEventListener('click', () => {
             const currentTheme = document.body.getAttribute('data-theme') || 'light';
             const newTheme = currentTheme === 'light' ? 'dark' : 'light';
@@ -86,11 +90,8 @@ const themeManager = {
     },
 
     setTheme(theme) {
-        // Set theme on body
         document.body.setAttribute('data-theme', theme);
-        // Save to localStorage
         localStorage.setItem('theme', theme);
-        // Update button appearance
         const button = document.getElementById('theme-switch');
         if (button) {
             button.textContent = theme === 'dark' ? '☀️' : '🌙';
@@ -99,10 +100,9 @@ const themeManager = {
     }
 };
 
-// Build sidebar navigation
 function buildNavigation() {
     const nav = document.getElementById('sidebar-nav');
-    nav.innerHTML = ''; // Clear existing navigation
+    nav.innerHTML = '';
     
     docs.sections.forEach(section => {
         const sectionEl = document.createElement('div');
@@ -125,7 +125,7 @@ function buildNavigation() {
             a.textContent = item.title;
             a.onclick = (e) => {
                 e.preventDefault();
-                loadPage(item.id);
+                navigateToPage(item.id);
                 updateActiveLink(a);
                 if (window.innerWidth <= 768) {
                     toggleSidebar();
@@ -142,7 +142,6 @@ function buildNavigation() {
     });
 }
 
-// Update active link in sidebar
 function updateActiveLink(clickedLink) {
     document.querySelectorAll('.nav-link').forEach(link => {
         link.classList.remove('active');
@@ -150,28 +149,24 @@ function updateActiveLink(clickedLink) {
     clickedLink.classList.add('active');
 }
 
-// Add this function to store current page
 function saveCurrentPage(pageId) {
     localStorage.setItem('currentPage', pageId);
 }
 
-// Load page content
-async function loadPage(pageId) {
-    // Always scroll to top first
-    window.scrollTo(0, 0);
-    
+async function loadPage(pageId, shouldScroll = false) {
     const page = docs.sections
         .flatMap(section => section.items)
         .find(item => item.id === pageId);
     
     if (!page) {
-        loadPage('introduction');
+        if (pageId !== 'introduction') {
+            navigateToPage('introduction');
+        }
         return;
     }
     
     saveCurrentPage(pageId);
     
-    // Update page title
     const pageTitleElement = document.getElementById('current-page-title');
     if (pageTitleElement) {
         pageTitleElement.textContent = page.title;
@@ -189,19 +184,16 @@ async function loadPage(pageId) {
             content = page.content;
         }
 
-        // Configure marked options
         marked.setOptions({
             breaks: true,
             headerIds: true,
             gfm: true
         });
 
-        // Render the content
         const docContent = document.getElementById('doc-content');
         docContent.innerHTML = marked.parse(content);
         docContent.classList.add('doc-content');
         
-        // Style headers
         document.querySelectorAll('.doc-content h1, .doc-content h2, .doc-content h3, .doc-content h4')
             .forEach(header => {
                 header.style.display = 'inline-block';
@@ -212,12 +204,27 @@ async function loadPage(pageId) {
         highlightCode();
         updateSectionNav();
         
-        // Update URL without triggering scroll
-        history.pushState(null, '', `#${pageId}`);
+        if (shouldScroll) {
+            window.scrollTo(0, 0);
+        }
+
+        const hash = window.location.hash.slice(1);
+        if (hash) {
+            const element = document.getElementById(hash);
+            if (element) {
+                element.scrollIntoView();
+            }
+        }
+
+        // Update the active link in the sidebar
+        const sidebarLink = document.querySelector(`.nav-link[href="#${pageId}"]`);
+        if (sidebarLink) {
+            updateActiveLink(sidebarLink);
+        }
     } catch (error) {
         console.error('Error loading page:', error);
         if (pageId !== 'introduction') {
-            loadPage('introduction');
+            navigateToPage('introduction');
         } else {
             document.getElementById('doc-content').innerHTML = `
                 <h1>Error Loading Page</h1>
@@ -227,58 +234,22 @@ async function loadPage(pageId) {
     }
 }
 
-// Update URL without page reload
-function updateUrl(pageId) {
-    history.pushState(null, '', `#${pageId}`);
+function navigateToPage(pageId) {
+    const newUrl = `#${pageId}`;
+    history.pushState({ pageId }, '', newUrl);
+    loadPage(pageId, true);
 }
 
-// Highlight code blocks
 function highlightCode() {
     document.querySelectorAll('pre code').forEach(block => {
         hljs.highlightBlock(block);
     });
 }
 
-// Toggle sidebar on mobile
 function toggleSidebar() {
     document.querySelector('.sidebar').classList.toggle('active');
 }
 
-// Initialize
-document.addEventListener('DOMContentLoaded', () => {
-    themeManager.init();
-    buildNavigation();
-    
-    // Check if this is the first visit to the site
-    const hasVisited = localStorage.getItem('hasVisited');
-    
-    if (!hasVisited) {
-        // First visit - load intro and set visited flag
-        localStorage.setItem('hasVisited', 'true');
-        loadPage('introduction');
-    } else {
-        // Return visitor - load page based on hash or stored page
-        const pageId = window.location.hash.slice(1) || 
-                      localStorage.getItem('currentPage') || 
-                      'introduction';
-        loadPage(pageId);
-    }
-    
-    // Rest of initialization code
-    const menuToggle = document.getElementById('menu-toggle');
-    if (menuToggle) {
-        menuToggle.addEventListener('click', toggleSidebar);
-    }
-    
-    // Always load introduction page on back/forward navigation
-    window.addEventListener('popstate', () => {
-        loadPage('introduction');
-    });
-
-    window.addEventListener('load', initScrollSpy);
-});
-
-// Extract and display section headings
 function updateSectionNav() {
     const sectionNav = document.getElementById('section-nav');
     const headings = document.querySelectorAll('#doc-content h1, #doc-content h2');
@@ -300,11 +271,9 @@ function updateSectionNav() {
                 block: 'start'
             });
             updateActiveSectionLink(a);
-            // Update URL hash without triggering scroll
             history.pushState(null, null, `#${id}`);
         };
         
-        // Add indent for h2
         if (heading.tagName === 'H2') {
             a.style.paddingLeft = '1rem';
         }
@@ -321,7 +290,6 @@ function updateActiveSectionLink(clickedLink) {
     if (clickedLink) clickedLink.classList.add('active');
 }
 
-// Add scroll spy functionality
 function initScrollSpy() {
     const observer = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
@@ -337,3 +305,37 @@ function initScrollSpy() {
         observer.observe(heading);
     });
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+    themeManager.init();
+    buildNavigation();
+    
+    const pageId = window.location.hash.slice(1);
+    
+    if (!pageId) {
+        const lastPage = localStorage.getItem('currentPage');
+        if (lastPage) {
+            navigateToPage(lastPage);
+        } else {
+            navigateToPage('introduction');
+        }
+    } else {
+        loadPage(pageId);
+    }
+    
+    const menuToggle = document.getElementById('menu-toggle');
+    if (menuToggle) {
+        menuToggle.addEventListener('click', toggleSidebar);
+    }
+    
+    window.addEventListener('popstate', (event) => {
+        if (event.state && event.state.pageId) {
+            loadPage(event.state.pageId);
+        } else {
+            const pageId = window.location.hash.slice(1) || 'introduction';
+            loadPage(pageId);
+        }
+    });
+
+    window.addEventListener('load', initScrollSpy);
+});

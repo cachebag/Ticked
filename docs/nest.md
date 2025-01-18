@@ -1,11 +1,11 @@
 # NEST+ 
 <br>
 
-NEST+ is the bread and butter of Ticked. My goal with it is to create a central environment for STEM students in particular to handle all of the things they typically do in 3 different platforms and place them into one place.
+NEST+ is the bread and butter of Ticked. It's built from the ground up, with many of the features being inspired by Vim. The goal is to implement the most useful plugins and features while still giving a decent amount of control and customization to the user. 
 
 <br>
 
-Most aren't familiar with code editors like Vim, which is okay. The idea is that for those who are especially interested in communicating with their terminal and learning skills, such as vim, this will be a place to do that in a bit more of a friendly fashion.
+Most aren't familiar with code editors like Vim, which is okay. The idea is that for those who are especially interested in communicating with their terminal and learning skills, such as Vim, this will be a place to do that in a bit more of a friendly and straightforward fashion.
 
 ##  Navigating NEST+
 
@@ -35,11 +35,11 @@ In general, you will navigate between your file navigator and code editor using 
 
 <img src="./images/ss21.png" alt="Screenshot of Tick interface" width="800">
 
-- You can select where to save your newly created file.
+- You can select where to save your newly created file and it will automatically open in a new tab..
 
 <br>
 
-There will be future support for deleting files, in addition to creating/deleting folders as well. 
+*There will be future support for deleting files, in addition to creating/deleting folders as well.* 
 
 
 # Using the code editor
@@ -65,13 +65,17 @@ When inside the code editor, the following features are currently supported, tho
         - `w`: go forward to the next word
         - `b`: go back to the previous word
         - `u`: undo
-        - `ctrl+r`
-    - Commands | To begin using a command, press `Esc` to enter `NORMAL` mode. `:` is the prefix for commands
+        - `ctrl+r`: redo
+    - Commands - To begin using a command, press `Esc` to enter `NORMAL` mode. `:` is the prefix for commands
         - `%d`: Delete everything in current file
-        - `w`: Save file
+        - `w`: Save file | `wq`: Save and quit
+        - `q`: Quit current file | `!q`: Force quit without saving
+        - `bn` and `n`: Navigate to the next buffer
+        - `bp` and `p`: Navigate to the previous buffer
+        - `ls`: Show all current buffers
 - To use either the commands or the motions, you must be in `NORMAL` mode, triggered by pressing `Esc` when in the code editor. Pressing `i` will take you into `INSERT` mode where you can type like normal. 
 
-- There is a vim-like status bar at the bottom of the editor to indicate file write info, command snippets as well as the current mode you are in.
+- There is a vim-like status bar at the bottom of the editor to indicate file write info, command snippets as well as the current mode you are in and your buffer info.
 
 <br>
 
@@ -79,14 +83,30 @@ When inside the code editor, the following features are currently supported, tho
 
 <br>
 
-Future support will include a breadth of vim-esque features and hopefully plugins as well to allow for things that make our lives easier such as auto-indentation/folding, auto-pairs(for bracks, parentheses, etc.) and auto-completion
+- To open multiple files, simply select any from the Navigation tree and they will automatically open up in buffers within the code editor.
+
+- To close buffers, reference the commands above. Typically, it will be just like it is in Vim; `:q`, `q!`, or`:wq`.
 
 <br>
 
-Keep an eye on the [GitHub releases](https://github.com/cachebag/Ticked/releases) and my [Reddit account](https://www.reddit.com/user/cachebags/submitted/) to find out when NEST+ is udpated.
+# Code editing features
+
+There are currently a couple of built in features to enhance the code editing experience in NEST+.
+
+- Autopair
+
+<img src="./images/autopair.gif" alt="Autopair GIF" width="800" />
+
+- Auto indent
+
+<img src="./images/autoindent.gif" alt="Autoindent GIF" width="800" />
+
+I plan on implementing Autocomplete in the near future along with some more motions to create a better code editing experience. If anyone has any suggestions, please feel free to propose changes on the codebase. I'm very open to approaching this in another way if it will help the user experience.
+
+Keep an eye on the [GitHub releases](https://github.com/cachebag/Ticked/releases) and my [Reddit account](https://www.reddit.com/user/cachebags/submitted/) to find out when NEST+ gets updated.
 
 <div align="right">
-<a href="#dev" onclick="event.preventDefault(); loadPage('dev');">
-    <kbd>Next: Development Guide →</kbd>
+<a href="#canvas" onclick="event.preventDefault(); loadPage('canvas');">
+    <kbd>Next: Canvas LMS →</kbd>
 </a>
 </div>

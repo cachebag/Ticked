@@ -3,15 +3,19 @@
 
 ##  Creating a task and the "Day View"
 
-The Calendar treats each individual day as a place for tasks to be stored and managed, notes and a future feature not currently implemented
+The Calendar treats each individual day as a place for tasks to be stored and managed, notes and a future feature not currently implemented. You can also toggle the Calendar to show a 7-day view, or a full month view via the button on the top left.
 
 <br>
 
 <img src="./images/ss9.png" alt="Screenshot of Tick interface" width="800">
 
+<img src="./images/ss30.png" alt="Screenshot of Tick interface" width="800">
+
 <br> 
 
-- Create a task, set a time and a short (or long) description about what needs to be done or some quick reminders.
+- Click on a day, and create a task, set a time and a short (or long) description about what needs to be done or some quick reminders.
+
+- Set a time or set the task to be an "All Day" event.
 
 <img src="./images/ss10.png" alt="Screenshot of Tick interface" width="800">
 
@@ -42,7 +46,7 @@ The notes section will support Markdown formatting in the future. For now, you c
 
 
 
-# Task indictators and insights 
+# Task indicators and insights  
 
 ## Task status tracking
 
@@ -50,7 +54,7 @@ The notes section will support Markdown formatting in the future. For now, you c
     - Total number of tasks finished in a month
     - Total number of completed tasks
     - Total number of incomplete tasks
-And then, a calculation is made based off of the completion % of all tasks within a month, and you are given a "grade" to help give you an idea of what you've comitted to and what you didn't. 
+And then, a calculation is made based off of the completion % of all tasks within a month, and you are given a "grade" to help give you an idea of what you've committed to and what you didn't. 
 
 <br>
 
@@ -85,12 +89,6 @@ This page can also be controlled with your up, down, left and right arrow keys. 
 <br>
 
 Pressing `Tab` however, will toggle the 7 day and 30 day views in your upcoming tasks.
-
-<div align="right">
-<a href="#nest" onclick="event.preventDefault(); loadPage('advanced');">
-    <kbd>Next: NEST+ →</kbd>
-</a>
-</div>
 
 # CALDAV Calendar Syncing
 
@@ -142,7 +140,7 @@ To get this setup, I'll quickly go over an example using iCloud syncing.
 
 <br>
 
-8. Click "Test" and you should receive a notification that it was succesful 
+8. Click "Test" and you should receive a notification that it was successful
     - If you are failing to connect, make sure the password is correct, and that you placed your email into the username input
 
 <br>
@@ -162,9 +160,13 @@ To get this setup, I'll quickly go over an example using iCloud syncing.
 
 <br>
 
------
+<div align="right">
+<a href="#nest" onclick="event.preventDefault(); loadPage('advanced');">
+    <kbd>Next: NEST+ →</kbd>
+</a>
+</div>  
 
-<br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br>
+-----
 
 
 

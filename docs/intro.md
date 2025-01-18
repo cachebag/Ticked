@@ -1,5 +1,8 @@
+
+<img src="./images/intro.png" alt="Screenshot of Tick interface" width="800">
+
 # Ticked 
-![License](https://img.shields.io/badge/license-MIT-blue) ![Unreleased](https://img.shields.io/badge/beta-pre%20release-yellow)![Version](https://img.shields.io/badge/version-%200.1.5-orange)
+![License](https://img.shields.io/badge/license-MIT-blue) ![Unreleased](https://img.shields.io/badge/beta-pre%20release-yellow)![Version](https://img.shields.io/badge/version-%200.2.0-orange)
 
        
 ## A terminal-based productivity suite built over [Textual](https://textual.textualize.io), designed for STEM students who need a focused work environment.
@@ -7,17 +10,17 @@
 
 ## Motivation
 
-Most productivity applications offer too few features, leaving critical gaps for what I expect out of a productivity manager. Ticked aims to provide essential tools - task management, a pomodoro timer, Spotify integration, and note-taking/code-editing capabilities - in a single, distraction-free terminal interface.
+Most productivity applications offer too few features, leaving critical gaps for what I expect out of a productivity manager. Ticked aims to provide essential tools for students and professionals alike- task management, Spotify integration, Canvas LMS, and note-taking/code-editing capabilities - in a single, distraction-free terminal interface.
 
 I've explored numerous applications offering similar functionality, but they often fall short in two ways: many were created primarily as programming exercises rather than serious tools, and none of them are maintained. Ticked aims to be different - it's built with a clear purpose and a commitment to long-term development and support.
 
 ## Core Features
 
-- Task Management with detailed insights and customization options
-- Pomodoro Timer with the ability to set your own settings
-- Spotify Integration via Spotipy and their Web API (Premium users only, see Spotify section for more info)
-- Note-taking & Code Editing - Syntax highlighting, vim motions, autocomplete, and more features on the horizon
-- Terminal-based Interface - All ran in your terminal without the need for credentials. All database data is held locally on your machine.
+- **Task Management with detailed insights,** fleshed out Todo tracking, and ability to sync calendars over from iCloud, Google, Outlook and more
+- **Spotify Integration** with playlist import, search functionality and playback control
+- **Note-taking & Code Editing via NEST+** - Syntax highlighting, Vim motions, autopair/indent/complete, and more
+- **Canvas LMS System** with course list sync, grade view and metrics, upcoming assignment control and recent announcements via a Markdown viewer
+- **Terminal-based Interface** - All ran in your terminal without the need for credentials or a bloated account system. All database data is held locally on your machine, and can easily be sent to other devices to provide a multi-device experience.
 
 ## Technical Background
 
@@ -29,18 +32,13 @@ Please read the <a href="#dev" onclick="event.preventDefault(); loadPage('dev');
 
 ## Documentation
 
-For detailed information on installation, usage, and contribution guidelines, please refer to our documentation sections on the left.
+For detailed information on installation, usage, and contribution guidelines, feel free to start exploring Ticked's features by moving on to the setup page!
 
 <div align="right">
 <a href="#quick-start" onclick="event.preventDefault(); loadPage('quick-start');">
-    <kbd>Next: Setup and Spotify Access →</kbd>
+    <kbd>Next: Setup→</kbd>
 </a>
 </div>
 
 --------
 ---------
-
-Akrm Al-Hakimi
-Data Engineer @ Cummins Inc.
-alhakimiakrmj@gmail.com
-
