@@ -65,3 +65,5 @@ poetry.lock
 .AppleDouble
 .LSOverride
 quotes_cache.json
+docs/images/autoindent.gif
+docs/images/autopair.gif
