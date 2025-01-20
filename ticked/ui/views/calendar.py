@@ -8,8 +8,9 @@ import calendar
 from ...widgets.task_widget import Task
 from textual.binding import Binding
 from ...core.database.ticked_db import CalendarDB
+from ...core.database.github_sync import GithubSync
 from ...core.database.caldav_sync import CalDAVSync
-from .calendar_setup import CalendarSetupScreen
+from .calendar_setup import CalendarSetupScreen, GithubSetupScreen
 from typing import Optional
 from textual.widget import Widget
 from ...utils.time_utils import convert_to_12hour, convert_to_24hour, generate_time_options
@@ -224,7 +225,9 @@ class CalendarView(Container):
         Binding("right", "move_right", "Right", show=True),
         Binding("ctrl+y", "sync_calendar", "Sync Calendar"),
         Binding("ctrl+s", "open_settings", "Calendar Settings"),
+        Binding("ctrl+shift+s", "github_settings", "GitHub Settings"),
         Binding("ctrl+v", "toggle_view", "Toggle View"),
+        Binding("ctrl+g", "sync_with_github", "Sync Calendar"), 
     ]
 
     def compose(self) -> ComposeResult:
@@ -256,6 +259,10 @@ class CalendarView(Container):
 
     async def action_open_settings(self) -> None:
         setup_screen = CalendarSetupScreen()
+        await self.app.push_screen(setup_screen)
+
+    async def action_github_settings(self) -> None:
+        setup_screen = GithubSetupScreen()
         await self.app.push_screen(setup_screen)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
@@ -512,6 +519,26 @@ class TaskForm(ModalScreen):
                 with Horizontal(classes="form-buttons"):
                     yield Button("Cancel", variant="error", id="cancel")
                     yield Button("Add Task", variant="success", id="submit")
+
+    async def action_sync_with_github(self) -> None:
+        token = self.app.db.get_github_token()
+        if not token:
+            self.notify("Please add your GitHub token in settings first", severity="error")
+            return
+
+        sync = GithubSync(self.app.db.db_path)
+        sync.set_token(token)
+        
+        try:
+            gist_id = self.app.db.get_gist_id()
+            if gist_id:
+                gist_id, _ = sync.create_or_update_gist(gist_id)
+            else:
+                gist_id, _ = sync.create_or_update_gist()
+                self.app.db.save_gist_id(gist_id)
+            self.notify("Calendar synced successfully!", severity="information")
+        except Exception as e:
+            self.notify(f"Sync failed: {str(e)}", severity="error")
 
     @on(Switch.Changed, "#all-day")
     def handle_all_day_toggle(self, event: Switch.Changed) -> None:

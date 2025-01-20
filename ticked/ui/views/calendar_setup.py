@@ -124,3 +124,37 @@ class CalendarSetupScreen(ModalScreen):
     def on_select_changed(self, event: Select.Changed) -> None:
         save_button = self.query_one("#save")
         save_button.disabled = event.value == self.DEFAULT_OPTION
+
+class GithubSetupScreen(ModalScreen):
+    BINDINGS = [
+        Binding("escape", "cancel", "Cancel"),
+        Binding("f1", "submit", "Submit")
+    ]
+
+    def compose(self) -> ComposeResult:
+        token = self.app.db.get_github_token()
+        
+        with Container(classes="calendar-setup-container"):
+            with Vertical(classes="calendar-setup-form"):
+                yield Static("GitHub Sync Setup", classes="form-header")
+                
+                with Vertical():
+                    yield Label("GitHub Token")
+                    yield Input(value=token if token else "", password=True, id="github-token", placeholder="ghp_xxxxxxxxxxxxxxxxxxxx")
+                
+                with Horizontal(classes="form-buttons"):
+                    yield Button("Cancel", variant="error", id="cancel")
+                    yield Button("Save", variant="success", id="save")
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "cancel":
+            self.app.pop_screen()
+        elif event.button.id == "save":
+            token = self.query_one("#github-token").value
+            if not token:
+                self.notify("Please enter your GitHub token", severity="error")
+                return
+            
+            self.app.db.save_github_token(token)
+            self.notify("GitHub token saved successfully!", severity="information")
+            self.app.pop_screen()

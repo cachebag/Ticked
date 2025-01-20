@@ -116,7 +116,39 @@ class CalendarDB:
             """)
 
             conn.commit()
-    
+
+    def save_github_token(self, token: str) -> None:
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT OR REPLACE INTO settings (key, value)
+                VALUES ('github_token', ?)
+            """, (token,))
+            conn.commit()
+
+    def get_github_token(self) -> Optional[str]:
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT value FROM settings WHERE key = 'github_token'")
+            result = cursor.fetchone()
+            return result[0] if result else None
+
+    def save_gist_id(self, gist_id: str) -> None:
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT OR REPLACE INTO settings (key, value)
+                VALUES ('gist_id', ?)
+            """, (gist_id,))
+            conn.commit()
+
+    def get_gist_id(self) -> Optional[str]:
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT value FROM settings WHERE key = 'gist_id'")
+            result = cursor.fetchone()
+            return result[0] if result else None
+        
     def add_task(self, title: str, due_date: str, start_time: str, end_time: str, description: str = "", caldav_uid: str = None) -> int:
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
