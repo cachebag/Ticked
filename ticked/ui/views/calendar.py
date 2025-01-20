@@ -14,6 +14,7 @@ from .calendar_setup import CalendarSetupScreen, GithubSetupScreen
 from typing import Optional
 from textual.widget import Widget
 from ...utils.time_utils import convert_to_12hour, convert_to_24hour, generate_time_options
+import asyncio
 
 class NavBar(Horizontal):
     def __init__(self, current_date: datetime):
@@ -216,6 +217,7 @@ class WeekView(Grid):
 class CalendarView(Container):
     def __init__(self):
         super().__init__()
+        self.current_date = datetime.now()
         self.is_month_view = False 
 
     BINDINGS = [
@@ -231,11 +233,13 @@ class CalendarView(Container):
     ]
 
     def compose(self) -> ComposeResult:
-        self.current_date = datetime.now()
         yield NavBar(self.current_date)
-        yield Button("Toggle Month View", id="toggle-view", classes="view-toggle")
-        yield WeekView(self.current_date)  
-        yield CalendarGrid(self.current_date)  
+        with Horizontal():
+            yield Button("Toggle Month View", id="toggle-view", classes="view-toggle")
+            yield Button("GitHub Settings", id="github-settings", classes="sync-button")
+            yield Button("Sync", id="sync-github", classes="sync-button")
+        yield WeekView(self.current_date)
+        yield CalendarGrid(self.current_date)
         yield DayView(self.current_date)
 
     def on_mount(self) -> None:
@@ -307,7 +311,7 @@ class CalendarView(Container):
             self.query_one(CalendarGrid).styles.display = "none"
             self.query_one(WeekView).styles.display = "none"
             self.query_one(NavBar).styles.display = "none"
-            self.query_one("#toggle-view").styles.display = "none"  #
+            self.query_one("#toggle-view").styles.display = "none"
             day_view.styles.display = "block"
             event.stop()
 
@@ -323,6 +327,14 @@ class CalendarView(Container):
             self.action_toggle_view()
             event.stop()
 
+        elif button_id == "sync-github":
+            asyncio.create_task(self.action_sync_with_github())
+            event.stop()
+            
+        elif button_id == "github-settings":
+            asyncio.create_task(self.action_github_settings())
+            event.stop()
+
         elif button_id == "back-to-calendar":
             month_view = self.query_one(CalendarGrid)
             week_view = self.query_one(WeekView)
@@ -331,7 +343,6 @@ class CalendarView(Container):
             day_view = self.query_one(DayView)
             
             day_view.styles.display = "none"
-
             nav_bar.styles.display = "block"
             toggle_button.styles.display = "block"
             
@@ -467,6 +478,26 @@ class CalendarView(Container):
         calendar_grid = self.query_one(CalendarGrid)
         day_button = calendar_grid.query_one(CalendarDayButton)
         return day_button if day_button else calendar_grid
+    
+    async def action_sync_with_github(self) -> None:
+        token = self.app.db.get_github_token()
+        if not token:
+            self.notify("Please add your GitHub token in settings first", severity="error")
+            return
+
+        sync = GithubSync(self.app.db.db_path)
+        sync.set_token(token)
+        
+        try:
+            gist_id = self.app.db.get_gist_id()
+            if gist_id:
+                gist_id, _ = sync.create_or_update_gist(gist_id)
+            else:
+                gist_id, _ = sync.create_or_update_gist()
+                self.app.db.save_gist_id(gist_id)
+            self.notify("Calendar synced successfully!", severity="information")
+        except Exception as e:
+            self.notify(f"Sync failed: {str(e)}", severity="error")
 
  
 
@@ -519,26 +550,6 @@ class TaskForm(ModalScreen):
                 with Horizontal(classes="form-buttons"):
                     yield Button("Cancel", variant="error", id="cancel")
                     yield Button("Add Task", variant="success", id="submit")
-
-    async def action_sync_with_github(self) -> None:
-        token = self.app.db.get_github_token()
-        if not token:
-            self.notify("Please add your GitHub token in settings first", severity="error")
-            return
-
-        sync = GithubSync(self.app.db.db_path)
-        sync.set_token(token)
-        
-        try:
-            gist_id = self.app.db.get_gist_id()
-            if gist_id:
-                gist_id, _ = sync.create_or_update_gist(gist_id)
-            else:
-                gist_id, _ = sync.create_or_update_gist()
-                self.app.db.save_gist_id(gist_id)
-            self.notify("Calendar synced successfully!", severity="information")
-        except Exception as e:
-            self.notify(f"Sync failed: {str(e)}", severity="error")
 
     @on(Switch.Changed, "#all-day")
     def handle_all_day_toggle(self, event: Switch.Changed) -> None:
