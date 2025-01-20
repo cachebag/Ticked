@@ -491,11 +491,24 @@ class CalendarView(Container):
         try:
             gist_id = self.app.db.get_gist_id()
             if gist_id:
+                # If this is a new device and there's an existing gist_id,
+                # try to download it first
+                if self.app.db.is_first_launch():
+                    if sync.download_and_replace_db(gist_id):
+                        self.notify("Calendar downloaded from GitHub successfully!", severity="information")
+                        # Refresh the view after download
+                        self._refresh_calendar()
+                        return
+                    
+                # Regular sync for existing devices
                 gist_id, _ = sync.create_or_update_gist(gist_id)
             else:
+                # First time sync on any device
                 gist_id, _ = sync.create_or_update_gist()
                 self.app.db.save_gist_id(gist_id)
+            
             self.notify("Calendar synced successfully!", severity="information")
+            
         except Exception as e:
             self.notify(f"Sync failed: {str(e)}", severity="error")
 
