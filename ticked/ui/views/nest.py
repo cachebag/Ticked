@@ -11,6 +11,12 @@ from textual.message import Message
 from rich.syntax import Syntax
 from rich.text import Text
 import os
+from textual.coordinate import Coordinate
+from textual.widgets import DataTable
+from textual.geometry import Size
+import jedi
+from jedi import Script
+import re
 
 class EditorTab:
     def __init__(self, path: str, content: str):
@@ -171,6 +177,46 @@ class StatusBar(Static):
             
         self.update(" ".join(parts))
 
+class AutoCompletePopup(DataTable):
+    """Popup widget for displaying autocompletion suggestions."""
+    
+    class Selected(Message):
+        def __init__(self, value: str) -> None:
+            self.value = value
+            super().__init__()
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.cursor_type = "none"
+        self.add_column("Completion", width=30)
+        self.add_column("Type", width=20)
+        self.add_column("Info", width=40)
+        self.styles.background = "darkblue"
+        self.styles.width = 90
+        self.styles.height = 10
+        self.can_focus = True
+
+    def populate(self, completions: list) -> None:
+        """Populate the popup with completion items."""
+        self.clear()
+        for completion in completions:
+            name = completion.name
+            type_ = completion.type
+            info = completion.description
+            self.add_row(name, type_, info or "")
+
+    def on_key(self, event) -> None:
+        if event.key == "enter":
+            if self.cursor_row is not None:
+                value = self.get_cell_at(Coordinate(self.cursor_row, 0))
+                self.post_message(self.Selected(value))
+            event.prevent_default()
+            event.stop()
+        elif event.key == "escape":
+            self.post_message(self.Selected(""))
+            event.prevent_default()
+            event.stop()
+
 class CodeEditor(TextArea):
     BINDINGS = [
         Binding("ctrl+n", "new_file", "New File", show=True),
@@ -199,6 +245,7 @@ class CodeEditor(TextArea):
         Binding("%d", "clear_editor", "Clear Editor", show=False), 
         Binding("ctrl+z", "noop", ""), 
         Binding("ctrl+y", "noop", ""),
+        Binding("ctrl+space", "show_completions", "Show Completions", show=True),
     ]
 
     class FileModified(Message):
@@ -235,6 +282,8 @@ class CodeEditor(TextArea):
         self._last_action_time = time.time()
         self._undo_batch = []
         self._batch_timeout = 0.3  # we can mess around with this for more or less granular state saving
+        self._completion_popup = None
+        self._word_pattern = re.compile(r'[\w\.]')
 
     def _save_positions(self) -> None:
         self._last_scroll_position = self.scroll_offset
@@ -381,6 +430,53 @@ class CodeEditor(TextArea):
             self.action_delete_left()
 
     def on_key(self, event) -> None:
+        # Special handling for tab key
+        if event.key == "tab" and self.mode == "insert":
+            if self._completion_popup:
+                # Get the first completion if available
+                if self._completion_popup.row_count > 0:
+                    value = self._completion_popup.get_cell_at(Coordinate(0, 0))
+                    if value:
+                        current_word, word_start = self._get_current_word()
+                        # Calculate what needs to be inserted
+                        if current_word:
+                            to_insert = value[len(current_word):]
+                        else:
+                            to_insert = value
+                        
+                        # Insert the completion
+                        self.insert(to_insert)
+                self.hide_completions()
+                event.prevent_default()
+                event.stop()
+                return
+            else:
+                # Regular tab indentation
+                self.action_indent()
+                event.prevent_default()
+                event.stop()
+                return
+
+        # Handle completion popup
+        if self._completion_popup:
+            if event.key == "escape":
+                self.hide_completions()
+                if self.mode == "insert":
+                    # Don't switch to normal mode when dismissing completion
+                    event.prevent_default()
+                    event.stop()
+                return
+            elif event.key == "enter":
+                return
+
+        # Auto-trigger completion on relevant characters
+        if (self.mode == "insert" and 
+            event.is_printable and 
+            self._word_pattern.match(event.character) and 
+            len(self._get_current_word()[0]) >= 1):  # Reduced to 1 character to show suggestions earlier
+            self.action_show_completions()
+
+        # Continue with normal key handling
         if self.in_command_mode:
             if event.key == "enter":
                 self.execute_command()
@@ -507,6 +603,99 @@ class CodeEditor(TextArea):
                     if event.is_printable:
                         event.prevent_default()
                         event.stop()
+
+    def _get_current_word(self) -> tuple[str, int]:
+        """Get the current word being typed and its start position."""
+        row, col = self.cursor_location
+        if not self.text:
+            return "", col
+        
+        lines = self.text.split('\n')
+        if row >= len(lines):
+            return "", col
+            
+        line = lines[row]
+        if not line:
+            return "", col
+            
+        # Find start of current word
+        word_start = col
+        while word_start > 0 and self._word_pattern.match(line[word_start - 1]):
+            word_start -= 1
+            
+        current_word = line[word_start:col]
+        return current_word, word_start
+
+    def _get_completions(self) -> list:
+        """Get completion suggestions using Jedi."""
+        if not self.current_file:
+            return []
+
+        try:
+            script = Script(code=self.text)  # Remove path parameter and just use code
+            row, column = self.cursor_location
+            return script.complete(row + 1, column)  # Jedi uses 1-based line numbers
+        except Exception as e:
+            self.notify(f"Completion error: {str(e)}", severity="error")
+            return []
+
+    def action_show_completions(self) -> None:
+        """Show the completion popup."""
+        if self._completion_popup:
+            self.hide_completions()
+            return
+
+        completions = self._get_completions()
+        if not completions:
+            return
+
+        popup = AutoCompletePopup()
+        popup.populate(completions)
+        
+        # Get current cursor position and scroll offset
+        row, col = self.cursor_location
+        scroll_x, scroll_y = self.scroll_offset
+        
+        # Calculate popup position relative to visible area
+        # Add row to vertical offset to position below current line
+        # Multiply col by approximate character width
+        x = max(0, int(col * 0.7)) - scroll_x
+        y = row + 1 - scroll_y
+        
+        # Set popup position
+        popup.styles.offset = (x, y)
+        
+        self._completion_popup = popup
+        self.mount(popup)
+        popup.focus()
+
+    def hide_completions(self) -> None:
+        """Hide the completion popup."""
+        if self._completion_popup:
+            self._completion_popup.remove()
+            self._completion_popup = None
+
+    def on_auto_complete_popup_selected(self, message: AutoCompletePopup.Selected) -> None:
+        """Handle completion selection."""
+        self.hide_completions()
+        if message.value:
+            current_word, word_start = self._get_current_word()
+            row, col = self.cursor_location
+            
+            # Calculate what needs to be inserted
+            if current_word:
+                to_insert = message.value[len(current_word):]
+            else:
+                to_insert = message.value
+                
+            # Insert the completion
+            self.insert(to_insert)
+            
+        self.focus()
+        # Ensure we stay in insert mode
+        self.mode = "insert"
+        self.status_bar.update_mode("INSERT")
+        self.cursor_blink = True
 
     def execute_command(self) -> None:
         command = self.command[1:].strip()
