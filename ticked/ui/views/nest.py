@@ -552,6 +552,7 @@ class CodeEditor(TextArea):
                 tab = self.tabs[self.active_tab_index]
                 self.load_text(tab.content)
                 self.current_file = tab.path
+                self.set_language_from_file(tab.path)  # update language to match each buffer respectively
                 self._update_status_info()
         elif command == "p" or command == "bp":
             if self.tabs:
@@ -559,6 +560,7 @@ class CodeEditor(TextArea):
                 tab = self.tabs[self.active_tab_index]
                 self.load_text(tab.content)
                 self.current_file = tab.path
+                self.set_language_from_file(tab.path)  # same here
                 self._update_status_info()
         elif command == "ls":
             buffer_list = []
