@@ -86,3 +86,23 @@ class GithubSync:
             raise e
         finally:
             Path(backup_path).unlink(missing_ok=True)
+
+    def delete_all_sync_gists(self):
+        if not self.token:
+            raise ValueError("GitHub token not set")
+            
+        headers = {
+            "Authorization": f"token {self.token}",
+            "Accept": "application/vnd.github.v3+json"
+        }
+        
+        # Get all gists
+        response = requests.get(f"{self.api_base}/gists", headers=headers)
+        response.raise_for_status()
+        
+        # Find and delete Ticked gists
+        for gist in response.json():
+            if gist.get("description") == "Ticked Database Sync":
+                gist_id = gist["id"]
+                delete_url = f"{self.api_base}/gists/{gist_id}"
+                requests.delete(delete_url, headers=headers)
