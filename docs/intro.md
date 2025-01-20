@@ -2,7 +2,7 @@
 <img src="./images/intro.png" alt="Screenshot of Tick interface" width="800">
 
 # Ticked 
-![License](https://img.shields.io/badge/license-MIT-blue) ![Unreleased](https://img.shields.io/badge/beta-pre%20release-yellow)![Version](https://img.shields.io/badge/version-%200.2.1-orange)
+![License](https://img.shields.io/badge/license-MIT-blue) ![Unreleased](https://img.shields.io/badge/beta-pre%20release-yellow)![Version](https://img.shields.io/badge/version-%200.2.2-orange)
 
        
 ## A terminal-based productivity suite built over [Textual](https://textual.textualize.io), designed for STEM students who need a focused work environment.

@@ -1007,25 +1007,55 @@ class NestView(Container, InitialFocusMixin):
 
     def on_directory_tree_file_selected(self, event: DirectoryTree.FileSelected) -> None:
         try:
-            with open(event.path, 'rb') as file:
-                is_binary = False
-                chunk = file.read(1024)
-                if b'\x00' in chunk or len([b for b in chunk if b > 127]) > chunk.count(b'\n') * 0.3:
-                    is_binary = True
-
-            if is_binary:
-                self.notify("Cannot open binary file", severity="warning")
+            # First check if it's a Python file by extension - this is a quick check to avoid binary detection, will implenent
+            # a more robust solution later
+            if str(event.path).endswith('.py'):
+                editor = self.query_one(CodeEditor)
+                editor.open_file(event.path)
+                editor.focus()
                 event.stop()
                 return
 
-            editor = self.query_one(CodeEditor)
-            editor.open_file(event.path)
-            editor.focus()
-            event.stop()
+            # For non-Python files, do binary detection
+            with open(event.path, 'rb') as file:
+                # Read first chunk
+                chunk = file.read(8192)
+                
+                # Common binary file signatures
+                binary_signatures = [
+                    b'\x7FELF',  # ELF
+                    b'MZ',       # DOS/PE
+                    b'\x89PNG',  # PNG
+                    b'\xFF\xD8\xFF',  # JPEG
+                    b'GIF',      # GIF
+                    b'BM',       # BMP
+                    b'PK',       # ZIP
+                    b'\x1F\x8B'  # GZIP
+                ]
+                
+                # Check for binary signatures
+                if any(chunk.startswith(sig) for sig in binary_signatures):
+                    self.notify("Cannot open binary file", severity="warning")
+                    event.stop()
+                    return
+                    
+                # Check for null bytes, which definitively indicate binary files
+                if b'\x00' in chunk:
+                    self.notify("Cannot open binary file", severity="warning")
+                    event.stop()
+                    return
+                    
+                # If no binary indicators found, try to decode as text file
+                try:
+                    chunk.decode('utf-8')
+                    editor = self.query_one(CodeEditor)
+                    editor.open_file(event.path)
+                    editor.focus()
+                    event.stop()
+                except UnicodeDecodeError:
+                    self.notify("Cannot open file: Not a valid UTF-8 text file", severity="warning")
+                    event.stop()
 
-        except UnicodeDecodeError:
-            self.notify("Cannot open file: Not a valid UTF-8 text file", severity="warning")
-            event.stop()
         except (IOError, OSError) as e:
             self.notify(f"Error opening file: {str(e)}", severity="error")
             event.stop()
