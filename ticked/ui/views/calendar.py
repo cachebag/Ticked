@@ -481,7 +481,7 @@ class CalendarView(Container):
     
     async def action_sync_with_github(self) -> None:
         token = self.app.db.get_github_token()
-        self.notify(f"Debug - Current token: {token[:5]}...")  # Show first 5 chars of token
+        self.notify(f"Debug - Current token: {token[:5]}...")
         
         if not token:
             self.notify("Please add your GitHub token in settings first", severity="error")
@@ -495,8 +495,16 @@ class CalendarView(Container):
             self.notify(f"Debug - Current gist_id: {gist_id}")
             
             if gist_id:
-                self.notify("Debug - Updating existing gist")
-                gist_id, _ = sync.create_or_update_gist(gist_id)
+                # Try to download first if it's a different device
+                try:
+                    self.notify("Debug - Attempting to download from existing gist")
+                    if sync.download_and_replace_db(gist_id):
+                        self.notify("Database downloaded successfully!")
+                        self._refresh_calendar()  # Refresh the view after download
+                    return
+                except Exception as e:
+                    self.notify(f"Download failed, updating gist instead: {str(e)}")
+                    gist_id, _ = sync.create_or_update_gist(gist_id)
             else:
                 self.notify("Debug - Creating new gist")
                 gist_id, _ = sync.create_or_update_gist()
@@ -506,6 +514,7 @@ class CalendarView(Container):
             final_gist = self.app.db.get_gist_id()
             self.notify(f"Debug - Final gist_id: {final_gist}")
             self.notify("Calendar synced successfully!", severity="information")
+            
         except Exception as e:
             self.notify(f"Debug - Sync error: {str(e)}", severity="error")
 

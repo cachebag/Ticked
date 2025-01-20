@@ -54,6 +54,7 @@ class GithubSync:
         return result["id"], result["files"]["tick.db"]["raw_url"]
 
     def download_and_replace_db(self, gist_id: str) -> bool:
+        """Downloads the database from a gist and replaces the local one"""
         if not self.token:
             raise ValueError("GitHub token not set")
             
@@ -66,7 +67,7 @@ class GithubSync:
         response = requests.get(f"{self.api_base}/gists/{gist_id}", headers=headers)
         response.raise_for_status()
         
-        # Get the content from the gist response directly
+        # Get the base64 content directly from the gist response
         content_b64 = response.json()["files"]["tick.db"]["content"]
         
         # Decode the base64 content
