@@ -17,6 +17,8 @@ from textual.geometry import Size
 import jedi
 from jedi import Script
 import re
+from typing import Optional, Dict, Any
+from .autocomplete_debug import AutocompleteLogger, log_method
 
 class EditorTab:
     def __init__(self, path: str, content: str):
@@ -195,6 +197,8 @@ class AutoCompletePopup(DataTable):
         self.styles.width = 90
         self.styles.height = 10
         self.can_focus = True
+        self.can_focus = True
+        self._selected_index = 0
 
     def populate(self, completions: list) -> None:
         """Populate the popup with completion items."""
@@ -206,7 +210,19 @@ class AutoCompletePopup(DataTable):
             self.add_row(name, type_, info or "")
 
     def on_key(self, event) -> None:
-        if event.key == "enter":
+        if event.key == "up":
+            if self.cursor_row is not None and self.cursor_row > 0:
+                self.move_cursor(row=self.cursor_row - 1)
+            event.prevent_default()
+            event.stop()
+        elif event.key == "down":
+            if self.cursor_row is None:
+                self.move_cursor(row=0)
+            elif self.cursor_row < self.row_count - 1:
+                self.move_cursor(row=self.cursor_row + 1)
+            event.prevent_default()
+            event.stop()
+        elif event.key == "enter":
             if self.cursor_row is not None:
                 value = self.get_cell_at(Coordinate(self.cursor_row, 0))
                 self.post_message(self.Selected(value))
@@ -325,6 +341,13 @@ class CodeEditor(TextArea):
         self._batch_timeout = 0.3  # we can mess around with this for more or less granular state saving
         self._completion_popup = None
         self._word_pattern = re.compile(r'[\w\.]')
+        self._completion_cache = {}
+        self._last_completion_time = 0
+        self._completion_debounce = 0.1  # 100ms debounce
+        self._structure_cache = None
+        self._last_structure_update = 0
+        self._structure_update_interval = 2.0  # Update structure every 2 seconds
+        self._logger = AutocompleteLogger()
 
         # Add new attributes for smarter completion
         self._builtins = {
@@ -429,6 +452,23 @@ class CodeEditor(TextArea):
         brackets = {'(': ')', '[': ']', '{': '}'}
         counts = {k: stripped_line.count(k) - stripped_line.count(v) for k, v in brackets.items()}
         return any(count > 0 for count in counts.values())
+
+    def _should_show_completion(self, char: str) -> bool:
+        current_time = time.time()
+        
+        # Always show for these cases
+        if char == '.' or char == '_':
+            return True
+            
+        # For new completion sessions, don't debounce
+        if not self._completion_popup:
+            return self._word_pattern.match(char) is not None
+            
+        # For existing completion sessions, use debouncing
+        if current_time - self._last_completion_time < self._completion_debounce:
+            return False
+            
+        return self._word_pattern.match(char) is not None
 
     def should_decrease_indent(self) -> bool:
         lines = self.text.split('\n')
@@ -597,7 +637,25 @@ class CodeEditor(TextArea):
             self.status_bar.update_command(self.command)
         else:
             if self.mode == "insert":
-                if event.key == "enter":
+                if event.is_printable:
+                    if self._should_show_completion(event.character):
+                        self._last_completion_time = time.time()
+                        self.action_show_completions()
+                    elif event.character.isspace():
+                        self.hide_completions()
+                    self.cursor_type = "line"
+                    self._save_undo_state()
+                    if event.character in self.autopairs:
+                        cur_pos = self.cursor_location
+                        self.insert(event.character + self.autopairs[event.character])
+                        self.move_cursor((cur_pos[0], cur_pos[1] + 1))
+                    else:
+                        self.insert(event.character)
+                    self._modified = True
+                    self.post_message(self.FileModified(True))
+                    event.prevent_default()
+                    event.stop()
+                elif event.key == "enter":
                     self.cursor_type = "line"
                     self._save_undo_state()
                     self.handle_indent()
@@ -694,6 +752,47 @@ class CodeEditor(TextArea):
                         event.prevent_default()
                         event.stop()
 
+    def _update_completion_cache(self, prefix: str, completions: list) -> None:
+        # Limit cache size
+        if len(self._completion_cache) > 1000:
+            old_keys = sorted(
+                self._completion_cache.keys(),
+                key=lambda k: self._completion_cache[k]['timestamp']
+            )[:100]
+            for k in old_keys:
+                del self._completion_cache[k]
+                
+        self._completion_cache[prefix] = {
+            'completions': completions,
+            'timestamp': time.time(),
+            'context': self._get_current_context()  # Cache context too
+        }
+
+    def _get_cached_completions(self, prefix: str) -> Optional[list]:
+        if prefix in self._completion_cache:
+            cache_data = self._completion_cache[prefix]
+            # Only use cache if context matches and cache is fresh
+            if (time.time() - cache_data['timestamp'] < 5.0 and
+                cache_data['context'] == self._get_current_context()):
+                return cache_data['completions']
+        return None
+
+    def _get_current_context(self) -> str:
+        """Get current line context for cache validation"""
+        row, col = self.cursor_location
+        lines = self.text.split('\n')
+        if row >= len(lines):
+            return ""
+        return lines[row][:col]
+
+    def _get_cached_completions(self, prefix: str) -> Optional[list]:
+        """Get completions from cache if valid"""
+        if prefix in self._completion_cache:
+            cache_data = self._completion_cache[prefix]
+            if time.time() - cache_data['timestamp'] < 5.0:  # 5 second cache validity
+                return cache_data['completions']
+        return None
+
     def _get_current_word(self) -> tuple[str, int]:
         """Get the current word and context for smarter completions."""
         row, col = self.cursor_location
@@ -721,15 +820,36 @@ class CodeEditor(TextArea):
         
         return current_word, word_start
 
+    @log_method()
     def _get_completions(self) -> list:
-        """Enhanced completion with smarter suggestions"""
+        """Get completions with caching"""
         try:
             current_word, _ = self._get_current_word()
+            
+            # Log completion request
+            self._logger.log_completion_request(
+                current_word, 
+                self.text[max(0, self.cursor_location[0]-50):self.cursor_location[0]]
+            )
+            
+            # Check cache first
+            cached = self._get_cached_completions(current_word)
+            if cached:
+                self._logger.log_cache_operation('lookup', current_word, hit=True)
+                return cached
+            self._logger.log_cache_operation('lookup', current_word, hit=False)
+            
+            # Start timing completion generation
+            self._logger.start_timer('completion_generation')
+            
             suggestions = []
             seen = set()
             
-            # Get context suggestions first
+            # Get and time each type of completion
+            self._logger.start_timer('context_suggestions')
             context_suggestions = self._get_context_suggestions()
+            self._logger.end_timer('context_suggestions')
+            
             for suggestion in context_suggestions:
                 if suggestion.name not in seen:
                     seen.add(suggestion.name)
@@ -737,79 +857,139 @@ class CodeEditor(TextArea):
                     if suggestion.score > 0:
                         suggestions.append(suggestion)
             
-            # Get Jedi completions if we have a file
+            # Log Jedi completions separately
             if self.current_file:
                 try:
+                    self._logger.start_timer('jedi_completions')
                     script = Script(code=self.text, path=self.current_file)
                     row, column = self.cursor_location
                     jedi_completions = script.complete(row + 1, column)
+                    self._logger.end_timer('jedi_completions')
+                    
                     for comp in jedi_completions:
                         if comp.name not in seen:
                             seen.add(comp.name)
                             comp.score = self._score_suggestion(comp, current_word)
                             if comp.score > 0:
                                 suggestions.append(comp)
-                except Exception:
-                    pass
+                except Exception as e:
+                    self._logger.log_error(e, 'jedi_completion')
             
-            # Get local completions
-            local_completions = self._get_local_completions()
-            for comp in local_completions:
-                if comp.name not in seen:
-                    seen.add(comp.name)
-                    comp.score = self._score_suggestion(comp, current_word)
-                    if comp.score > 0:
-                        suggestions.append(comp)
+            # Sort and log timing
+            suggestions = sorted(suggestions, key=lambda x: getattr(x, 'score', 0), reverse=True)
+            duration = self._logger.end_timer('completion_generation')
             
-            # Sort by score using a lambda function
-            return sorted(suggestions, key=lambda x: getattr(x, 'score', 0), reverse=True)
+            # Log results
+            self._logger.log_completion_results(suggestions, duration)
+            
+            # Update cache
+            self._update_completion_cache(current_word, suggestions)
+            
+            return suggestions
             
         except Exception as e:
+            self._logger.log_error(e, '_get_completions')
             self.notify(f"Completion error: {str(e)}", severity="error")
             return []
 
+    @log_method()
     def _score_suggestion(self, suggestion, current_word: str) -> float:
-        """Score a suggestion's relevance"""
         score = 0.0
         name = suggestion.name.lower()
         current = current_word.lower()
         
-        # Exact match gets highest score
+        # Get current context
+        row, col = self.cursor_location
+        lines = self.text.split('\n')
+        current_line = lines[row] if row < len(lines) else ""
+        line_before_cursor = current_line[:col]
+        
+        # Base score factors
         if name == current:
-            return 100.0
-            
-        # Starts with gets high score
-        if name.startswith(current):
-            score += 50.0
-        
-        # Contains gets medium score
+            score += 100.0  # Exact match
+        elif name.startswith(current):
+            score += 80.0   # Starts with
         elif current in name:
-            score += 25.0
-        
-        # Fuzzy match gets low score
+            score += 50.0   # Contains
         elif self._fuzzy_match(current, name):
-            score += 10.0
-        else:
-            # If no match but it's a builtin or common pattern,
-            # give it a small score to show as suggestion
-            if name in self._builtins or name in self._common_patterns:
-                score += 5.0
+            score += 30.0   # Fuzzy match
             
-        # Bonus points for shorter suggestions
-        score += (1.0 / len(name))
-        
-        # Bonus for certain types
-        type_bonus = {
-            'function': 2.0,
-            'class': 2.0,
-            'keyword': 3.0,
-            'module': 1.5,
-            'method': 1.5,
-            'property': 1.0
+        # Context bonus scores
+        if line_before_cursor.strip().startswith(('import', 'from')):
+            if getattr(suggestion, 'type', '') == 'module':
+                score += 200.0  # Heavy bias for modules in import statements
+                
+        if line_before_cursor.rstrip().endswith('.'):
+            if getattr(suggestion, 'type', '') in ['method', 'property']:
+                score += 150.0  # Method/property after dot
+                
+        if 'def ' in line_before_cursor or 'class ' in line_before_cursor:
+            if getattr(suggestion, 'type', '') in ['function', 'class']:
+                score += 120.0  # Function/class definitions
+                
+        # Proximity bonus
+        if hasattr(suggestion, 'line'):
+            distance = abs(row - suggestion.line)
+            if distance < 10:
+                score += (10 - distance) * 5  # More points for closer symbols
+                
+        # Type-based bonus
+        type_scores = {
+            'local': 40,      # Local variables
+            'instance': 35,   # Instance attributes
+            'function': 30,   # Functions
+            'class': 25,      # Classes
+            'module': 20,     # Modules
+            'keyword': 15     # Keywords
         }
-        score += type_bonus.get(getattr(suggestion, 'type', ''), 0.0)
+        score += type_scores.get(getattr(suggestion, 'type', ''), 0)
         
+        # Usage frequency bonus 
+        if hasattr(suggestion, 'uses'):
+            score += min(suggestion.uses * 5, 50)  # Cap at 50 points
+            
         return score
+
+    def _analyze_code_structure(self) -> dict:
+        """Analyze code structure for smarter suggestions"""
+        structure = {
+            'imports': set(),
+            'classes': {},
+            'functions': {},
+            'variables': {},
+            'scopes': []
+        }
+        
+        try:
+            script = Script(code=self.text, path=self.current_file)
+            
+            # Analyze imports
+            imports = script.get_imports()
+            for imp in imports:
+                structure['imports'].add(imp.name)
+            
+            # Analyze definitions
+            for definition in script.get_names():
+                if definition.type == 'class':
+                    structure['classes'][definition.name] = {
+                        'methods': set(),
+                        'properties': set(),
+                        'line': definition.line
+                    }
+                elif definition.type == 'function':
+                    structure['functions'][definition.name] = {
+                        'params': set(),
+                        'line': definition.line
+                    }
+                elif definition.type == 'statement':
+                    structure['variables'][definition.name] = {
+                        'type': None,  # Will be inferred if possible
+                        'line': definition.line
+                    }
+        except Exception:
+            pass
+        
+        return structure
 
     def _fuzzy_match(self, pattern: str, text: str) -> bool:
         """Simple fuzzy matching algorithm"""
@@ -860,32 +1040,30 @@ class CodeEditor(TextArea):
         completion.description = description
         return completion
 
+    @log_method()
     def action_show_completions(self) -> None:
-        """Show the completion popup."""
         if self._completion_popup:
+            self._logger.logger.debug("Hiding existing completion popup")
             self.hide_completions()
             return
 
         completions = self._get_completions()
         if not completions:
+            self._logger.logger.debug("No completions found")
             return
 
+        self._logger.logger.debug(f"Showing popup with {len(completions)} completions")
         popup = AutoCompletePopup()
         popup.populate(completions)
         
-        # Get current cursor position and scroll offset
+        # Log popup position calculation
         row, col = self.cursor_location
         scroll_x, scroll_y = self.scroll_offset
-        
-        # Calculate popup position relative to visible area
-        # Add row to vertical offset to position below current line
-        # Multiply col by approximate character width
         x = max(0, int(col * 0.7)) - scroll_x
         y = row + 1 - scroll_y
+        self._logger.logger.debug(f"Popup position: x={x}, y={y}")
         
-        # Set popup position
         popup.styles.offset = (x, y)
-        
         self._completion_popup = popup
         self.mount(popup)
         popup.focus()
@@ -897,31 +1075,23 @@ class CodeEditor(TextArea):
             self._completion_popup = None
 
     def on_auto_complete_popup_selected(self, message: AutoCompletePopup.Selected) -> None:
-        # Hide the completions popup, if any
-        self.hide_completions()
-
-        if message.value:
-            # Split into lines
-            lines = self.text.split("\n")
-            row, col = self.cursor_location
-
-            # Get the current word and where it starts
-            current_word, word_start = self._get_current_word()
-            line = lines[row]
-
-            # Replace only what you've typed with the chosen completion
-            lines[row] = line[:word_start] + message.value + line[col:]
-            self.text = "\n".join(lines)
-
-            # Move cursor to the end of the inserted completion
-            new_cursor_col = word_start + len(message.value)
-            self.move_cursor((row, new_cursor_col))
-
-        # Return focus to editor; stay in insert mode
-        self.focus()
-        self.mode = "insert"
-        self.status_bar.update_mode("INSERT")
-        self.cursor_blink = True
+        try:
+            self.hide_completions()
+            if message.value:
+                lines = self.text.split("\n")
+                row, col = self.cursor_location
+                current_word, word_start = self._get_current_word()
+                line = lines[row]
+                lines[row] = line[:word_start] + message.value + line[col:]
+                self.text = "\n".join(lines)
+                new_cursor_col = word_start + len(message.value)
+                self.move_cursor((row, new_cursor_col))
+        finally:
+            # Always ensure we restore focus and mode
+            self.focus()
+            self.mode = "insert"
+            self.status_bar.update_mode("INSERT")
+            self.cursor_blink = True
 
 
     def execute_command(self) -> None:
