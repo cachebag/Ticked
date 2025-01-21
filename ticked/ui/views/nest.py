@@ -11,6 +11,10 @@ from textual.message import Message
 from rich.syntax import Syntax
 from rich.text import Text
 import os
+from textual.coordinate import Coordinate
+from textual.widgets import DataTable
+from jedi import Script
+import re
 
 class EditorTab:
     def __init__(self, path: str, content: str):
@@ -171,7 +175,118 @@ class StatusBar(Static):
             
         self.update(" ".join(parts))
 
+class AutoCompletePopup(DataTable):
+    """Popup widget for displaying autocompletion suggestions."""
+    
+    class Selected(Message):
+        """Message emitted when a completion is selected."""
+        def __init__(self, value: str) -> None:
+            self.value = value
+            super().__init__()
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.cursor_type = "row"
+        self.add_column("Completion", width=30)
+        self.add_column("Type", width=20)
+        self.add_column("Info", width=40)
+        self.styles.background = "rgb(30,30,30)"
+        self.styles.width = 90
+        self.styles.height = 10
+        self.can_focus = True
+        
+        self.styles.row_hover = "rgb(50,50,50)"
+        self.styles.row_selected = "rgb(60,60,100)"
+        self.styles.row_cursor = "rgb(70,70,120)"
+
+    def on_mount(self) -> None:
+        self.cursor_type = "row"
+        # Select first row by default if there are rows
+        if self.row_count > 0:
+            self.move_cursor(row=0, column=0)
+
+    def populate(self, completions: list) -> None:
+        self.clear()
+        for completion in completions:
+            name = completion.name
+            type_ = completion.type
+            info = completion.description or ""
+            
+            type_indicators = {
+                'function': '🔧',
+                'class': '📦',
+                'module': '📚',
+                'keyword': '🔑',
+                'builtin': '⚡',
+                'local': '📎',
+                'method': '⚙️',
+                'property': '🔹'
+            }
+            type_icon = type_indicators.get(type_, '•')
+            
+            self.add_row(f"{type_icon} {name}", type_, info)
+
+        if self.row_count > 0:
+            self.move_cursor(row=0, column=0)
+
+    def on_key(self, event) -> None:
+        if event.key == "enter" or event.key == "tab":
+            if self.cursor_row is not None:
+                value = self.get_cell_at(Coordinate(self.cursor_row, 0))
+                # Strip the type icon from the value
+                value = value.split(" ", 1)[1] if " " in value else value
+                self.post_message(self.Selected(value))
+            event.prevent_default()
+            event.stop()
+        elif event.key == "escape":
+            self.post_message(self.Selected(""))
+            event.prevent_default()
+            event.stop()
+        elif event.key == "up":
+            if self.cursor_row is not None and self.cursor_row > 0:
+                self.move_cursor(row=self.cursor_row - 1, column=0)
+            event.prevent_default()
+            event.stop()
+        elif event.key == "down":
+            if self.cursor_row is not None and self.cursor_row < self.row_count - 1:
+                self.move_cursor(row=self.cursor_row + 1, column=0)
+            event.prevent_default()
+            event.stop()
+
 class CodeEditor(TextArea):
+
+    class _LocalCompletion:
+        def __init__(self, name: str):
+            self.name = name
+            self.type = "local"
+            self.description = f"Local symbol: {name}"
+            self.score = 0  
+
+    def _get_local_completions(self) -> list:
+
+        # Basic pattern for Python identifiers (variable/function/class names, etc.)
+        pattern = re.compile(r"[A-Za-z_]\w*")
+        tokens_found = set(pattern.findall(self.text))
+        python_keywords = {
+            "False", "None", "True", "and", "as", "assert", "async", "await", 
+            "break", "class", "continue", "def", "del", "elif", "else", 
+            "except", "finally", "for", "from", "global", "if", "import", 
+            "in", "is", "lambda", "nonlocal", "not", "or", "pass", 
+            "raise", "return", "try", "while", "with", "yield"
+        }
+        tokens_found = tokens_found - python_keywords
+
+        # Convert each found token into a _LocalCompletion object
+        local_completions = []
+        for tok in sorted(tokens_found):
+            # You might skip single-letter tokens or do more filtering:
+            # if len(tok) == 1: 
+            #     continue
+            local_completions.append(CodeEditor._LocalCompletion(tok))
+
+        return local_completions
+
+
     BINDINGS = [
         Binding("ctrl+n", "new_file", "New File", show=True),
         Binding("tab", "indent", "Indent", show=False),
@@ -199,6 +314,7 @@ class CodeEditor(TextArea):
         Binding("%d", "clear_editor", "Clear Editor", show=False), 
         Binding("ctrl+z", "noop", ""), 
         Binding("ctrl+y", "noop", ""),
+        Binding("ctrl+space", "show_completions", "Show Completions", show=True),
     ]
 
     class FileModified(Message):
@@ -235,6 +351,48 @@ class CodeEditor(TextArea):
         self._last_action_time = time.time()
         self._undo_batch = []
         self._batch_timeout = 0.3  # we can mess around with this for more or less granular state saving
+        self._completion_popup = None
+        self._word_pattern = re.compile(r'[\w\.]')
+
+        # Add new attributes for smarter completion
+        self._builtins = {
+            'print': ('function', 'Print objects to the text stream'),
+            'len': ('function', 'Return the length of an object'),
+            'str': ('function', 'Return a string version of an object'),
+            'int': ('function', 'Convert a number or string to an integer'),
+            'list': ('function', 'Create a new list'),
+            'dict': ('function', 'Create a new dictionary'),
+            'range': ('function', 'Create a sequence of numbers'),
+            'open': ('function', 'Open a file'),
+            'type': ('function', 'Return the type of an object'),
+            # Add more common builtins
+        }
+        
+        self._common_patterns = {
+            'if ': ('keyword', 'Start an if statement'),
+            'for ': ('keyword', 'Start a for loop'),
+            'while ': ('keyword', 'Start a while loop'),
+            'def ': ('keyword', 'Define a function'),
+            'class ': ('keyword', 'Define a class'),
+            'import ': ('keyword', 'Import a module'),
+            'from ': ('keyword', 'Import specific names from a module'),
+            'return ': ('keyword', 'Return from a function'),
+            'try': ('keyword', 'Start a try-except block'),
+            'with ': ('keyword', 'Context manager statement'),
+        }
+        
+        self._common_imports = {
+            'os': 'Operating system interface',
+            'sys': 'System-specific parameters and functions',
+            'json': 'JSON encoder and decoder',
+            'datetime': 'Basic date and time types',
+            'random': 'Generate random numbers',
+            'math': 'Mathematical functions',
+            'pathlib': 'Object-oriented filesystem paths',
+            'typing': 'Support for type hints',
+            'collections': 'Container datatypes',
+            're': 'Regular expression operations'
+        }
 
     def _save_positions(self) -> None:
         self._last_scroll_position = self.scroll_offset
@@ -244,10 +402,11 @@ class CodeEditor(TextArea):
         self.scroll_to(self._last_scroll_position[0], self._last_scroll_position[1])
         self.move_cursor(self._last_cursor_position)
 
-    def on_focus(self) -> None:
+    """def on_focus(self) -> None:
         self.mode = "normal"
         self.status_bar.update_mode("NORMAL")
-        self.cursor_blink = False
+        self.cursor_blink = False"""
+
 
     def compose(self) -> ComposeResult:
         yield self.status_bar
@@ -255,6 +414,7 @@ class CodeEditor(TextArea):
     def on_mount(self) -> None:
         self.status_bar.update_mode("NORMAL")
         self._update_status_info()
+        
 
     def _update_status_info(self) -> None:
         file_info = []
@@ -381,6 +541,54 @@ class CodeEditor(TextArea):
             self.action_delete_left()
 
     def on_key(self, event) -> None:
+        # Handle tab key specially for completions
+        if event.key == "tab" and self.mode == "insert":
+            if self._completion_popup and self._completion_popup.row_count > 0:
+                # Get the currently selected completion
+                selected_row = self._completion_popup.cursor_row or 0
+                value = self._completion_popup.get_cell_at(Coordinate(selected_row, 0))
+                if value:
+                    # Strip the type icon
+                    value = value.split(" ", 1)[1] if " " in value else value
+                    
+                    # Apply completion
+                    lines = self.text.split("\n")
+                    row, col = self.cursor_location
+                    current_word, word_start = self._get_current_word()
+                    line = lines[row]
+                    lines[row] = line[:word_start] + value + line[col:]
+                    self.text = "\n".join(lines)
+                    self.move_cursor((row, word_start + len(value)))
+                
+                # Hide popup
+                self.hide_completions()
+                event.prevent_default()
+                event.stop()
+                return
+            else:
+                # Normal tab behavior
+                self.action_indent()
+                event.prevent_default()
+                event.stop()
+                return
+
+        # Handle completion popup
+        if self._completion_popup:
+            if event.key == "escape":
+                self.hide_completions()
+                if self.mode == "insert":
+                    # Don't switch to normal mode when dismissing completion
+                    event.prevent_default()
+                    event.stop()
+                return
+            elif event.key == "enter":
+                return
+
+        if (self.mode == "insert" and 
+            event.is_printable and 
+            self._word_pattern.match(event.character)):
+            self.action_show_completions()
+
         if self.in_command_mode:
             if event.key == "enter":
                 self.execute_command()
@@ -507,6 +715,237 @@ class CodeEditor(TextArea):
                     if event.is_printable:
                         event.prevent_default()
                         event.stop()
+
+    def _get_current_word(self) -> tuple[str, int]:
+        """Get the current word and context for smarter completions."""
+        row, col = self.cursor_location
+        if not self.text:
+            return "", col
+        
+        lines = self.text.split('\n')
+        if row >= len(lines):
+            return "", col
+            
+        line = lines[row]
+        if not line:
+            return "", col
+            
+        word_start = col
+        while word_start > 0 and (self._word_pattern.match(line[word_start - 1]) or line[word_start - 1] == '.'):
+            word_start -= 1
+            
+        current_word = line[word_start:col]
+        
+        # Get context before the current word
+        context_start = max(0, word_start - 50)  # Look back up to 50 chars for context
+        context = line[context_start:word_start]
+        
+        return current_word, word_start
+
+    def _get_completions(self) -> list:
+        try:
+            current_word, _ = self._get_current_word()
+            suggestions = []
+            seen = set()
+            
+            # First priority: Builtins that match the current word
+            for name, (type_, desc) in self._builtins.items():
+                if name.startswith(current_word):
+                    comp = self._create_completion(name, 'builtin', desc)
+                    comp.score = 1000  # High priority for builtins
+                    suggestions.append(comp)
+                    seen.add(name)
+            
+            # Second priority: Current context (like import suggestions)
+            context_suggestions = self._get_context_suggestions()
+            for suggestion in context_suggestions:
+                if suggestion.name not in seen and suggestion.name.startswith(current_word):
+                    suggestion.score = 800
+                    suggestions.append(suggestion)
+                    seen.add(suggestion.name)
+            
+            # Third priority: Jedi completions if we have a file
+            if self.current_file:
+                try:
+                    script = Script(code=self.text, path=self.current_file)
+                    row, column = self.cursor_location
+                    jedi_completions = script.complete(row + 1, column)
+                    for comp in jedi_completions:
+                        if comp.name not in seen:
+                            comp.score = 500
+                            suggestions.append(comp)
+                            seen.add(comp.name)
+                except Exception:
+                    pass
+            
+            # Last priority: Local completions
+            local_completions = self._get_local_completions()
+            for comp in local_completions:
+                if comp.name not in seen:
+                    comp.score = 100
+                    suggestions.append(comp)
+                    seen.add(comp.name)
+            
+            # Sort by score and then alphabetically
+            return sorted(suggestions, 
+                        key=lambda x: (-getattr(x, 'score', 0), x.name.lower()))
+            
+        except Exception as e:
+            self.notify(f"Completion error: {str(e)}", severity="error")
+            return []
+
+    def _score_suggestion(self, suggestion, current_word: str) -> float:
+        score = 0.0
+        name = suggestion.name.lower()
+        current = current_word.lower()
+        
+        # Exact match gets highest score
+        if name == current:
+            return 100.0
+            
+        # Starts with gets high score
+        if name.startswith(current):
+            score += 50.0
+        
+        # Contains gets medium score
+        elif current in name:
+            score += 25.0
+        
+        # Fuzzy match gets low score
+        elif self._fuzzy_match(current, name):
+            score += 10.0
+        else:
+            # If no match but it's a builtin or common pattern,
+            # give it a small score to show as suggestion
+            if name in self._builtins or name in self._common_patterns:
+                score += 5.0
+            
+        # Bonus points for shorter suggestions
+        score += (1.0 / len(name))
+        
+        # Bonus for certain types
+        type_bonus = {
+            'function': 2.0,
+            'class': 2.0,
+            'keyword': 3.0,
+            'module': 1.5,
+            'method': 1.5,
+            'property': 1.0
+        }
+        score += type_bonus.get(getattr(suggestion, 'type', ''), 0.0)
+        
+        return score
+
+    def _fuzzy_match(self, pattern: str, text: str) -> bool:
+        """Simple fuzzy matching algorithm"""
+        pattern = pattern.lower()
+        text = text.lower()
+        
+        if not pattern or not text:
+            return False
+            
+        pattern_idx = 0
+        for char in text:
+            if char == pattern[pattern_idx]:
+                pattern_idx += 1
+                if pattern_idx == len(pattern):
+                    return True
+        return False
+
+    def _get_context_suggestions(self) -> list:
+        row, col = self.cursor_location
+        lines = self.text.split('\n')
+        current_line = lines[row] if row < len(lines) else ""
+        line_before_cursor = current_line[:col]
+        
+        suggestions = []
+        
+        # Check for import context
+        if line_before_cursor.strip().startswith(('import', 'from')):
+            for module, desc in self._common_imports.items():
+                suggestions.append(self._create_completion(module, 'module', desc))
+            return suggestions
+            
+        # Check for common patterns at start of line
+        if line_before_cursor.strip() == "":
+            for pattern, (type_, desc) in self._common_patterns.items():
+                suggestions.append(self._create_completion(pattern, type_, desc))
+        
+        # Add builtin functions always, but with lower priority if not relevant
+        for name, (type_, desc) in self._builtins.items():
+            suggestions.append(self._create_completion(name, type_, desc))
+            
+        return suggestions
+
+    def _create_completion(self, name: str, type_: str, description: str) -> "_LocalCompletion":
+        completion = self._LocalCompletion(name)
+        completion.type = type_
+        completion.description = description
+        return completion
+
+    def action_show_completions(self) -> None:
+        """Show the completion popup."""
+        if self._completion_popup:
+            self.hide_completions()
+            return
+
+        completions = self._get_completions()
+        if not completions:
+            return
+
+        popup = AutoCompletePopup()
+        popup.populate(completions)
+        
+        # Get current cursor position and scroll offset
+        row, col = self.cursor_location
+        scroll_x, scroll_y = self.scroll_offset
+        
+        # Calculate popup position relative to visible area
+        # Add row to vertical offset to position below current line
+        # Multiply col by approximate character width
+        x = max(0, int(col * 0.7)) - scroll_x
+        y = row + 1 - scroll_y
+        
+        # Set popup position
+        popup.styles.offset = (x, y)
+        
+        self._completion_popup = popup
+        self.mount(popup)
+        popup.focus()
+
+    def hide_completions(self) -> None:
+        """Hide the completion popup."""
+        if self._completion_popup:
+            self._completion_popup.remove()
+            self._completion_popup = None
+
+    def on_auto_complete_popup_selected(self, message: AutoCompletePopup.Selected) -> None:
+        # Hide the completions popup, if any
+        self.hide_completions()
+
+        if message.value:
+            # Split into lines
+            lines = self.text.split("\n")
+            row, col = self.cursor_location
+
+            # Get the current word and where it starts
+            current_word, word_start = self._get_current_word()
+            line = lines[row]
+
+            # Replace only what you've typed with the chosen completion
+            lines[row] = line[:word_start] + message.value + line[col:]
+            self.text = "\n".join(lines)
+
+            # Move cursor to the end of the inserted completion
+            new_cursor_col = word_start + len(message.value)
+            self.move_cursor((row, new_cursor_col))
+
+        # Return focus to editor; stay in insert mode
+        self.focus()
+        self.mode = "insert"
+        self.status_bar.update_mode("INSERT")
+        self.cursor_blink = True
+
 
     def execute_command(self) -> None:
         command = self.command[1:].strip()
@@ -1025,14 +1464,14 @@ class NestView(Container, InitialFocusMixin):
                 
                 # Common binary file signatures
                 binary_signatures = [
-                    b'\x7FELF',  # ELF
-                    b'MZ',       # DOS/PE
-                    b'\x89PNG',  # PNG
-                    b'\xFF\xD8\xFF',  # JPEG
-                    b'GIF',      # GIF
-                    b'BM',       # BMP
-                    b'PK',       # ZIP
-                    b'\x1F\x8B'  # GZIP
+                    b'\x7FELF',  
+                    b'MZ',       
+                    b'\x89PNG',  
+                    b'\xFF\xD8\xFF',  
+                    b'GIF',      
+                    b'BM',       
+                    b'PK',       
+                    b'\x1F\x8B'  
                 ]
                 
                 # Check for binary signatures
