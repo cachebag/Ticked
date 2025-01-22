@@ -403,9 +403,9 @@ class CodeEditor(TextArea):
         self.move_cursor(self._last_cursor_position)
 
     """def on_focus(self) -> None:
-        self.mode = "normal"
-        self.status_bar.update_mode("NORMAL")
-        self.cursor_blink = False"""
+        current_scroll = self.scroll_offset
+        super().on_focus()
+        self.scroll_to(current_scroll[0], current_scroll[1], animate=False)"""
 
 
     def compose(self) -> ComposeResult:
@@ -587,7 +587,17 @@ class CodeEditor(TextArea):
         if (self.mode == "insert" and 
             event.is_printable and 
             self._word_pattern.match(event.character)):
+            self._save_positions()
             self.action_show_completions()
+
+            # Ensure cursor stays visible after typing
+            cursor_row = self.cursor_location[0]
+            total_height = self.size.height if self.size else 10
+            scroll_y = self.scroll_offset[1]
+            if cursor_row - scroll_y > total_height - 3:
+                self.scroll_relative(y=1)
+            else:
+                self._restore_positions()
 
         if self.in_command_mode:
             if event.key == "enter":
@@ -884,11 +894,14 @@ class CodeEditor(TextArea):
         return completion
 
     def action_show_completions(self) -> None:
-        """Show the completion popup."""
         if self._completion_popup:
             self.hide_completions()
             return
-
+        
+        # Save the state before showing popup
+        current_scroll = self.scroll_offset
+        cursor_row = self.cursor_location[0]
+        
         completions = self._get_completions()
         if not completions:
             return
@@ -896,51 +909,59 @@ class CodeEditor(TextArea):
         popup = AutoCompletePopup()
         popup.populate(completions)
         
-        # Get current cursor position and scroll offset
+        # Calculate visible position
         row, col = self.cursor_location
         scroll_x, scroll_y = self.scroll_offset
+        visible_row = row - scroll_y
+        visible_col = col - scroll_x
         
-        # Calculate popup position relative to visible area
-        # Add row to vertical offset to position below current line
-        # Multiply col by approximate character width
-        x = max(0, int(col * 0.7)) - scroll_x
-        y = row + 1 - scroll_y
+        # Adjust popup position based on viewport size
+        viewport_height = self.size.height if self.size else 10
         
-        # Set popup position
+        # Position popup
+        x = max(0, int(visible_col * 0.7))
+        if visible_row > viewport_height - 12:  # popup height (10) + buffer (2)
+            y = visible_row - 10
+        else:
+            y = visible_row + 1
+        
         popup.styles.offset = (x, y)
         
         self._completion_popup = popup
         self.mount(popup)
+        
+        # Make sure cursor line stays visible
+        cursor_line = self.cursor_location[0]
+        viewport_bottom = scroll_y + viewport_height
+        if cursor_line > viewport_bottom - 3:
+            self.scroll_to(current_scroll[0], cursor_line - viewport_height + 3)
+        else:
+            self.scroll_to(current_scroll[0], current_scroll[1])
+        
         popup.focus()
 
     def hide_completions(self) -> None:
-        """Hide the completion popup."""
         if self._completion_popup:
+            current_scroll = self.scroll_offset
             self._completion_popup.remove()
             self._completion_popup = None
+            self.scroll_to(current_scroll[0], current_scroll[1], animate=False)
 
     def on_auto_complete_popup_selected(self, message: AutoCompletePopup.Selected) -> None:
-        # Hide the completions popup, if any
+        current_scroll = self.scroll_offset
         self.hide_completions()
 
         if message.value:
-            # Split into lines
             lines = self.text.split("\n")
             row, col = self.cursor_location
-
-            # Get the current word and where it starts
             current_word, word_start = self._get_current_word()
             line = lines[row]
-
-            # Replace only what you've typed with the chosen completion
             lines[row] = line[:word_start] + message.value + line[col:]
             self.text = "\n".join(lines)
-
-            # Move cursor to the end of the inserted completion
             new_cursor_col = word_start + len(message.value)
             self.move_cursor((row, new_cursor_col))
 
-        # Return focus to editor; stay in insert mode
+        self.scroll_to(current_scroll[0], current_scroll[1], animate=False)
         self.focus()
         self.mode = "insert"
         self.status_bar.update_mode("INSERT")
@@ -1194,6 +1215,7 @@ class CodeEditor(TextArea):
 
     def action_move_word_forward(self) -> None:
         if self.mode == "normal":
+            current_scroll = self.scroll_offset
             lines = self.text.split("\n")
             cur_row, cur_col = self.cursor_location
             line = lines[cur_row] if cur_row < len(lines) else ""
@@ -1202,9 +1224,11 @@ class CodeEditor(TextArea):
             while cur_col < len(line) and not line[cur_col].isspace():
                 cur_col += 1
             self.move_cursor((cur_row, cur_col))
+            self.scroll_to(current_scroll[0], current_scroll[1], animate=False)
 
     def action_move_word_backward(self) -> None:
         if self.mode == "normal":
+            current_scroll = self.scroll_offset
             lines = self.text.split("\n")
             cur_row, cur_col = self.cursor_location
             line = lines[cur_row] if cur_row < len(lines) else ""
@@ -1213,32 +1237,36 @@ class CodeEditor(TextArea):
             while cur_col > 0 and not line[cur_col-1].isspace():
                 cur_col -= 1
             self.move_cursor((cur_row, cur_col))
+            self.scroll_to(current_scroll[0], current_scroll[1], animate=False)
 
     def action_move_line_start(self) -> None:
         if self.mode == "normal":
+            current_scroll = self.scroll_offset
             self.move_cursor((self.cursor_location[0], 0))
+            self.scroll_to(current_scroll[0], current_scroll[1], animate=False)
 
     def action_undo(self) -> None:
         if self.mode == "normal" and self._undo_stack:
-            self._save_positions()
+            current_scroll = self.scroll_offset
             self._is_undoing = True
             self._redo_stack.append(self.text)
             self.text = self._undo_stack.pop()
             self._undo_batch = []  
             self._is_undoing = False
-            self._restore_positions()
+            self.scroll_to(current_scroll[0], current_scroll[1], animate=False)
 
     def action_redo(self) -> None:
         if self.mode == "normal" and self._redo_stack:
-            self._save_positions()  # Save positions before redo
+            current_scroll = self.scroll_offset
             self._is_undoing = True
             self._undo_stack.append(self.text)
             self.text = self._redo_stack.pop()
             self._is_undoing = False
-            self._restore_positions()  # Restore positions after redo
+            self.scroll_to(current_scroll[0], current_scroll[1], animate=False)
 
     def action_delete_char(self) -> None:
         if self.mode == "normal":
+            current_scroll = self.scroll_offset
             self._save_undo_state()
             cur_row, cur_col = self.cursor_location
             lines = self.text.split("\n")
@@ -1252,23 +1280,24 @@ class CodeEditor(TextArea):
                     self.move_cursor((cur_row, cur_col))
                 else:
                     self.move_cursor((cur_row, max(cur_col - 1, 0)))
+            self.scroll_to(current_scroll[0], current_scroll[1], animate=False)
 
     def action_delete_line(self) -> None:
         if self.mode == "normal":
-            self._save_positions()  # Save positions before deletion
             self._save_undo_state()
             cur_row, _ = self.cursor_location
+            current_scroll = self.scroll_offset
             lines = self.text.split("\n")
             if cur_row < len(lines):
                 lines.pop(cur_row)
                 self.text = "\n".join(lines)
-                # Adjust cursor position if it would be out of bounds
                 target_row = min(cur_row, len(lines) - 1) if lines else 0
                 self.move_cursor((target_row, 0))
-                self._restore_positions()  # Restore positions after deletion
+                self.scroll_to(current_scroll[0], current_scroll[1], animate=False)
 
     def action_delete_to_end(self) -> None:
         if self.mode == "normal":
+            current_scroll = self.scroll_offset
             self._save_undo_state()
             cur_row, cur_col = self.cursor_location
             lines = self.text.split("\n")
@@ -1280,14 +1309,17 @@ class CodeEditor(TextArea):
                 lines[cur_row] = line[:start_col] + line[cur_col:]
                 self.text = "\n".join(lines)
                 self.move_cursor((cur_row, start_col))
+            self.scroll_to(current_scroll[0], current_scroll[1], animate=False)
 
     def action_move_line_end(self) -> None:
         if self.mode == "normal":
+            current_scroll = self.scroll_offset
             lines = self.text.split("\n")
             cur_row = self.cursor_location[0]
             if cur_row < len(lines):
                 line_length = len(lines[cur_row])
                 self.move_cursor((cur_row, line_length))
+            self.scroll_to(current_scroll[0], current_scroll[1], animate=False)
 
     def _save_undo_state(self) -> None:
         if not self._is_undoing:
@@ -1335,6 +1367,9 @@ class CodeEditor(TextArea):
                 self.current_file = filepath
                 self.set_language_from_file(filepath)
                 self._modified = False
+                self.mode = "normal"
+                self.status_bar.update_mode("NORMAL")
+                self.cursor_blink = False   
                 self.focus()
                 self._update_status_info()
         except Exception as e:
