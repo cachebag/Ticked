@@ -587,17 +587,55 @@ class CodeEditor(TextArea):
         if (self.mode == "insert" and 
             event.is_printable and 
             self._word_pattern.match(event.character)):
-            self._save_positions()
-            self.action_show_completions()
+            
+            # Save scroll position
+            current_scroll = self.scroll_offset
+            
+            # Only proceed if there isn't already a popup or we're updating existing
+            if not self._completion_popup:
+                completions = self._get_completions()
+                if completions:
+                    # Calculate viewport relative position
+                    viewport_height = self.size.height if self.size else 10
+                    row, col = self.cursor_location
+                    scroll_x, scroll_y = current_scroll
+                    viewport_top = scroll_y
+                    viewport_bottom = viewport_top + viewport_height
 
-            # Ensure cursor stays visible after typing
-            cursor_row = self.cursor_location[0]
-            total_height = self.size.height if self.size else 10
-            scroll_y = self.scroll_offset[1]
-            if cursor_row - scroll_y > total_height - 3:
-                self.scroll_relative(y=1)
-            else:
-                self._restore_positions()
+                    # Calculate if cursor is in viewport
+                    is_cursor_visible = row >= viewport_top and row <= viewport_bottom
+
+                    if is_cursor_visible:
+                        popup = AutoCompletePopup()
+                        popup.populate(completions)
+                        
+                        # Position relative to cursor in viewport
+                        visible_row = row - scroll_y
+                        visible_col = col - scroll_x
+                        
+                        # Adjust popup height based on available space
+                        space_above = visible_row
+                        space_below = viewport_height - visible_row - 1
+                        
+                        # Determine whether to show above or below
+                        show_below = space_below >= 3  # minimum 3 rows
+                        
+                        # Set popup height
+                        popup_height = min(10, max(3, space_below if show_below else space_above))
+                        popup.styles.height = popup_height
+                        
+                        # Calculate position
+                        x = max(0, int(visible_col * 0.7))
+                        y = visible_row + 1 if show_below else visible_row - popup_height
+                        
+                        popup.styles.offset = (x, y)
+                        
+                        # Mount popup without changing focus
+                        self._completion_popup = popup
+                        self.mount(popup)
+            
+            # Force scroll position
+            self.scroll_to(current_scroll[0], current_scroll[1], animate=False)
 
         if self.in_command_mode:
             if event.key == "enter":
@@ -894,64 +932,53 @@ class CodeEditor(TextArea):
         return completion
 
     def action_show_completions(self) -> None:
+        # If popup is already showing, hide it
         if self._completion_popup:
             self.hide_completions()
             return
-        
-        # Save the state before showing popup
+            
+        # Save current positions (only need to save once)
         current_scroll = self.scroll_offset
-        cursor_row = self.cursor_location[0]
+        current_cursor = self.cursor_location
         
         completions = self._get_completions()
         if not completions:
             return
-
+            
         popup = AutoCompletePopup()
         popup.populate(completions)
         
-        # Calculate visible position
+        # Calculate visible position relative to viewport
         row, col = self.cursor_location
-        scroll_x, scroll_y = self.scroll_offset
+        scroll_x, scroll_y = current_scroll  # Use saved scroll position
         visible_row = row - scroll_y
         visible_col = col - scroll_x
         
-        # Adjust popup position based on viewport size
-        viewport_height = self.size.height if self.size else 10
-        
-        # Position popup
+        # Simple popup positioning without affecting viewport
         x = max(0, int(visible_col * 0.7))
-        if visible_row > viewport_height - 12:  # popup height (10) + buffer (2)
-            y = visible_row - 10
-        else:
-            y = visible_row + 1
+        y = visible_row + 1  # Always show below current line for consistency
         
         popup.styles.offset = (x, y)
         
         self._completion_popup = popup
         self.mount(popup)
         
-        # Make sure cursor line stays visible
-        cursor_line = self.cursor_location[0]
-        viewport_bottom = scroll_y + viewport_height
-        if cursor_line > viewport_bottom - 3:
-            self.scroll_to(current_scroll[0], cursor_line - viewport_height + 3)
-        else:
-            self.scroll_to(current_scroll[0], current_scroll[1])
+        # Maintain exact scroll position like in action_delete_line
+        self.scroll_to(current_scroll[0], current_scroll[1], animate=False)
         
         popup.focus()
 
     def hide_completions(self) -> None:
         if self._completion_popup:
-            current_scroll = self.scroll_offset
             self._completion_popup.remove()
             self._completion_popup = None
-            self.scroll_to(current_scroll[0], current_scroll[1], animate=False)
 
     def on_auto_complete_popup_selected(self, message: AutoCompletePopup.Selected) -> None:
+        # Save scroll position before any changes
         current_scroll = self.scroll_offset
-        self.hide_completions()
-
+        
         if message.value:
+            # Apply the completion
             lines = self.text.split("\n")
             row, col = self.cursor_location
             current_word, word_start = self._get_current_word()
@@ -960,8 +987,14 @@ class CodeEditor(TextArea):
             self.text = "\n".join(lines)
             new_cursor_col = word_start + len(message.value)
             self.move_cursor((row, new_cursor_col))
-
+        
+        # Hide popup after changes
+        self.hide_completions()
+        
+        # Restore scroll position exactly
         self.scroll_to(current_scroll[0], current_scroll[1], animate=False)
+        
+        # Update mode and focus after scroll restoration
         self.focus()
         self.mode = "insert"
         self.status_bar.update_mode("INSERT")
