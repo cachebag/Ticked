@@ -14,7 +14,7 @@
 
 
 --- 
-# 📟 **Ticked** is a Terminal based task and productivity manager built in Python over the Textual library. Intended for University Students, but usable for everyone. 
+# 📟 **Ticked** is a Terminal based task and productivity manager built in Python over the Textual framework. Intended for University Students, but usable for everyone. 
 
 ### To update if you already have an older version installed:
   - For Homebrew:
