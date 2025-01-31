@@ -588,54 +588,17 @@ class CodeEditor(TextArea):
             event.is_printable and 
             self._word_pattern.match(event.character)):
             
-            # Save scroll position
-            current_scroll = self.scroll_offset
-            
-            # Only proceed if there isn't already a popup or we're updating existing
+            # [inside on_key, when completions should be shown]
             if not self._completion_popup:
                 completions = self._get_completions()
                 if completions:
-                    # Calculate viewport relative position
-                    viewport_height = self.size.height if self.size else 10
                     row, col = self.cursor_location
-                    scroll_x, scroll_y = current_scroll
-                    viewport_top = scroll_y
-                    viewport_bottom = viewport_top + viewport_height
-
-                    # Calculate if cursor is in viewport
-                    is_cursor_visible = row >= viewport_top and row <= viewport_bottom
-
-                    if is_cursor_visible:
-                        popup = AutoCompletePopup()
-                        popup.populate(completions)
-                        
-                        # Position relative to cursor in viewport
-                        visible_row = row - scroll_y
-                        visible_col = col - scroll_x
-                        
-                        # Adjust popup height based on available space
-                        space_above = visible_row
-                        space_below = viewport_height - visible_row - 1
-                        
-                        # Determine whether to show above or below
-                        show_below = space_below >= 3  # minimum 3 rows
-                        
-                        # Set popup height
-                        popup_height = min(10, max(3, space_below if show_below else space_above))
-                        popup.styles.height = popup_height
-                        
-                        # Calculate position
-                        x = max(0, int(visible_col * 0.7))
-                        y = visible_row + 1 if show_below else visible_row - popup_height
-                        
-                        popup.styles.offset = (x, y)
-                        
-                        # Mount popup without changing focus
-                        self._completion_popup = popup
-                        self.mount(popup)
-            
-            # Force scroll position
-            self.scroll_to(current_scroll[0], current_scroll[1], animate=False)
+                    popup = AutoCompletePopup()
+                    popup.populate(completions)
+                    # Position the popup so that it appears immediately below the cursor:
+                    popup.styles.offset = (col, row + 1)
+                    self._completion_popup = popup
+                    self.mount(popup)
 
         if self.in_command_mode:
             if event.key == "enter":
@@ -932,15 +895,6 @@ class CodeEditor(TextArea):
         return completion
 
     def action_show_completions(self) -> None:
-        # If popup is already showing, hide it
-        if self._completion_popup:
-            self.hide_completions()
-            return
-            
-        # Save current positions (only need to save once)
-        current_scroll = self.scroll_offset
-        current_cursor = self.cursor_location
-        
         completions = self._get_completions()
         if not completions:
             return
@@ -948,25 +902,15 @@ class CodeEditor(TextArea):
         popup = AutoCompletePopup()
         popup.populate(completions)
         
-        # Calculate visible position relative to viewport
+        # Position the popup to appear immediately below the cursor:
         row, col = self.cursor_location
-        scroll_x, scroll_y = current_scroll  # Use saved scroll position
-        visible_row = row - scroll_y
-        visible_col = col - scroll_x
-        
-        # Simple popup positioning without affecting viewport
-        x = max(0, int(visible_col * 0.7))
-        y = visible_row + 1  # Always show below current line for consistency
-        
-        popup.styles.offset = (x, y)
+        popup.styles.offset = (col, row + 1)
         
         self._completion_popup = popup
         self.mount(popup)
         
-        # Maintain exact scroll position like in action_delete_line
-        self.scroll_to(current_scroll[0], current_scroll[1], animate=False)
-        
         popup.focus()
+
 
     def hide_completions(self) -> None:
         if self._completion_popup:
