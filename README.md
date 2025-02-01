@@ -36,7 +36,7 @@ pip install --upgrade ticked
 ---
 
 ## Want to jump in?
-You can either read the [docs](https://cachebag.github.io/Ticked/), and get quickly setup to begin working or you can go straight into it. Just...
+You can either read the [docs](https://cachebag.github.io/Ticked/), and get quickly setup to begin working or you can go straight into it by doing:
 ```bash
 pip install ticked
 ticked
