@@ -544,33 +544,39 @@ class CodeEditor(TextArea):
         # Handle tab key specially for completions
         if event.key == "tab" and self.mode == "insert":
             if self._completion_popup and self._completion_popup.row_count > 0:
-                # Get the currently selected completion
+                # Get the currently selected completion.
                 selected_row = self._completion_popup.cursor_row or 0
                 value = self._completion_popup.get_cell_at(Coordinate(selected_row, 0))
-                if value:
-                    # Strip the type icon
-                    value = value.split(" ", 1)[1] if " " in value else value
-                    
-                    # Apply completion
-                    lines = self.text.split("\n")
-                    row, col = self.cursor_location
-                    current_word, word_start = self._get_current_word()
-                    line = lines[row]
-                    lines[row] = line[:word_start] + value + line[col:]
-                    self.text = "\n".join(lines)
-                    self.move_cursor((row, word_start + len(value)))
-                
-                # Hide popup
+                # Strip the type icon.
+                value = value.split(" ", 1)[1] if " " in value else value
+
+                # **Save the current scroll offset before updating text**
+                current_scroll = self.scroll_offset
+
+                # Apply the completion.
+                lines = self.text.split("\n")
+                row, col = self.cursor_location
+                current_word, word_start = self._get_current_word()
+                line = lines[row]
+                lines[row] = line[:word_start] + value + line[col:]
+                self.text = "\n".join(lines)
+                self.move_cursor((row, word_start + len(value)))
+
+                # **Restore the scroll offset after updating the text**
+                self.scroll_to(current_scroll[0], current_scroll[1], animate=False)
+
+                # Hide popup.
                 self.hide_completions()
                 event.prevent_default()
                 event.stop()
                 return
             else:
-                # Normal tab behavior
+                # Normal tab behavior.
                 self.action_indent()
                 event.prevent_default()
                 event.stop()
                 return
+
 
         # Handle completion popup
         if self._completion_popup:
@@ -584,18 +590,21 @@ class CodeEditor(TextArea):
             elif event.key == "enter":
                 return
 
-        if (self.mode == "insert" and 
-            event.is_printable and 
-            self._word_pattern.match(event.character)):
-            
-            # [inside on_key, when completions should be shown]
-            if not self._completion_popup:
+        if self.mode == "insert" and event.is_printable and self._word_pattern.match(event.character):
+            # If the popup already exists, update it with new completions.
+            if self._completion_popup:
+                completions = self._get_completions()
+                if completions:
+                    self._completion_popup.populate(completions)
+                else:
+                    self.hide_completions()
+            else:
+                # Create and mount the popup if it doesn’t exist yet.
                 completions = self._get_completions()
                 if completions:
                     row, col = self.cursor_location
                     popup = AutoCompletePopup()
                     popup.populate(completions)
-                    # Position the popup so that it appears immediately below the cursor:
                     popup.styles.offset = (col, row + 1)
                     self._completion_popup = popup
                     self.mount(popup)
@@ -871,22 +880,37 @@ class CodeEditor(TextArea):
         
         suggestions = []
         
-        # Check for import context
+        # NEW: Check for decorator context if the current token starts with '@'
+        current_word, _ = self._get_current_word()
+        if current_word.startswith("@"):
+            # Add common decorator suggestions
+            decorators = [
+                ("@classmethod", "decorator", "Class method decorator"),
+                ("@staticmethod", "decorator", "Static method decorator"),
+                ("@property", "decorator", "Property decorator"),
+                # Add more if desired...
+            ]
+            for name, type_, desc in decorators:
+                suggestions.append(self._create_completion(name, type_, desc))
+            return suggestions
+
+        # Existing suggestions for import context or common patterns
         if line_before_cursor.strip().startswith(('import', 'from')):
             for module, desc in self._common_imports.items():
                 suggestions.append(self._create_completion(module, 'module', desc))
             return suggestions
-            
-        # Check for common patterns at start of line
+
+        # For blank lines, suggest common patterns (if applicable)
         if line_before_cursor.strip() == "":
             for pattern, (type_, desc) in self._common_patterns.items():
                 suggestions.append(self._create_completion(pattern, type_, desc))
         
-        # Add builtin functions always, but with lower priority if not relevant
+        # Optionally, always add builtins (with lower priority if not relevant)
         for name, (type_, desc) in self._builtins.items():
             suggestions.append(self._create_completion(name, type_, desc))
             
         return suggestions
+
 
     def _create_completion(self, name: str, type_: str, description: str) -> "_LocalCompletion":
         completion = self._LocalCompletion(name)
@@ -918,9 +942,6 @@ class CodeEditor(TextArea):
             self._completion_popup = None
 
     def on_auto_complete_popup_selected(self, message: AutoCompletePopup.Selected) -> None:
-        # Save scroll position before any changes
-        current_scroll = self.scroll_offset
-        
         if message.value:
             # Apply the completion
             lines = self.text.split("\n")
@@ -935,14 +956,14 @@ class CodeEditor(TextArea):
         # Hide popup after changes
         self.hide_completions()
         
-        # Restore scroll position exactly
-        self.scroll_to(current_scroll[0], current_scroll[1], animate=False)
+        # No scroll restoration here—so your current scroll/position is preserved
         
-        # Update mode and focus after scroll restoration
+        # Update mode and focus
         self.focus()
         self.mode = "insert"
         self.status_bar.update_mode("INSERT")
         self.cursor_blink = True
+
 
 
     def execute_command(self) -> None:
