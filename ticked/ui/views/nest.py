@@ -326,7 +326,7 @@ class CodeEditor(TextArea):
             pass
 
     def __init__(self) -> None:
-        super().__init__(language="python", theme="dracula", show_line_numbers=True)
+        super().__init__(language="python", theme="monokai", show_line_numbers=True)
         self.current_file = None
         self._modified = False
         self.tab_size = 4
