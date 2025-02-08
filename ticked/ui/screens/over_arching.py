@@ -1,5 +1,5 @@
 from textual.app import ComposeResult
-from textual.containers import Container, ScrollableContainer 
+from textual.containers import Container, ScrollableContainer
 from textual.screen import Screen
 from textual.widgets import Header, Button, Static, Footer
 from textual.binding import Binding
@@ -11,8 +11,8 @@ from ticked.ui.views.settings import SettingsView
 from ticked.ui.mixins.focus_mixin import InitialFocusMixin
 from textual.widget import Widget
 from typing import Optional
-from ..views.pomodoro import PomodoroView   
-from ..views.spotify import SpotifyView 
+from ..views.pomodoro import PomodoroView
+from ..views.spotify import SpotifyView
 from ..views.canvas import CanvasView
 from textual import work
 
@@ -21,6 +21,7 @@ class MenuItem(Button):
     def __init__(self, label: str, id: str) -> None:
         super().__init__(label, id=id)
         self.can_focus = True
+
 
 class MainMenu(Container):
     def compose(self) -> ComposeResult:
@@ -34,33 +35,32 @@ class MainMenu(Container):
         yield MenuItem("SETTINGS", id="menu_settings")
         yield MenuItem("EXIT", id="menu_exit")
 
+
 class CustomHeader(Container):
     def compose(self) -> ComposeResult:
         yield SystemStatsHeader()
         yield Header(show_clock=True)
 
+
 class HomeScreen(Screen, InitialFocusMixin):
-    
+
     BINDINGS = [
         Binding("escape", "toggle_menu", "Toggle Menu", show=True),
         Binding("up", "menu_up", "Up", show=True),
         Binding("down", "menu_down", "Down", show=True),
         Binding("enter", "menu_select", "", show=False),
         Binding("left", "move_left", "", show=False),
-        Binding("right", "move_right", "", show=False)
+        Binding("right", "move_right", "", show=False),
     ]
-    
+
     def compose(self) -> ComposeResult:
         yield CustomHeader()
 
         yield Container(
             MainMenu(),
-            ScrollableContainer(
-                WelcomeView(),
-                id="content"
-            ),
+            ScrollableContainer(WelcomeView(), id="content"),
             id="main-container",
-            classes="content-area"
+            classes="content-area",
         )
 
         yield Footer()
@@ -75,7 +75,7 @@ class HomeScreen(Screen, InitialFocusMixin):
     def action_toggle_menu(self) -> None:
         menu = self.query_one("MainMenu")
         content_container = self.query_one("#content")
-        
+
         if "hidden" in menu.classes:
             menu.remove_class("hidden")
             menu.styles.display = "block"
@@ -85,18 +85,18 @@ class HomeScreen(Screen, InitialFocusMixin):
         else:
             menu.add_class("hidden")
             menu.styles.display = "none"
-            
+
             if content_container and content_container.children:
                 current_view = content_container.children[0]
-                
+
                 try:
                     if isinstance(current_view, WelcomeView):
                         tab = current_view.query("TabButton").first()
                         if tab:
                             tab.focus()
                             return
-                    
-                    if hasattr(current_view, 'get_initial_focus'):
+
+                    if hasattr(current_view, "get_initial_focus"):
                         initial_focus = current_view.get_initial_focus()
                         if initial_focus:
                             initial_focus.focus()
@@ -109,7 +109,7 @@ class HomeScreen(Screen, InitialFocusMixin):
             menu = self.query_one("MainMenu")
             menu_items = list(menu.query("MenuItem"))
             current = self.focused
-            
+
             if current in menu_items:
                 current_idx = menu_items.index(current)
                 prev_idx = (current_idx - 1) % len(menu_items)
@@ -120,7 +120,7 @@ class HomeScreen(Screen, InitialFocusMixin):
             menu = self.query_one("MainMenu")
             menu_items = list(menu.query("MenuItem"))
             current = self.focused
-            
+
             if current in menu_items:
                 current_idx = menu_items.index(current)
                 next_idx = (current_idx + 1) % len(menu_items)
@@ -137,7 +137,8 @@ class HomeScreen(Screen, InitialFocusMixin):
         first_menu_item = menu.query_one("MenuItem")
         if first_menu_item:
             first_menu_item.focus()
-    @work(exclusive=True)   
+
+    @work(exclusive=True)
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         content_container = self.query_one("#content")
         button_id = event.button.id
@@ -157,47 +158,47 @@ class HomeScreen(Screen, InitialFocusMixin):
                         tab.focus()
                 except Exception:
                     home_view.focus()
-                    
+
             elif button_id == "menu_calendar":
                 content_container.remove_children()
                 calendar_view = CalendarView()
                 content_container.mount(calendar_view)
                 try:
-                    if hasattr(calendar_view, 'get_initial_focus'):
+                    if hasattr(calendar_view, "get_initial_focus"):
                         initial_focus = calendar_view.get_initial_focus()
                         if initial_focus:
                             initial_focus.focus()
                 except Exception:
                     calendar_view.focus()
-                    
+
             elif button_id == "menu_nest":
                 content_container.remove_children()
                 nest_view = NestView()
                 content_container.mount(nest_view)
-                
+
             elif button_id == "menu_canvas":
                 content_container.remove_children()
                 canvas_view = CanvasView()
                 content_container.mount(canvas_view)
-                
+
             elif button_id == "menu_pomodoro":
                 content_container.remove_children()
                 pomo_view = PomodoroView()
                 content_container.mount(pomo_view)
-                
+
             elif button_id == "menu_spotify":
                 content_container.remove_children()
                 spotify_view = SpotifyView()
                 content_container.mount(spotify_view)
-                
+
             elif button_id == "menu_settings":
                 content_container.remove_children()
                 settings_view = SettingsView()
                 content_container.mount(settings_view)
-                
+
             elif button_id == "menu_exit":
                 self.action_quit_app()
-                
+
         except Exception as e:
             self.notify(f"Error: {str(e)}")
 
@@ -234,22 +235,21 @@ class HomeScreen(Screen, InitialFocusMixin):
     def get_initial_focus(self) -> Optional[Widget]:
         return self.query_one("MenuItem")
 
-
     async def _switch_view(self, view_class, *args, **kwargs):
         content_container = self.query_one("#content")
         content_container.remove_children()
-        
+
         new_view = view_class(*args, **kwargs)
-        
+
         try:
             content_container.mount(new_view)
-            
+
             try:
                 if isinstance(new_view, WelcomeView):
                     tab = new_view.query("TabButton").first()
                     if tab:
                         tab.focus()
-                elif hasattr(new_view, 'get_initial_focus'):
+                elif hasattr(new_view, "get_initial_focus"):
                     initial_focus = new_view.get_initial_focus()
                     if initial_focus:
                         initial_focus.focus()
@@ -257,6 +257,6 @@ class HomeScreen(Screen, InitialFocusMixin):
                     new_view.focus()
             except Exception:
                 new_view.focus()
-                
+
         except Exception as e:
             self.notify(f"Error: {str(e)}")

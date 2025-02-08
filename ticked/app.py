@@ -18,6 +18,7 @@ from datetime import datetime
 from packaging import version
 from textual.worker import Worker, get_current_worker
 
+
 class Ticked(App):
     CSS_PATH = str(Path(__file__).parent / "config" / "theme.tcss")
     SCREENS = {"home": HomeScreen}
@@ -51,17 +52,19 @@ class Ticked(App):
             if not self.db.should_check_for_updates():
                 return
 
-            response = requests.get('https://pypi.org/pypi/ticked/json')
+            response = requests.get("https://pypi.org/pypi/ticked/json")
             if response.status_code == 200:
-                latest_version = response.json()['info']['version']
-                current_version = get_version("ticked")  # Dynamically get the installed version
-                
+                latest_version = response.json()["info"]["version"]
+                current_version = get_version(
+                    "ticked"
+                )  # Dynamically get the installed version
+
                 if version.parse(latest_version) > version.parse(current_version):
                     self.notify(
                         f"New version {latest_version} available! Current version: {current_version}. "
                         f"Run 'pip install --upgrade ticked' to update.",
                         severity="information",
-                        timeout=10
+                        timeout=10,
                     )
 
             self.db.save_last_update_check()
@@ -71,10 +74,10 @@ class Ticked(App):
             pass
 
     def get_spotify_client(self):
-        if hasattr(self, '_spotify_auth') and self._spotify_auth:
+        if hasattr(self, "_spotify_auth") and self._spotify_auth:
             return self._spotify_auth.spotify_client
         return None
-        
+
     def set_spotify_auth(self, auth):
         self._spotify_auth = auth
 
@@ -83,13 +86,13 @@ class Ticked(App):
             "work_duration": 25,
             "break_duration": 5,
             "total_sessions": 4,
-            "long_break_duration": 15
+            "long_break_duration": 15,
         }
-    
+
         config_dir = xdg_config_home() / "ticked"
         config_dir.mkdir(parents=True, exist_ok=True)
         settings_path = config_dir / "pomodoro_settings.json"
-    
+
         try:
             with open(settings_path, "r") as f:
                 return json.load(f)
@@ -149,9 +152,9 @@ class Ticked(App):
                 for item in menu.query("MenuItem"):
                     item.can_focus = False
                 current_view = self.screen.query_one(".content").children[0]
-                if hasattr(current_view, 'get_initial_focus'):
+                if hasattr(current_view, "get_initial_focus"):
                     initial_focus = current_view.get_initial_focus()
-                    if (initial_focus):
+                    if initial_focus:
                         initial_focus.focus()
         except Exception as e:
             self.notify(f"Error toggling menu: {str(e)}", severity="error")
@@ -159,9 +162,11 @@ class Ticked(App):
     def compose(self) -> ComposeResult:
         yield NestView()
 
+
 def main():
     app = Ticked()
     app.run()
+
 
 if __name__ == "__main__":
     main()

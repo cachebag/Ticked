@@ -5,17 +5,19 @@ from textual.widget import Widget
 from textual.binding import Binding
 from typing import Optional
 
+
 class SettingsButton(Button):
     def __init__(self, label: str, setting_id: str):
         super().__init__(label, id=f"setting_{setting_id}")
         self.setting_id = setting_id
         self.add_class("setting-button")
-        
+
     def toggle_active(self, is_active: bool):
         if is_active:
             self.add_class("active")
         else:
             self.remove_class("active")
+
 
 class ThemeButton(Button):
     def __init__(self, theme: str):
@@ -27,29 +29,42 @@ class ThemeButton(Button):
         self.app.theme = self.theme_name
         self.app.db.save_theme_preference(self.theme_name)
 
+
 class PersonalizationContent(Container):
     def compose(self) -> ComposeResult:
         yield Static("Personalization Settings", classes="settings-title")
         with Container(classes="theme-buttons-grid"):
             themes = [
-                "textual-dark", "textual-light", "nord", "gruvbox",
-                "catppuccin-mocha", "dracula", "tokyo-night", "monokai",
-                "flexoki", "catppuccin-latte", "solarized-light"
+                "textual-dark",
+                "textual-light",
+                "nord",
+                "gruvbox",
+                "catppuccin-mocha",
+                "dracula",
+                "tokyo-night",
+                "monokai",
+                "flexoki",
+                "catppuccin-latte",
+                "solarized-light",
             ]
             for theme in themes:
                 yield ThemeButton(theme)
+
 
 class SpotifyContent(Container):
     def compose(self) -> ComposeResult:
         yield Static("Spotify Settings", classes="settings-title")
 
+
 class WidgetsContent(Container):
     def compose(self) -> ComposeResult:
         yield Static("Widgets Settings", classes="settings-title")
 
+
 class AboutContent(Container):
     def compose(self) -> ComposeResult:
         yield Static("About", classes="settings-title")
+
 
 class SettingsView(Container):
     BINDINGS = [
@@ -66,7 +81,7 @@ class SettingsView(Container):
                     yield SettingsButton("Spotify", "spotify")
                     yield SettingsButton("Widgets", "widgets")
                     yield SettingsButton("About", "about")
-                
+
                 with Container(classes="settings-content"):
                     yield PersonalizationContent()
                     yield SpotifyContent()
@@ -94,19 +109,24 @@ class SettingsView(Container):
             return
 
         event.stop()
-        
+
         setting_buttons = self.query(SettingsButton)
-        
+
         personalization_content = self.query_one(PersonalizationContent)
         spotify_content = self.query_one(SpotifyContent)
         widgets_content = self.query_one(WidgetsContent)
         about_content = self.query_one(AboutContent)
-        
+
         for button in setting_buttons:
             event.stop()
             button.toggle_active(button.id == event.button.id)
-        
-        all_content = [personalization_content, spotify_content, widgets_content, about_content]
+
+        all_content = [
+            personalization_content,
+            spotify_content,
+            widgets_content,
+            about_content,
+        ]
         for content in all_content:
             content.styles.display = "none"
 

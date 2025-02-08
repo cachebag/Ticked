@@ -6,7 +6,7 @@ from textual import work
 from textual.binding import Binding
 from textual.screen import ModalScreen
 import asyncio
-from pathlib import Path    
+from pathlib import Path
 import json
 import pyfiglet
 
@@ -14,20 +14,31 @@ import pyfiglet
 class CustomizeModal(ModalScreen[dict]):
 
     def __init__(self, name=None, id=None, classes=None):
-        super().__init__(name=name, id=id, classes=classes)  
+        super().__init__(name=name, id=id, classes=classes)
         self.package_dir = Path(__file__).parent.parent.parent
-
 
     def compose(self) -> ComposeResult:
         with Container(classes="customize-dialog"):
             yield Label("Session time (minutes):")
-            yield Input(value=str(self.app.get_current_settings()["work_duration"]), id="work_duration")
+            yield Input(
+                value=str(self.app.get_current_settings()["work_duration"]),
+                id="work_duration",
+            )
             yield Label("Break time (minutes):")
-            yield Input(value=str(self.app.get_current_settings()["break_duration"]), id="break_duration")
+            yield Input(
+                value=str(self.app.get_current_settings()["break_duration"]),
+                id="break_duration",
+            )
             yield Label("Number of sessions (max 12):")
-            yield Input(value=str(self.app.get_current_settings()["total_sessions"]), id="total_sessions")
+            yield Input(
+                value=str(self.app.get_current_settings()["total_sessions"]),
+                id="total_sessions",
+            )
             yield Label("Long break time (minutes):")
-            yield Input(value=str(self.app.get_current_settings()["long_break_duration"]), id="long_break_duration")
+            yield Input(
+                value=str(self.app.get_current_settings()["long_break_duration"]),
+                id="long_break_duration",
+            )
             with Horizontal():
                 yield Button("Save", variant="primary", id="save")
                 yield Button("Cancel", id="cancel")
@@ -39,8 +50,12 @@ class CustomizeModal(ModalScreen[dict]):
                 settings = {
                     "work_duration": int(self.query_one("#work_duration").value),
                     "break_duration": int(self.query_one("#break_duration").value),
-                    "total_sessions": min(12, int(self.query_one("#total_sessions").value)),
-                    "long_break_duration": int(self.query_one("#long_break_duration").value)
+                    "total_sessions": min(
+                        12, int(self.query_one("#total_sessions").value)
+                    ),
+                    "long_break_duration": int(
+                        self.query_one("#long_break_duration").value
+                    ),
                 }
                 pomo = self.package_dir / "pomodoro_settings.json"
                 with open(pomo, "w") as f:
@@ -51,6 +66,7 @@ class CustomizeModal(ModalScreen[dict]):
                 self.app.notify("Please enter valid numbers")
         else:
             self.dismiss(None)
+
 
 class PomodoroView(Container):
     work_duration = reactive(25)
@@ -86,7 +102,7 @@ class PomodoroView(Container):
         while self.time_left > 0 and self._is_running:
             await asyncio.sleep(1)
             self.time_left -= 1
-            
+
             if self.time_left == 0:
                 self.is_break = not self.is_break
                 if self.is_break:
@@ -121,8 +137,9 @@ class PomodoroView(Container):
         self.update_display()
 
     def update_session_counter(self):
-        self.session_counter.update(f"Session {self.current_session}/{self.total_sessions}")
-
+        self.session_counter.update(
+            f"Session {self.current_session}/{self.total_sessions}"
+        )
 
     def update_display(self):
         minutes = f"{self.time_left // 60:02d}".replace("", " ")[1:-1]
@@ -132,9 +149,6 @@ class PomodoroView(Container):
         self.timer_display.update(ascii_art)
         self.timer_display.refresh(layout=True)
 
-
-
-
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         event.stop()
         if event.button.id == "toggle":
@@ -143,7 +157,6 @@ class PomodoroView(Container):
             self.action_reset()
         elif event.button.id == "customize":
             self.action_customize()
-
 
     @work
     async def action_customize(self):
@@ -163,13 +176,11 @@ class PomodoroView(Container):
             self.query_one("#toggle").label = "Start"
             self.update_display()
             self.update_session_counter()
-            
-
 
     def action_toggle(self):
         self._is_running = not self._is_running
         toggle_button = self.query_one("#toggle")
-        
+
         if self._is_running:
             toggle_button.label = "Pause"
             if not self.timer_task or self.timer_task.done():

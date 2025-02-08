@@ -11,17 +11,19 @@ from ticked.widgets.task_widget import Task
 import random
 import json
 
+
 class TabButton(Button):
     def __init__(self, label: str, tab_id: str):
         super().__init__(label, id=f"tab_{tab_id}")
         self.tab_id = tab_id
         self.add_class("tab-button")
-        
+
     def toggle_active(self, is_active: bool):
-        if (is_active):
+        if is_active:
             self.add_class("active")
         else:
             self.remove_class("active")
+
 
 class ASCIIAnimation(Static):
     DEFAULT_CSS = """
@@ -31,26 +33,24 @@ class ASCIIAnimation(Static):
         text-align: center;
     }
     """
-    
+
     def __init__(self):
         super().__init__("")
         self.current_frame = 0
         self.frames = [
-                ".",
-    
-                "|",
-    
-                "/",
-    
-                ]
-    
+            ".",
+            "|",
+            "/",
+        ]
+
     async def on_mount(self) -> None:
         self.update_animation()
-    
+
     def update_animation(self) -> None:
         self.update(self.frames[self.current_frame])
         self.current_frame = (self.current_frame + 1) % len(self.frames)
         self.set_timer(0.5, self.update_animation)
+
 
 class DashboardCard(Container):
     def __init__(self, title: str, content: str = "", classes: str = None) -> None:
@@ -62,6 +62,7 @@ class DashboardCard(Container):
     def compose(self) -> ComposeResult:
         yield Static(self.title, classes="card-title")
         yield Static(self.content, classes="card-content")
+
 
 class NowPlayingCard(Container):
     DEFAULT_CSS = """
@@ -100,7 +101,11 @@ class NowPlayingCard(Container):
 
     def compose(self) -> ComposeResult:
         yield Static("Now Playing", classes="card-title")
-        yield Static("No track playing - Make sure you authenticate in the Spotify page", id="track-name", classes="track-info")
+        yield Static(
+            "No track playing - Make sure you authenticate in the Spotify page",
+            id="track-name",
+            classes="track-info",
+        )
         yield Static("", id="artist-name", classes="track-info")
         with Horizontal(classes="track-controls"):
             yield Button("⏮", id="prev-btn", classes="control-btn")
@@ -117,7 +122,9 @@ class NowPlayingCard(Container):
     def poll_spotify_now_playing(self) -> None:
         spotify_client = self.app.get_spotify_client()
         if not spotify_client:
-            self.update_track("No track playing - Make sure you authenticate in the Spotify page", "")
+            self.update_track(
+                "No track playing - Make sure you authenticate in the Spotify page", ""
+            )
             return
 
         try:
@@ -127,10 +134,15 @@ class NowPlayingCard(Container):
                 artist_name = ", ".join(a["name"] for a in playback["item"]["artists"])
                 self.update_track(track_name, artist_name)
             else:
-                self.update_track("No track playing - Make sure you authenticate in the Spotify page", "")
+                self.update_track(
+                    "No track playing - Make sure you authenticate in the Spotify page",
+                    "",
+                )
         except Exception as e:
             print(f"Error fetching Spotify playback: {e}")
-            self.update_track("No track playing - Make sure you authenticate in the Spotify page", "")
+            self.update_track(
+                "No track playing - Make sure you authenticate in the Spotify page", ""
+            )
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         spotify_client = self.app.get_spotify_client()
@@ -146,7 +158,7 @@ class NowPlayingCard(Container):
                     spotify_client.pause_playback()
                 else:
                     spotify_client.start_playback()
-                self.poll_spotify_now_playing()  
+                self.poll_spotify_now_playing()
             elif event.button.id == "prev-btn":
                 event.stop()
                 spotify_client.previous_track()
@@ -154,7 +166,9 @@ class NowPlayingCard(Container):
                 playback = spotify_client.current_playback()
                 if playback and playback.get("item"):
                     track_name = playback["item"]["name"]
-                    artist_name = ", ".join(a["name"] for a in playback["item"]["artists"])
+                    artist_name = ", ".join(
+                        a["name"] for a in playback["item"]["artists"]
+                    )
                     self.notify(f"Now playing: {track_name} by {artist_name}")
             elif event.button.id == "next-btn":
                 event.stop()
@@ -163,7 +177,9 @@ class NowPlayingCard(Container):
                 playback = spotify_client.current_playback()
                 if playback and playback.get("item"):
                     track_name = playback["item"]["name"]
-                    artist_name = ", ".join(a["name"] for a in playback["item"]["artists"])
+                    artist_name = ", ".join(
+                        a["name"] for a in playback["item"]["artists"]
+                    )
                     self.notify(f"Now playing: {track_name} by {artist_name}")
         except Exception as e:
             self.notify(f"Playback error: {str(e)}", severity="error")
@@ -196,7 +212,7 @@ class TodayContent(Container):
         height: auto;  /* changed from 100% */
     }
     """
-    
+
     def __init__(self) -> None:
         super().__init__()
         self.tasks_to_mount = None
@@ -207,14 +223,17 @@ class TodayContent(Container):
             with Container(classes="tasks-card"):
                 with DashboardCard("Today's Tasks"):
                     with Vertical(id="today-tasks-list", classes="tasks-list"):
-                        yield Static("No Tasks - Head over to your calendar to add some!", classes="empty-schedule")
-            
+                        yield Static(
+                            "No Tasks - Head over to your calendar to add some!",
+                            classes="empty-schedule",
+                        )
+
             with Container(classes="right-column"):
                 with Grid(classes="right-top-grid"):
                     quote = self.get_cached_quote()
                     yield DashboardCard("Quote of the Day", quote)
                     yield NowPlayingCard()
-                
+
                 with Container(classes="bottom-card"):
                     yield UpcomingTasksView()
 
@@ -240,27 +259,32 @@ class TodayContent(Container):
     def _do_mount_tasks(self, tasks):
         tasks_list = self.query_one("#today-tasks-list")
         current_focused_task_id = None
-        
+
         focused = self.app.focused
         if isinstance(focused, Task):
             current_focused_task_id = focused.task_id
-            
+
         tasks_list.remove_children()
-        
+
         if tasks:
             for task in tasks:
                 task_widget = Task(task)
                 tasks_list.mount(task_widget)
-                if current_focused_task_id and task['id'] == current_focused_task_id:
+                if current_focused_task_id and task["id"] == current_focused_task_id:
                     task_widget.focus()
         else:
-            tasks_list.mount(Static("No tasks - Head to your calendar to add some!", classes="empty-schedule"))
+            tasks_list.mount(
+                Static(
+                    "No tasks - Head to your calendar to add some!",
+                    classes="empty-schedule",
+                )
+            )
 
     def refresh_tasks(self) -> None:
-        today = datetime.now().strftime('%Y-%m-%d')
+        today = datetime.now().strftime("%Y-%m-%d")
         tasks = self.app.db.get_tasks_for_date(today)
         self._do_mount_tasks(tasks)
-        
+
         # Also refresh upcoming tasks view
         upcoming_view = self.query_one(UpcomingTasksView)
         if upcoming_view:
@@ -299,6 +323,7 @@ class TodayContent(Container):
         if now_playing:
             now_playing.update_track(track_name, artist_name)
 
+
 class WelcomeMessage(Static):
     DEFAULT_CSS = """
     WelcomeMessage {
@@ -310,6 +335,7 @@ class WelcomeMessage(Static):
     }
     """
 
+
 class WelcomeContent(Container):
     DEFAULT_CSS = """
     WelcomeContent {
@@ -319,11 +345,13 @@ class WelcomeContent(Container):
         padding: 2;
     }
     """
-    
+
     def compose(self) -> ComposeResult:
         yield WelcomeMessage("║       Welcome to TICK        ║")
         yield WelcomeMessage("")
-        yield WelcomeMessage("For detailed instructions, [yellow]reference the docs on the GitHub[/yellow] | [link=https://github.com/cachebag/Ticked]https://github.com/cachebag/Ticked[/link]")
+        yield WelcomeMessage(
+            "For detailed instructions, [yellow]reference the docs on the GitHub[/yellow] | [link=https://github.com/cachebag/Ticked]https://github.com/cachebag/Ticked[/link]"
+        )
         yield WelcomeMessage("")
         yield WelcomeMessage("Navigation:")
         yield WelcomeMessage("• Use [red]↑/↓ ←/→ [/red] arrows to navigate the program")
@@ -331,7 +359,10 @@ class WelcomeContent(Container):
         yield WelcomeMessage("• Press [red]Ctrl+Q[/red] to quit")
         yield WelcomeMessage("• Press [red]Esc[/red] to toggle the main menu options")
         yield WelcomeMessage("")
-        yield WelcomeMessage("Select an option from the menu to begin (you can use your mouse too, we don't judge.)")
+        yield WelcomeMessage(
+            "Select an option from the menu to begin (you can use your mouse too, we don't judge.)"
+        )
+
 
 class WelcomeView(Container):
 
@@ -339,9 +370,9 @@ class WelcomeView(Container):
         Binding("left", "move_left", "Left", show=True),
         Binding("right", "move_right", "Right", show=True),
         Binding("enter", "select_tab", "Select", show=True),
-        Binding("up", "move_up", "Up", show=True),  
-        Binding("down", "move_down", "Down", show=True),  
-        Binding("tab", "toggle_filter", "Toggle Upcoming Tasks", show=True)
+        Binding("up", "move_up", "Up", show=True),
+        Binding("down", "move_down", "Down", show=True),
+        Binding("tab", "toggle_filter", "Toggle Upcoming Tasks", show=True),
     ]
 
     def __init__(self):
@@ -360,7 +391,7 @@ class WelcomeView(Container):
 
     async def action_move_down(self) -> None:
         current = self.app.focused
-    
+
         if isinstance(current, TabButton):
             tasks = list(self.query_one("#today-tasks-list").query(Task))
             if tasks:
@@ -375,7 +406,7 @@ class WelcomeView(Container):
 
     async def action_move_up(self) -> None:
         current = self.app.focused
-    
+
         if isinstance(current, Task):
             tasks = list(self.query_one("#today-tasks-list").query(Task))
             if tasks:
@@ -385,69 +416,69 @@ class WelcomeView(Container):
                     today_tab = self.query_one("TabButton#tab_today")
                     today_tab.focus()
                 else:
-                    prev_idx = (current_idx - 1)
+                    prev_idx = current_idx - 1
                     tasks[prev_idx].focus()
 
     def compose(self) -> ComposeResult:
         with Horizontal(classes="tab-bar"):
             yield TabButton("Today", "today")
             yield TabButton("Welcome", "welcome")
-        
+
         with Container(id="tab-content"):
             yield TodayContent()
             yield WelcomeContent()
-            
+
     def on_mount(self) -> None:
         is_first_time = self.app.db.is_first_launch()
-        
+
         today_tab = self.query_one("TabButton#tab_today")
         welcome_tab = self.query_one("TabButton#tab_welcome")
-        
+
         if is_first_time:
             welcome_tab.toggle_active(True)
             welcome_tab.focus()
-            
+
             welcome_content = self.query_one(WelcomeContent)
             welcome_content.styles.display = "block"
             today_content = self.query_one(TodayContent)
             today_content.styles.display = "none"
-            
+
             self.app.db.mark_first_launch_complete()
         else:
             today_tab.toggle_active(True)
             today_tab.focus()
-            
+
             welcome_content = self.query_one(WelcomeContent)
             welcome_content.styles.display = "none"
             today_content = self.query_one(TodayContent)
             today_content.styles.display = "block"
-            
-            today = datetime.now().strftime('%Y-%m-%d')
+
+            today = datetime.now().strftime("%Y-%m-%d")
             tasks = self.app.db.get_tasks_for_date(today)
             today_content.mount_tasks(tasks)
 
     def get_initial_focus(self) -> Optional[Widget]:
         return self.query_one(TabButton, id="tab_today")
-    
+
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "hide_welcome":
             welcome_content = self.query_one(WelcomeContent)
             welcome_content.styles.display = "none"
             event.stop()
             return
-            
+
         if not event.button.id.startswith("tab_"):
             return
 
         event.stop()
-            
+
         tab_buttons = self.query(".tab-button")
         welcome_content = self.query_one(WelcomeContent)
         today_content = self.query_one(TodayContent)
-        
+
         for button in tab_buttons:
             button.toggle_active(button.id == event.button.id)
-        
+
         if event.button.id == "tab_welcome":
             welcome_content.styles.display = "block"
             today_content.styles.display = "none"
@@ -458,7 +489,7 @@ class WelcomeView(Container):
     async def action_move_left(self) -> None:
         if self._focused_tasks:
             return
-    
+
         tabs = list(self.query(TabButton))
         current = self.app.focused
         if current in tabs:
@@ -469,7 +500,7 @@ class WelcomeView(Container):
     async def action_move_right(self) -> None:
         if self._focused_tasks:
             return
-        
+
         tabs = list(self.query(TabButton))
         current = self.app.focused
         if current in tabs:
@@ -482,7 +513,7 @@ class WelcomeView(Container):
         if isinstance(current, TabButton):
             self.app.focused.press()
         elif isinstance(current, Task):
-            await current.action_edit_task()    
+            await current.action_edit_task()
 
     async def action_toggle_filter(self) -> None:
         upcoming = self.query_one(UpcomingTasksView)
@@ -498,7 +529,7 @@ class WelcomeView(Container):
                 btn.remove_class("active")
             seven_day_btn = upcoming.query_one("#filter-7")
             seven_day_btn.add_class("active")
-        
+
         upcoming.refresh_tasks()
 
 
@@ -515,7 +546,7 @@ class UpcomingTasksView(Container):
             with Horizontal(classes="filter-buttons"):
                 yield Button("7d", id="filter-7", classes="filter-btn active")
                 yield Button("30d", id="filter-30", classes="filter-btn")
-        
+
         with Vertical(id="upcoming-tasks-list", classes="tasks-list"):
             yield Static("Loading...", classes="empty-schedule-up")
 
@@ -526,36 +557,42 @@ class UpcomingTasksView(Container):
         if event.button.id.startswith("filter-"):
             days = int(event.button.id.split("-")[1])
             self.filter_days = days
-            
+
             for btn in self.query(".filter-btn"):
                 btn.remove_class("active")
             event.button.add_class("active")
             event.stop()
-            
+
             self.refresh_tasks()
 
     def refresh_tasks(self) -> None:
-        today = datetime.now().strftime('%Y-%m-%d')
+        today = datetime.now().strftime("%Y-%m-%d")
         tasks = self.app.db.get_upcoming_tasks(today, self.filter_days)
-        
+
         tasks_list = self.query_one("#upcoming-tasks-list")
         tasks_list.remove_children()
-        
+
         if tasks:
             for task in tasks:
                 task_with_date = task.copy()
-                date_obj = datetime.strptime(task['due_date'], '%Y-%m-%d')
-                date_str = date_obj.strftime('%B %d, %Y')  
-                
-                if task['description']:
-                    task_with_date['display_text'] = f"{task['title']} @ {task['start_time']} | {task['description']} | On {date_str}"
+                date_obj = datetime.strptime(task["due_date"], "%Y-%m-%d")
+                date_str = date_obj.strftime("%B %d, %Y")
+
+                if task["description"]:
+                    task_with_date["display_text"] = (
+                        f"{task['title']} @ {task['start_time']} | {task['description']} | On {date_str}"
+                    )
                 else:
-                    task_with_date['display_text'] = f"{task['title']} @ {task['start_time']} | On {date_str}"
-                
+                    task_with_date["display_text"] = (
+                        f"{task['title']} @ {task['start_time']} | On {date_str}"
+                    )
+
                 task_widget = Task(task_with_date)
                 tasks_list.mount(task_widget)
         else:
-            tasks_list.mount(Static("No tasks - Head to your calendar to add some!", classes="empty-schedule"))
-
-
-
+            tasks_list.mount(
+                Static(
+                    "No tasks - Head to your calendar to add some!",
+                    classes="empty-schedule",
+                )
+            )

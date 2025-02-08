@@ -14,11 +14,13 @@ from textual.message import Message
 from bs4 import BeautifulSoup
 import re
 
+
 class CanvasLoginMessage(Message):
     def __init__(self, url: str, token: str) -> None:
         self.url = url
-        self.token = token 
+        self.token = token
         super().__init__()
+
 
 class CanvasLogin(Widget):
     class Submitted(Message):
@@ -27,16 +29,30 @@ class CanvasLogin(Widget):
     def compose(self) -> ComposeResult:
         yield Vertical(
             Static("Canvas Login", classes="header"),
-            Static("Enter your Canvas URL and API token to sync your courses.", classes="description"),
-            Input(placeholder="Canvas URL (e.g., https://canvas.university.edu)", id="url"),
+            Static(
+                "Enter your Canvas URL and API token to sync your courses.",
+                classes="description",
+            ),
+            Input(
+                placeholder="Canvas URL (e.g., https://canvas.university.edu)", id="url"
+            ),
             Input(placeholder="API Token", id="token", password=True),
             Static("How to get your API token and sync your courses:", classes="help1"),
-            Static("1. Log into your Canvas account through your University", classes="help"),
-            Static("2. Go to Account -> Settings", classes="help"), 
-            Static("3. Look for 'Approved Integrations' and select '+ New Access Token'", classes="help"),
-            Static("4. Copy and paste the access token into the input above \n   and be sure to paste the link to your Universities Canvas site above \n   (i.e., https://canvas.college.edu)", classes="help"),
+            Static(
+                "1. Log into your Canvas account through your University",
+                classes="help",
+            ),
+            Static("2. Go to Account -> Settings", classes="help"),
+            Static(
+                "3. Look for 'Approved Integrations' and select '+ New Access Token'",
+                classes="help",
+            ),
+            Static(
+                "4. Copy and paste the access token into the input above \n   and be sure to paste the link to your Universities Canvas site above \n   (i.e., https://canvas.college.edu)",
+                classes="help",
+            ),
             Button("Login", variant="primary", id="login"),
-            classes="login-container"
+            classes="login-container",
         )
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
@@ -45,7 +61,9 @@ class CanvasLogin(Widget):
             token_input = self.query_one("#token", Input)
             if url_input.value and token_input.value:
                 self.save_credentials(url_input.value, token_input.value)
-                self.post_message(CanvasLoginMessage(url_input.value, token_input.value))
+                self.post_message(
+                    CanvasLoginMessage(url_input.value, token_input.value)
+                )
             else:
                 self.notify("Please enter both URL and API token", severity="error")
 
@@ -97,7 +115,7 @@ class AnnouncementsList(Markdown):
 
     def wrap_text(self, text: str, width: int = 80) -> str:
         """
-        Wrap text to fit within specified width. 
+        Wrap text to fit within specified width.
         This is optional if you want to limit line length in the Markdown display.
         """
         words = text.split()
@@ -154,7 +172,6 @@ class AnnouncementsList(Markdown):
 
         self.update(markdown_str)
 
-            
 
 class CanvasAPI:
     def __init__(self):
@@ -172,7 +189,9 @@ class CanvasAPI:
                 if code and "2501" in str(code):
                     if hasattr(course, "enrollments") and course.enrollments:
                         e = course.enrollments[0]
-                        l = e.get("computed_current_letter_grade") or e.get("computed_current_grade")
+                        l = e.get("computed_current_letter_grade") or e.get(
+                            "computed_current_grade"
+                        )
                         p = e.get("computed_current_score")
                         if l and p is not None:
                             g = f"{l} ({p}%)"
@@ -184,11 +203,13 @@ class CanvasAPI:
                             g = "N/A"
                         n = getattr(course, "name", "Unnamed Course")
                         c = getattr(course, "course_code", "No Code")
-                        courses.append({
-                            "name": f"{n:<40}",  
-                            "code": f"{c:<20}",  
-                            "grade": f"{g:>46}"  
-                        })
+                        courses.append(
+                            {
+                                "name": f"{n:<40}",
+                                "code": f"{c:<20}",
+                                "grade": f"{g:>46}",
+                            }
+                        )
         except Exception as e:
             print(f"Error in get_courses: {str(e)}")
             raise e
@@ -197,10 +218,14 @@ class CanvasAPI:
     def get_todo_assignments(self) -> List[Dict]:
         assignments = []
         try:
-            for course in self.canvas.get_courses(enrollment_type="student", state=["available"]):
+            for course in self.canvas.get_courses(
+                enrollment_type="student", state=["available"]
+            ):
                 code = getattr(course, "course_code", "")
                 if code and "2501" in str(code):
-                    for a in course.get_assignments(bucket="upcoming", include=["submission"]):
+                    for a in course.get_assignments(
+                        bucket="upcoming", include=["submission"]
+                    ):
                         if hasattr(a, "due_at") and a.due_at:
                             d = datetime.strptime(a.due_at, "%Y-%m-%dT%H:%M:%SZ")
                             if d > datetime.now():
@@ -210,17 +235,25 @@ class CanvasAPI:
                                         s = "Submitted"
                                     elif a.submission.get("missing"):
                                         s = "Missing"
-                                assignments.append({
-                                    "name": a.name,
-                                    "course": course.name,
-                                    "due_date": d.strftime("%Y-%m-%d %H:%M"),
-                                    "status": s
-                                })
+                                assignments.append(
+                                    {
+                                        "name": a.name,
+                                        "course": course.name,
+                                        "due_date": d.strftime("%Y-%m-%d %H:%M"),
+                                        "status": s,
+                                    }
+                                )
             for x in assignments:
                 if x["due_date"] != "No Due Date":
                     dt = datetime.strptime(x["due_date"], "%Y-%m-%d %H:%M")
                     x["due_date"] = dt.strftime("%B %d - %H:%M")
-            assignments.sort(key=lambda x: datetime.strptime(x["due_date"], "%B %d - %H:%M") if x["due_date"] != "No Due Date" else datetime.max)
+            assignments.sort(
+                key=lambda x: (
+                    datetime.strptime(x["due_date"], "%B %d - %H:%M")
+                    if x["due_date"] != "No Due Date"
+                    else datetime.max
+                )
+            )
         except Exception as e:
             print(f"Error in get_todo_assignments: {str(e)}")
             raise e
@@ -230,39 +263,58 @@ class CanvasAPI:
         announcements = []
         cutoff_date = datetime(2025, 1, 1)
         try:
-            for course in self.canvas.get_courses(enrollment_type="student", state=["available"]):
+            for course in self.canvas.get_courses(
+                enrollment_type="student", state=["available"]
+            ):
                 code = getattr(course, "course_code", "")
                 if code and "2501" in str(code):
-                    for announcement in course.get_discussion_topics(only_announcements=True):
+                    for announcement in course.get_discussion_topics(
+                        only_announcements=True
+                    ):
                         if announcement.posted_at:
-                            posted_date = datetime.strptime(announcement.posted_at, "%Y-%m-%dT%H:%M:%SZ")
+                            posted_date = datetime.strptime(
+                                announcement.posted_at, "%Y-%m-%dT%H:%M:%SZ"
+                            )
                             if posted_date >= cutoff_date:
-                                announcements.append({
-                                    "title": announcement.title,
-                                    "message": announcement.message,
-                                    "posted_at": announcement.posted_at,
-                                    "course_name": course.name
-                                })
+                                announcements.append(
+                                    {
+                                        "title": announcement.title,
+                                        "message": announcement.message,
+                                        "posted_at": announcement.posted_at,
+                                        "course_name": course.name,
+                                    }
+                                )
             announcements.sort(
-                key=lambda x: datetime.strptime(x["posted_at"], "%Y-%m-%dT%H:%M:%SZ") 
-                if x["posted_at"] else datetime.min,
-                reverse=True
+                key=lambda x: (
+                    datetime.strptime(x["posted_at"], "%Y-%m-%dT%H:%M:%SZ")
+                    if x["posted_at"]
+                    else datetime.min
+                ),
+                reverse=True,
             )
         except Exception as e:
             print(f"Error in get_announcements: {str(e)}")
             raise e
         return announcements
 
+
 class CourseList(DataTable):
     def __init__(self):
         super().__init__()
         self.cursor_type = "row"
-        self.add_columns("Name", "Code", "                                  Current Grade")
+        self.add_columns(
+            "Name", "Code", "                                  Current Grade"
+        )
 
     def populate(self, courses: List[Dict]):
         self.clear()
         for c in courses:
-            self.add_row(c.get("name", "Unnamed Course"), c.get("code", "No Code"), c.get("grade", "N/A"))
+            self.add_row(
+                c.get("name", "Unnamed Course"),
+                c.get("code", "No Code"),
+                c.get("grade", "N/A"),
+            )
+
 
 class TodoList(DataTable):
     def __init__(self):
@@ -273,7 +325,13 @@ class TodoList(DataTable):
     def populate(self, assignments: List[Dict]):
         self.clear()
         for a in assignments:
-            self.add_row(a.get("name", "Unnamed Assignment"), a.get("course", "Unknown Course"), a.get("due_date", "No Due Date"), a.get("status", "Not Started"))
+            self.add_row(
+                a.get("name", "Unnamed Assignment"),
+                a.get("course", "Unknown Course"),
+                a.get("due_date", "No Due Date"),
+                a.get("status", "Not Started"),
+            )
+
 
 class CanvasView(Widget):
     selected_course_id = reactive(None)
@@ -282,7 +340,9 @@ class CanvasView(Widget):
         super().__init__()
         self.canvas_api = None
         self.is_authenticated = False
-        self.cache_dir = Path.home() / ".canvas_cache" # caching loaded data to prevent persistent loading
+        self.cache_dir = (
+            Path.home() / ".canvas_cache"
+        )  # caching loaded data to prevent persistent loading
         self.cache_dir.mkdir(exist_ok=True)
 
     def _get_cache_path(self, cache_type: str) -> Path:
@@ -290,11 +350,8 @@ class CanvasView(Widget):
 
     def _save_cache(self, data: dict, cache_type: str) -> None:
         try:
-            cache_data = {
-                "timestamp": datetime.now().isoformat(),
-                "data": data
-            }
-            with open(self._get_cache_path(cache_type), 'w') as f:
+            cache_data = {"timestamp": datetime.now().isoformat(), "data": data}
+            with open(self._get_cache_path(cache_type), "w") as f:
                 json.dump(cache_data, f)
         except Exception as e:
             print(f"Error saving cache for {cache_type}: {e}")
@@ -303,20 +360,20 @@ class CanvasView(Widget):
         try:
             cache_path = self._get_cache_path(cache_type)
             if cache_path.exists():
-                with open(cache_path, 'r') as f:
+                with open(cache_path, "r") as f:
                     cache_data = json.load(f)
-                    timestamp = datetime.fromisoformat(cache_data['timestamp'])
-                    return cache_data['data'], timestamp
+                    timestamp = datetime.fromisoformat(cache_data["timestamp"])
+                    return cache_data["data"], timestamp
         except Exception as e:
             print(f"Error loading cache for {cache_type}: {e}")
         return [], None
 
     async def _load_cached_data(self) -> None:
         try:
-            courses, courses_time = self._load_cache('courses')
-            todos, todos_time = self._load_cache('todos')
-            announcements, announcements_time = self._load_cache('announcements')
-            
+            courses, courses_time = self._load_cache("courses")
+            todos, todos_time = self._load_cache("todos")
+            announcements, announcements_time = self._load_cache("announcements")
+
             if courses:
                 course_list = self.query_one("CourseList")  # Use string selector
                 if course_list:
@@ -329,7 +386,7 @@ class CanvasView(Widget):
                 announcements_list = self.query_one(AnnouncementsList)
                 if announcements_list:
                     announcements_list.populate(announcements)
-                    
+
         except Exception as e:
             print(f"Error loading cached data: {e}")
             self.notify(f"Error loading cached data: {e}", severity="error")
@@ -341,27 +398,26 @@ class CanvasView(Widget):
             except NoMatches:
                 pass
 
-            
             # First load cached data
             await self._load_cached_data()
-            
+
             # Then fetch fresh data
             c_task = asyncio.to_thread(self.canvas_api.get_courses)
             t_task = asyncio.to_thread(self.canvas_api.get_todo_assignments)
             a_task = asyncio.to_thread(self.canvas_api.get_announcements)
-            
+
             courses, todos, announcements = await asyncio.gather(c_task, t_task, a_task)
-            
+
             # Update UI with fresh data
             self.query_one(CourseList).populate(courses)
             self.query_one(TodoList).populate(todos)
             self.query_one(AnnouncementsList).populate(announcements)
-            
+
             # Save to cache
-            self._save_cache(courses, 'courses')
-            self._save_cache(todos, 'todos')
-            self._save_cache(announcements, 'announcements')
-            
+            self._save_cache(courses, "courses")
+            self._save_cache(todos, "todos")
+            self._save_cache(announcements, "announcements")
+
         except Exception as e:
             self.notify(f"Error loading data: {str(e)}", severity="error")
             print(f"Canvas API Error: {str(e)}")
@@ -370,7 +426,6 @@ class CanvasView(Widget):
                 self.query_one(LoadingIndicator).styles.display = "block"
             except NoMatches:
                 pass
-
 
     async def test_connection(self) -> bool:
         try:
@@ -420,7 +475,6 @@ class CanvasView(Widget):
                 self.query_one(LoadingIndicator).styles.display = "block"
             except NoMatches:
                 pass
-
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "refresh":
