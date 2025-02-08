@@ -165,7 +165,7 @@ class AnnouncementsList(Markdown):
             markdown_str += f"**Posted on:** {posted_at}\n\n"
             markdown_str += f"**Course:** {course_name}\n\n"
 
-            markdown_str += f"## Announcement\n\n"
+            markdown_str += "## Announcement\n\n"
             markdown_str += f"{wrapped_message}\n\n"
 
             markdown_str += "---\n\n"
@@ -188,15 +188,15 @@ class CanvasAPI:
                 code = getattr(course, "course_code", "")
                 if code and "2501" in str(code):
                     if hasattr(course, "enrollments") and course.enrollments:
-                        e = course.enrollments[0]
-                        l = e.get("computed_current_letter_grade") or e.get(
-                            "computed_current_grade"
-                        )
-                        p = e.get("computed_current_score")
-                        if l and p is not None:
-                            g = f"{l} ({p}%)"
-                        elif l:
-                            g = l
+                        enrollment = course.enrollments[0]
+                        grade = enrollment.get(
+                            "computed_current_letter_grade"
+                        ) or enrollment.get("computed_current_grade")
+                        p = enrollment.get("computed_current_score")
+                        if grade and p is not None:
+                            g = f"{grade} ({p}%)"
+                        elif grade:
+                            g = grade
                         elif p is not None:
                             g = f"{p}%"
                         else:

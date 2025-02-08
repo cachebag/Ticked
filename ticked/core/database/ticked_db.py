@@ -433,20 +433,6 @@ class CalendarDB:
             result = cursor.fetchone()
             return dict(result) if result else None
 
-    def delete_tasks_not_in_uids(self, uids: set[str]) -> None:
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-            placeholders = ",".join("?" * len(uids))
-            cursor.execute(
-                f"""
-                DELETE FROM tasks 
-                WHERE caldav_uid IS NOT NULL 
-                AND caldav_uid NOT IN ({placeholders})
-            """,
-                tuple(uids),
-            )
-            conn.commit()
-
     def save_calendar_view_preference(self, is_month_view: bool) -> None:
         """Save the user's preferred calendar view."""
         with sqlite3.connect(self.db_path) as conn:

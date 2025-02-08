@@ -156,15 +156,6 @@ linux = [
 ]
 
 [tool.ruff]
-# Enable pycodestyle (`E`), Pyflakes (`F`), and import sorting (`I`)
-select = ["E", "F", "I"]
-ignore = [
-    "E501",    # Line too long
-    "F841",    # Unused variables in functions
-    "E722",    # Bare except clauses
-    "F401",    # Unused imports
-    "I001"     # Import block is un-sorted or un-formatted
-]
 line-length = 88
 indent-width = 4
 target-version = "py38"
@@ -173,6 +164,16 @@ exclude = [
     ".venv",
     "build",
     "dist"
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+ignore = [
+    "E501",    # Line too long
+    "F841",    # Unused variables in functions
+    "E722",    # Bare except clauses
+    "F401",    # Unused imports
+    "I001"     # Import block is un-sorted or un-formatted
 ]
 
 [tool.ruff.format]
