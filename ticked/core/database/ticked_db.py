@@ -243,6 +243,21 @@ class CalendarDB:
             conn.commit()
         return cursor.rowcount > 0
 
+    def delete_task(self, task_id: int) -> bool:
+        """Delete a task by its ID.
+
+        Args:
+            task_id (int): The ID of the task to delete
+
+        Returns:
+            bool: True if task was deleted, False if task was not found
+        """
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
+            conn.commit()
+            return cursor.rowcount > 0
+
     def delete_tasks_not_in_uids(self, uids: set[str]) -> None:
         if not uids:
             return

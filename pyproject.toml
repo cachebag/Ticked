@@ -184,3 +184,7 @@ skip-magic-trailing-comma = false
 line-length = 88
 target-version = ['py38']
 include = '\.pyi?$'
+
+[tool.pytest.ini_options]
+asyncio_mode = "strict"
+asyncio_default_fixture_loop_scope = "function"
