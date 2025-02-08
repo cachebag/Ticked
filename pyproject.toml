@@ -36,6 +36,7 @@ dependencies = [
     "arrow",
     "attrs",
     "build",
+    "bs4",
     "caldav",
     "canvasapi",
     "certifi",
@@ -112,9 +113,8 @@ dependencies = [
     "urllib3",
     "vobject",
     "x-wr-timezone",
-    "xdg-base-dirs",
-    "yarl",
-    "bs4"
+    "xdg-base-dirs>=1.0.0",
+    "yarl"
 ]
 
 [project.urls]
@@ -151,23 +151,23 @@ test = [
     "pytest-cov>=4.1.0",
     "pytest-mock>=3.11.1"
 ]
-
 linux = [
-    "xdg-base-dirs"
+    "xdg-base-dirs>=1.0.0"
 ]
 
 [tool.ruff]
 # Enable pycodestyle (`E`), Pyflakes (`F`), and import sorting (`I`)
 select = ["E", "F", "I"]
-
-# Same as Black.
+ignore = [
+    "E501",    # Line too long
+    "F841",    # Unused variables in functions
+    "E722",    # Bare except clauses
+    "F401",    # Unused imports
+    "I001"     # Import block is un-sorted or un-formatted
+]
 line-length = 88
 indent-width = 4
-
-# Assuming Python 3.8 as per your requires-python
 target-version = "py38"
-
-# Ignore certain directories
 exclude = [
     ".git",
     ".venv",
@@ -176,13 +176,8 @@ exclude = [
 ]
 
 [tool.ruff.format]
-# Like Black, use double quotes for strings.
 quote-style = "double"
-
-# Like Black, indent with spaces, rather than tabs.
 indent-style = "space"
-
-# Like Black, respect magic trailing commas.
 skip-magic-trailing-comma = false
 
 [tool.black]

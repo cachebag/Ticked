@@ -225,29 +225,42 @@ class CalendarDB:
         if not update_fields:
             return False
 
-        set_clause = ", ".join(f"{k} = ?" for k in update_fields)
-        values = list(update_fields.values())
+        # Build query safely with explicit column names
+        query_parts = []
+        values = []
+        for field in update_fields:
+            query_parts.append(f"{field} = ?")
+            values.append(update_fields[field])
+
+        # Add the WHERE clause value
         values.append(task_id)
+
+        query = "UPDATE tasks SET " + ", ".join(query_parts) + " WHERE id = ?"
 
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
-            cursor.execute(
-                f"""
-                UPDATE tasks 
-                SET {set_clause}
-                WHERE id = ?
-            """,
-                values,
-            )
+            cursor.execute(query, values)
             conn.commit()
         return cursor.rowcount > 0
 
-    def delete_task(self, task_id: int) -> bool:
+    def delete_tasks_not_in_uids(self, uids: set[str]) -> None:
+        if not uids:
+            return
+
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
-            cursor.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
+            # Create placeholders safely
+            placeholders = ",".join(["?"] * len(uids))
+            query = """
+                DELETE FROM tasks 
+                WHERE caldav_uid IS NOT NULL 
+                AND caldav_uid NOT IN ({})
+            """.format(
+                placeholders
+            )
+
+            cursor.execute(query, tuple(uids))
             conn.commit()
-            return cursor.rowcount > 0
 
     def save_notes(self, date: str, content: str) -> bool:
         with sqlite3.connect(self.db_path) as conn:
