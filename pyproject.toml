@@ -144,6 +144,18 @@ ticked = [
     "quotes_cache.json"
 ]
 
+[project.optional-dependencies]
+test = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.1.0",
+    "pytest-mock>=3.11.1"
+]
+
+linux = [
+    "xdg-base-dirs"
+]
+
 [tool.ruff]
 # Enable pycodestyle (`E`), Pyflakes (`F`), and import sorting (`I`)
 select = ["E", "F", "I"]
@@ -177,11 +189,3 @@ skip-magic-trailing-comma = false
 line-length = 88
 target-version = ['py38']
 include = '\.pyi?$'
-
-[project.optional-dependencies]
-test = [
-    "pytest>=7.0.0",
-    "pytest-asyncio>=0.21.0",
-    "pytest-cov>=4.1.0",
-    "pytest-mock>=3.11.1"
-]
