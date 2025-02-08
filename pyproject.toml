@@ -113,7 +113,6 @@ dependencies = [
     "urllib3",
     "vobject",
     "x-wr-timezone",
-    "xdg_base_dirs>=6.0.2",
     "yarl"
 ]
 
