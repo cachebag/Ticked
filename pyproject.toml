@@ -113,7 +113,7 @@ dependencies = [
     "urllib3",
     "vobject",
     "x-wr-timezone",
-    "xdg-base-dirs>=1.0.0",
+    "xdg_base_dirs>=6.0.2",
     "yarl"
 ]
 
@@ -152,7 +152,7 @@ test = [
     "pytest-mock>=3.11.1"
 ]
 linux = [
-    "xdg-base-dirs>=1.0.0"
+    "xdg_base_dirs>=6.0.2"
 ]
 
 [tool.ruff]
@@ -173,7 +173,8 @@ ignore = [
     "F841",    # Unused variables in functions
     "E722",    # Bare except clauses
     "F401",    # Unused imports
-    "I001"     # Import block is un-sorted or un-formatted
+    "I001",    # Import block is un-sorted or un-formatted
+    "E741"     # Ambiguous variable names
 ]
 
 [tool.ruff.format]
