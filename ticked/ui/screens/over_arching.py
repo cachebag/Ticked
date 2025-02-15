@@ -30,7 +30,7 @@ class MainMenu(Container):
         yield MenuItem("CALENDAR", id="menu_calendar")
         yield MenuItem("NEST+", id="menu_nest")
         yield MenuItem("CANVAS", id="menu_canvas")
-        yield MenuItem("POMODORO", id="menu_pomodoro")
+        # yield MenuItem("POMODORO", id="menu_pomodoro")
         yield MenuItem("SPOTIFY", id="menu_spotify")
         yield MenuItem("SETTINGS", id="menu_settings")
         yield MenuItem("EXIT", id="menu_exit")
@@ -181,10 +181,10 @@ class HomeScreen(Screen, InitialFocusMixin):
                 canvas_view = CanvasView()
                 content_container.mount(canvas_view)
 
-            elif button_id == "menu_pomodoro":
-                content_container.remove_children()
-                pomo_view = PomodoroView()
-                content_container.mount(pomo_view)
+            #elif button_id == "menu_pomodoro":
+                #content_container.remove_children()
+                #pomo_view = PomodoroView()
+                #content_container.mount(pomo_view)
 
             elif button_id == "menu_spotify":
                 content_container.remove_children()
