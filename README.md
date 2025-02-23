@@ -1,4 +1,4 @@
-![License](https://img.shields.io/badge/license-MIT-blue)
+![License](https://img.shields.io/badge/license-MIT-red)
 ![Unreleased](https://img.shields.io/badge/beta-pre%20release-blue)
 <br>
 [![Lint](https://github.com/cachebag/Ticked/actions/workflows/lint.yml/badge.svg)](https://github.com/USERNAME/REPO/actions/workflows/lint.yml)
