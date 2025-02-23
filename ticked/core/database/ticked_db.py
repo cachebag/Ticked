@@ -13,6 +13,7 @@ def get_data_home() -> Path:
     # Fallback to the default
     return Path.home() / ".local" / "share"
 
+
 class CalendarDB:
     def __init__(self, db_path: str = None):
         if db_path is None:
