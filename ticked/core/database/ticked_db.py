@@ -1,6 +1,7 @@
+from __future__ import annotations
 import sqlite3
 from datetime import datetime, timedelta
-from typing import Optional, List, Dict, Any
+from typing import Set, Optional, List, Dict, Any
 from pathlib import Path
 import os
 
