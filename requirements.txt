@@ -84,6 +84,5 @@ uc-micro-py
 urllib3
 vobject
 x-wr-timezone
-xdg-base-dirs
 yarl
 bs4

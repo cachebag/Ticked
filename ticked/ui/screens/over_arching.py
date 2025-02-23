@@ -181,10 +181,10 @@ class HomeScreen(Screen, InitialFocusMixin):
                 canvas_view = CanvasView()
                 content_container.mount(canvas_view)
 
-            #elif button_id == "menu_pomodoro":
-                #content_container.remove_children()
-                #pomo_view = PomodoroView()
-                #content_container.mount(pomo_view)
+            # elif button_id == "menu_pomodoro":
+            # content_container.remove_children()
+            # pomo_view = PomodoroView()
+            # content_container.mount(pomo_view)
 
             elif button_id == "menu_spotify":
                 content_container.remove_children()

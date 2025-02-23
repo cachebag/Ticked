@@ -146,10 +146,6 @@ test = [
     "pytest-asyncio>=0.21.0",
     "pytest-cov>=4.1.0",
     "pytest-mock>=3.11.1",
-    "xdg_base_dirs>=6.0.2"
-]
-linux = [
-    "xdg_base_dirs>=6.0.2"
 ]
 
 [tool.ruff]

@@ -141,6 +141,7 @@ class NewFileDialog(ModalScreen):
         else:
             self.query_one("#filename").focus()
 
+
 class StatusBar(Static):
     def __init__(self) -> None:
         super().__init__("", id="status-bar")
@@ -626,13 +627,21 @@ class CodeEditor(TextArea):
                 event.stop()
                 return
 
-        if self.mode == "insert" and self._completion_popup and event.key in ["up", "down"]:
+        if (
+            self.mode == "insert"
+            and self._completion_popup
+            and event.key in ["up", "down"]
+        ):
             self._completion_popup.focus()
             event.prevent_default()
             event.stop()
             return
 
-        if self.mode == "insert" and self._completion_popup and event.key in ["left", "right"]:
+        if (
+            self.mode == "insert"
+            and self._completion_popup
+            and event.key in ["left", "right"]
+        ):
             self.hide_completions()
 
         # Handle completion popup
@@ -670,10 +679,13 @@ class CodeEditor(TextArea):
                     self._completion_popup = popup
                     self.mount(popup)
 
-        elif self.mode == "insert" and event.is_printable and not self._word_pattern.match(event.character):
+        elif (
+            self.mode == "insert"
+            and event.is_printable
+            and not self._word_pattern.match(event.character)
+        ):
             # Hide the autocomplete popup if the typed character isn't part of a valid word.
             self.hide_completions()
-
 
         if self.in_command_mode:
             if event.key == "enter":
@@ -828,7 +840,6 @@ class CodeEditor(TextArea):
         current_word = line[word_start:col]
         return current_word, word_start
 
-
     def _get_completions(self) -> list:
         try:
             current_word, _ = self._get_current_word()
@@ -838,7 +849,7 @@ class CodeEditor(TextArea):
             for name, (type_, desc) in self._builtins.items():
                 if name.startswith(current_word):
                     comp = self._create_completion(name, "builtin", desc)
-                    comp.score = 1000  
+                    comp.score = 1000
                     suggestions.append(comp)
                     seen.add(name)
 
@@ -982,7 +993,9 @@ class CodeEditor(TextArea):
             self._completion_popup.remove()
             self._completion_popup = None
 
-    def on_auto_complete_popup_selected(self, message: AutoCompletePopup.Selected) -> None:
+    def on_auto_complete_popup_selected(
+        self, message: AutoCompletePopup.Selected
+    ) -> None:
         current_scroll = self.scroll_offset
 
         if message.value:
@@ -994,7 +1007,7 @@ class CodeEditor(TextArea):
             self.text = "\n".join(lines)
             new_cursor_col = word_start + len(message.value)
             self.move_cursor((row, new_cursor_col))
-    
+
         self.hide_completions()
 
         self.scroll_to(current_scroll[0], current_scroll[1], animate=False)
@@ -1003,7 +1016,6 @@ class CodeEditor(TextArea):
         self.mode = "insert"
         self.status_bar.update_mode("INSERT")
         self.cursor_blink = True
-
 
     def execute_command(self) -> None:
         command = self.command[1:].strip()
