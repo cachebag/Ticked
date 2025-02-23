@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ticked"
-version = "0.2.7"
+version = "0.2.8"
 description = "A terminal-based task management and productivity tool."
 readme = "README.md"
 requires-python = ">=3.8"
