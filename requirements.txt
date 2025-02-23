@@ -86,3 +86,4 @@ vobject
 x-wr-timezone
 yarl
 bs4
+jedi
