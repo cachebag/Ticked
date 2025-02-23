@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ticked"
-version = "0.3.0"
+version = "0.3.1"
 description = "A terminal-based task management and productivity tool."
 readme = "README.md"
 requires-python = ">=3.8"
@@ -85,6 +85,7 @@ dependencies = [
     "sniffio",
     "spotipy",
     "textual>=2.1.1",
+    "textual[syntax]",
     "textual-serve",
     "tree-sitter",
     "tree-sitter-bash",
