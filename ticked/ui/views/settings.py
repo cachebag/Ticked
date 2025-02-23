@@ -84,9 +84,6 @@ class SettingsView(Container):
         setting_buttons = self.query(SettingsButton)
 
         personalization_content = self.query_one(PersonalizationContent)
-        spotify_content = self.query_one(SpotifyContent)
-        widgets_content = self.query_one(WidgetsContent)
-        about_content = self.query_one(AboutContent)
 
         for button in setting_buttons:
             event.stop()

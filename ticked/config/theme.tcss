@@ -1270,112 +1270,63 @@ SpotifyView {
 
 
 SettingsView {
-    width: 60%;
-    height: 90%;
+    width: 100%;
+    height: 100%;
     padding: 1;
     align: center middle;
-    offset: 35% 5%;  /* Adjust these values to move it more center */
-    layout: grid;     /* Add this to help with centering */
 }
+
 .settings-container {
-    width: 90%;
-    height: 80%;
-    margin: 2;
+    width: 100%;
+    height: 100%;
+    margin: 1;
     border: round $accent;
     padding: 1 2;
     align: center middle;
-    layout: grid;  /* Add this as well */
-    overflow: auto;
 }
 
 .settings-layout {
     height: 100%;
+    width: 100%;
     layout: horizontal;
     align: center middle;
 }
 
 .settings-sidebar {
-    width: 30;
+    width: 25%;
+    min-width: 20;
     height: 100%;
     border-right: solid $accent;
     padding: 1;
 }
 
 .settings-content {
-    width: 100%;
+    width: 75%;
     height: 100%;
     padding: 1 2;
-    padding-left: 10;
     overflow: auto;
-}
-
-.setting-button {
-    width: 100%;
-    height: 3;
-    margin-bottom: 1;
-    background: $primary 40%;
-    color: $text;
-    border: none;
-}
-
-.setting-button:hover {
-    background: $primary 60%;
-}
-
-.setting-button.active {
-    text-style: none;
-    border-right: thick $accent;
-    background: $secondary 60%;
-}
-
-.settings-title {
-    text-style: italic;
-    margin-bottom: 4;
-    margin-left: 1;
-    width: 18%;
-    text-style: bold;
-    border-bottom: solid $accent;
-}
-
-ThemeButton {
-    background: $primary 20%;
-    border: none;
-    width: 30;
-    height: 3;  
-    content-align: center middle;
-    color: $text;
-    padding: 1;  
-}
-
-ThemeButton:hover {
-    background: $primary 40%;
-    color: $accent;
-    text-style: none;
-}
-
-ThemeButton.active {
-    border-top: transparent;
-    border-bottom: transparent;
-    color: $text;
-    text-style: none;
-}
-
-ThemeButton:focus {
-    background: $accent;
-    color: $text;
-    text-style: none;
 }
 
 .theme-buttons-grid {
     layout: grid;
-    grid-size: 2;
-    grid-columns: 1fr 1fr;
+    grid-size-columns: 3;  /* Changed from 2 to 3 columns */
+    grid-columns: 1fr 1fr 1fr;
     grid-rows: auto;
-    grid-gutter: 2 1; 
-    padding: 0;  
+    grid-gutter: 1;
+    padding: 1;
+    height: auto;
+    width: 100%;
     align: center middle;
-    margin-right: 44; 
-    overflow: auto;
+}
+
+ThemeButton {
+    width: 100%;
+    height: 3;
+    content-align: center middle;
+    background: $primary 20%;
+    border: none;
+    color: $text;
+    padding: 1;
 }
 
 .playlist-view {
