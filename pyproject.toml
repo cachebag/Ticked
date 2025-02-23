@@ -86,7 +86,6 @@ dependencies = [
     "sniffio",
     "spotipy",
     "textual>=2.1.1",
-    "textual[syntax]",
     "textual-serve",
     "tree-sitter",
     "tree-sitter-bash",
