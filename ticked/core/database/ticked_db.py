@@ -1,13 +1,24 @@
+from __future__ import annotations
 import sqlite3
 from datetime import datetime, timedelta
-from typing import Optional, List, Dict, Any
-from xdg_base_dirs import xdg_data_home
+from typing import Set, Optional, List, Dict, Any
+from pathlib import Path
+import os
+
+
+def get_data_home() -> Path:
+    # Check for the XDG_DATA_HOME environment variable
+    xdg_data_home = os.environ.get("XDG_DATA_HOME")
+    if xdg_data_home:
+        return Path(xdg_data_home)
+    # Fallback to the default
+    return Path.home() / ".local" / "share"
 
 
 class CalendarDB:
     def __init__(self, db_path: str = None):
         if db_path is None:
-            data_dir = xdg_data_home() / "ticked"
+            data_dir = get_data_home() / "ticked"
             data_dir.mkdir(parents=True, exist_ok=True)
             self.db_path = str(data_dir / "tick.db")
         else:

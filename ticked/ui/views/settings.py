@@ -51,21 +51,6 @@ class PersonalizationContent(Container):
                 yield ThemeButton(theme)
 
 
-class SpotifyContent(Container):
-    def compose(self) -> ComposeResult:
-        yield Static("Spotify Settings", classes="settings-title")
-
-
-class WidgetsContent(Container):
-    def compose(self) -> ComposeResult:
-        yield Static("Widgets Settings", classes="settings-title")
-
-
-class AboutContent(Container):
-    def compose(self) -> ComposeResult:
-        yield Static("About", classes="settings-title")
-
-
 class SettingsView(Container):
     BINDINGS = [
         Binding("up", "move_up", "Up", show=True),
@@ -78,28 +63,14 @@ class SettingsView(Container):
             with Horizontal(classes="settings-layout"):
                 with Vertical(classes="settings-sidebar"):
                     yield SettingsButton("Personalization", "personalization")
-                    yield SettingsButton("Spotify", "spotify")
-                    yield SettingsButton("Widgets", "widgets")
-                    yield SettingsButton("About", "about")
 
                 with Container(classes="settings-content"):
                     yield PersonalizationContent()
-                    yield SpotifyContent()
-                    yield WidgetsContent()
-                    yield AboutContent()
 
     def on_mount(self) -> None:
         personalization_btn = self.query_one("SettingsButton#setting_personalization")
         personalization_btn.toggle_active(True)
         personalization_btn.focus()
-
-        spotify_content = self.query_one(SpotifyContent)
-        widgets_content = self.query_one(WidgetsContent)
-        about_content = self.query_one(AboutContent)
-
-        spotify_content.styles.display = "none"
-        widgets_content.styles.display = "none"
-        about_content.styles.display = "none"
 
     def get_initial_focus(self) -> Optional[Widget]:
         return self.query_one(SettingsButton, id="setting_personalization")
@@ -113,9 +84,6 @@ class SettingsView(Container):
         setting_buttons = self.query(SettingsButton)
 
         personalization_content = self.query_one(PersonalizationContent)
-        spotify_content = self.query_one(SpotifyContent)
-        widgets_content = self.query_one(WidgetsContent)
-        about_content = self.query_one(AboutContent)
 
         for button in setting_buttons:
             event.stop()
@@ -123,21 +91,12 @@ class SettingsView(Container):
 
         all_content = [
             personalization_content,
-            spotify_content,
-            widgets_content,
-            about_content,
         ]
         for content in all_content:
             content.styles.display = "none"
 
         if event.button.id == "setting_personalization":
             personalization_content.styles.display = "block"
-        elif event.button.id == "setting_spotify":
-            spotify_content.styles.display = "block"
-        elif event.button.id == "setting_widgets":
-            widgets_content.styles.display = "block"
-        elif event.button.id == "setting_about":
-            about_content.styles.display = "block"
 
     async def action_move_up(self) -> None:
         buttons = list(self.query(SettingsButton))

@@ -10,10 +10,12 @@ from typing import Optional
 from textual.message import Message
 from rich.syntax import Syntax
 from rich.text import Text
+from rich.markup import escape
 import os
 from textual.coordinate import Coordinate
 from textual.widgets import DataTable
 from jedi import Script
+from difflib import SequenceMatcher
 import re
 
 
@@ -161,19 +163,22 @@ class StatusBar(Static):
         self._update_content()
 
     def _update_content(self) -> None:
-        parts = []
-
+        # Example: color the mode, but escape dynamic text so it doesn’t break markup
         mode_style = {"NORMAL": "cyan", "INSERT": "green", "COMMAND": "yellow"}
-        mode_color = mode_style.get(self.mode, "white")
-        parts.append(f"[{mode_color}]{self.mode}[/]")
+        color = mode_style.get(self.mode, "white")
 
+        # Build markup parts
+        parts = [f"[{color}]{self.mode}[/]"]
         if self.file_info:
-            parts.append(self.file_info)
-
+            parts.append(escape(self.file_info))
         if self.command:
-            parts.append(f"[yellow]{self.command}[/]")
+            parts.append(f"[yellow]{escape(self.command)}[/]")
 
-        self.update(" ".join(parts))
+        # Turn the combined markup string into a Rich Text object
+        text = Text.from_markup(" ".join(parts))
+
+        # Update the StatusBar with Rich Text (no markup=... argument needed)
+        self.update(text)
 
 
 class AutoCompletePopup(DataTable):
@@ -564,12 +569,13 @@ class CodeEditor(TextArea):
                     cur_col < len(current_line)
                     and current_line[cur_col] == self.autopairs[prev_char]
                 ):
-                    # Delete both brackets
+                    current_scroll = self.scroll_offset
                     lines[cur_row] = (
                         current_line[: cur_col - 1] + current_line[cur_col + 1 :]
                     )
                     self.text = "\n".join(lines)
                     self.move_cursor((cur_row, cur_col - 1))
+                    self.scroll_to(current_scroll[0], current_scroll[1], animate=False)
                     return
 
         if cur_col == 0 and cur_row > 0:
@@ -621,6 +627,23 @@ class CodeEditor(TextArea):
                 event.stop()
                 return
 
+        if (
+            self.mode == "insert"
+            and self._completion_popup
+            and event.key in ["up", "down"]
+        ):
+            self._completion_popup.focus()
+            event.prevent_default()
+            event.stop()
+            return
+
+        if (
+            self.mode == "insert"
+            and self._completion_popup
+            and event.key in ["left", "right"]
+        ):
+            self.hide_completions()
+
         # Handle completion popup
         if self._completion_popup:
             if event.key == "escape":
@@ -655,6 +678,14 @@ class CodeEditor(TextArea):
                     popup.styles.offset = (col, row + 1)
                     self._completion_popup = popup
                     self.mount(popup)
+
+        elif (
+            self.mode == "insert"
+            and event.is_printable
+            and not self._word_pattern.match(event.character)
+        ):
+            # Hide the autocomplete popup if the typed character isn't part of a valid word.
+            self.hide_completions()
 
         if self.in_command_mode:
             if event.key == "enter":
@@ -784,7 +815,6 @@ class CodeEditor(TextArea):
                         event.stop()
 
     def _get_current_word(self) -> tuple[str, int]:
-        """Get the current word and context for smarter completions."""
         row, col = self.cursor_location
         if not self.text:
             return "", col
@@ -798,18 +828,16 @@ class CodeEditor(TextArea):
             return "", col
 
         word_start = col
-        while word_start > 0 and (
-            self._word_pattern.match(line[word_start - 1])
-            or line[word_start - 1] == "."
-        ):
+        while word_start > 0 and re.match(r"\w", line[word_start - 1]):
             word_start -= 1
 
+        # If there's a dot in the part preceding the current word, only complete the part after the last dot.
+        # This should be extended to handle more complex cases (like nested attributes).
+        last_dot = line.rfind(".", word_start, col)
+        if last_dot != -1:
+            word_start = last_dot + 1
+
         current_word = line[word_start:col]
-
-        # Get context before the current word
-        context_start = max(0, word_start - 50)  # Look back up to 50 chars for context
-        context = line[context_start:word_start]
-
         return current_word, word_start
 
     def _get_completions(self) -> list:
@@ -818,15 +846,13 @@ class CodeEditor(TextArea):
             suggestions = []
             seen = set()
 
-            # First priority: Builtins that match the current word
             for name, (type_, desc) in self._builtins.items():
                 if name.startswith(current_word):
                     comp = self._create_completion(name, "builtin", desc)
-                    comp.score = 1000  # High priority for builtins
+                    comp.score = 1000
                     suggestions.append(comp)
                     seen.add(name)
 
-            # Second priority: Current context (like import suggestions)
             context_suggestions = self._get_context_suggestions()
             for suggestion in context_suggestions:
                 if suggestion.name not in seen and suggestion.name.startswith(
@@ -836,7 +862,6 @@ class CodeEditor(TextArea):
                     suggestions.append(suggestion)
                     seen.add(suggestion.name)
 
-            # Third priority: Jedi completions if we have a file
             if self.current_file:
                 try:
                     script = Script(code=self.text, path=self.current_file)
@@ -850,7 +875,6 @@ class CodeEditor(TextArea):
                 except Exception:
                     pass
 
-            # Last priority: Local completions
             local_completions = self._get_local_completions()
             for comp in local_completions:
                 if comp.name not in seen:
@@ -858,7 +882,6 @@ class CodeEditor(TextArea):
                     suggestions.append(comp)
                     seen.add(comp.name)
 
-            # Sort by score and then alphabetically
             return sorted(
                 suggestions, key=lambda x: (-getattr(x, "score", 0), x.name.lower())
             )
@@ -868,35 +891,17 @@ class CodeEditor(TextArea):
             return []
 
     def _score_suggestion(self, suggestion, current_word: str) -> float:
-        score = 0.0
         name = suggestion.name.lower()
         current = current_word.lower()
 
-        # Exact match gets highest score
-        if name == current:
-            return 100.0
+        similarity = SequenceMatcher(None, current, name).ratio()
+        score = similarity * 100
 
-        # Starts with gets high score
         if name.startswith(current):
-            score += 50.0
+            score += 20
 
-        # Contains gets medium score
-        elif current in name:
-            score += 25.0
-
-        # Fuzzy match gets low score
-        elif self._fuzzy_match(current, name):
-            score += 10.0
-        else:
-            # If no match but it's a builtin or common pattern,
-            # give it a small score to show as suggestion
-            if name in self._builtins or name in self._common_patterns:
-                score += 5.0
-
-        # Bonus points for shorter suggestions
         score += 1.0 / len(name)
 
-        # Bonus for certain types
         type_bonus = {
             "function": 2.0,
             "class": 2.0,
@@ -933,32 +938,27 @@ class CodeEditor(TextArea):
 
         suggestions = []
 
-        # NEW: Check for decorator context if the current token starts with '@'
         current_word, _ = self._get_current_word()
         if current_word.startswith("@"):
-            # Add common decorator suggestions
             decorators = [
                 ("@classmethod", "decorator", "Class method decorator"),
                 ("@staticmethod", "decorator", "Static method decorator"),
                 ("@property", "decorator", "Property decorator"),
-                # Add more if desired...
+                # More common decorators should be added here
             ]
             for name, type_, desc in decorators:
                 suggestions.append(self._create_completion(name, type_, desc))
             return suggestions
 
-        # Existing suggestions for import context or common patterns
         if line_before_cursor.strip().startswith(("import", "from")):
             for module, desc in self._common_imports.items():
                 suggestions.append(self._create_completion(module, "module", desc))
             return suggestions
 
-        # For blank lines, suggest common patterns (if applicable)
         if line_before_cursor.strip() == "":
             for pattern, (type_, desc) in self._common_patterns.items():
                 suggestions.append(self._create_completion(pattern, type_, desc))
 
-        # Optionally, always add builtins (with lower priority if not relevant)
         for name, (type_, desc) in self._builtins.items():
             suggestions.append(self._create_completion(name, type_, desc))
 
@@ -980,7 +980,6 @@ class CodeEditor(TextArea):
         popup = AutoCompletePopup()
         popup.populate(completions)
 
-        # Position the popup to appear immediately below the cursor:
         row, col = self.cursor_location
         popup.styles.offset = (col, row + 1)
 
@@ -997,8 +996,9 @@ class CodeEditor(TextArea):
     def on_auto_complete_popup_selected(
         self, message: AutoCompletePopup.Selected
     ) -> None:
+        current_scroll = self.scroll_offset
+
         if message.value:
-            # Apply the completion
             lines = self.text.split("\n")
             row, col = self.cursor_location
             current_word, word_start = self._get_current_word()
@@ -1008,12 +1008,10 @@ class CodeEditor(TextArea):
             new_cursor_col = word_start + len(message.value)
             self.move_cursor((row, new_cursor_col))
 
-        # Hide popup after changes
         self.hide_completions()
 
-        # No scroll restoration here—so your current scroll/position is preserved
+        self.scroll_to(current_scroll[0], current_scroll[1], animate=False)
 
-        # Update mode and focus
         self.focus()
         self.mode = "insert"
         self.status_bar.update_mode("INSERT")

@@ -9,7 +9,6 @@ from textual.binding import Binding
 from textual import events
 from .core.database.ticked_db import CalendarDB
 from importlib.metadata import version as get_version
-from xdg_base_dirs import xdg_config_home
 from pathlib import Path
 import os
 import json
@@ -89,7 +88,7 @@ class Ticked(App):
             "long_break_duration": 15,
         }
 
-        config_dir = xdg_config_home() / "ticked"
+        config_dir = Path.home() / ".ticked"
         config_dir.mkdir(parents=True, exist_ok=True)
         settings_path = config_dir / "pomodoro_settings.json"
 
