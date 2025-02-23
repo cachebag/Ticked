@@ -1,6 +1,15 @@
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Unreleased](https://img.shields.io/badge/beta-pre%20release-blue)
+<br>
+[![Lint](https://github.com/cachebag/Ticked/actions/workflows/lint.yml/badge.svg)](https://github.com/USERNAME/REPO/actions/workflows/lint.yml)
+<br>
+[![Tests](https://github.com/cachebag/Ticked/actions/workflows/test.yml/badge.svg)](https://github.com/USERNAME/REPO/actions/workflows/test.yml)
+<br>
+[![Security](https://github.com/cachebag/Ticked/actions/workflows/security.yml/badge.svg)](https://github.com/USERNAME/REPO/actions/workflows/security.yml)
+<br>
 
+
+# 📟 **Ticked** is a Terminal based task and productivity manager built in Python over the Textual framework.
 
 <div align="center">
   <img src="images/ss1.png" alt="Screenshot 1" width="1000">
@@ -14,7 +23,6 @@
 
 
 --- 
-# 📟 **Ticked** is a Terminal based task and productivity manager built in Python over the Textual framework.
 
 ### To update if you already have an older version installed:
   - For Homebrew:
