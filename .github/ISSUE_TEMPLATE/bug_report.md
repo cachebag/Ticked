@@ -23,7 +23,7 @@ A clear and concise description of what you expected to happen.
 **Screenshots or Videos**
 If applicable, add screenshots to help explain your problem.
 
-**Terminals*:
+**Terminal(s) you've noticed this in**:
  - 
 
 **Additional context**
