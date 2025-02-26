@@ -23,8 +23,8 @@ A clear and concise description of what you expected to happen.
 **Screenshots or Videos**
 If applicable, add screenshots to help explain your problem.
 
-**Terminal(s) you've noticed this in**:
- - 
+**Terminal(s) you've noticed this in**
+- Kitty, iTerm2, etc...
 
 **Additional context**
 Add any other context about the problem here.
