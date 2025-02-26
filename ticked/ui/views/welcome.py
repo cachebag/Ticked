@@ -19,7 +19,7 @@ class TabButton(Button):
         self.add_class("tab-button")
 
     def toggle_active(self, is_active: bool):
-        if (is_active):
+        if is_active:
             self.add_class("active")
         else:
             self.remove_class("active")
