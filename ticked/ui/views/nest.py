@@ -3,6 +3,7 @@ from textual.widget import Widget
 from textual.containers import Horizontal, Container, Vertical
 from textual.screen import ModalScreen
 from textual.widgets import DirectoryTree, Static, Button, TextArea, Input, Label
+from textual.widget import Widget
 from textual.binding import Binding
 from ...ui.mixins.focus_mixin import InitialFocusMixin
 import time
@@ -17,6 +18,8 @@ from textual.widgets import DataTable
 from jedi import Script
 from difflib import SequenceMatcher
 import re
+from textual.events import Key, MouseDown
+import shutil
 
 
 class EditorTab:
@@ -38,10 +41,17 @@ class FolderCreated(Message):
         self.path = path
 
 
+class FileDeleted(Message):
+    def __init__(self, path: str) -> None:
+        super().__init__()
+        self.path = path
+
+
 class FilterableDirectoryTree(DirectoryTree):
-    def __init__(self, path: str, show_hidden: bool = False) -> None:
-        super().__init__(path)
+    def __init__(self, path: str, show_hidden: bool = False, **kwargs) -> None:
+        super().__init__(path, **kwargs)
         self.show_hidden = show_hidden
+
 
     def filter_paths(self, paths: list[str]) -> list[str]:
         if self.show_hidden:
@@ -52,6 +62,49 @@ class FilterableDirectoryTree(DirectoryTree):
         self.path = self.path
         self.reload()
         self.refresh(layout=True)
+        
+    async def action_delete_selected(self) -> None:
+        if self.cursor_node is None:
+            self.app.notify("No file or folder selected", severity="warning")
+            return
+            
+        path = self.cursor_node.data.path
+        dialog = DeleteConfirmationDialog(path)
+        await self.app.push_screen(dialog)
+        if hasattr(self.app, "main_tree") and self.app.main_tree:
+            self.app.main_tree.refresh_tree()
+    
+    def on_key(self, event: Key) -> None:
+        if event.key == "d":
+            self.run_worker(self.action_delete_selected())
+            event.prevent_default()
+            event.stop()
+
+    def on_mouse_down(self, event: MouseDown) -> None:
+        if event.button == 3:  
+            offset = event.offset 
+            node = self.get_node_at_line(offset.y)
+            if node is not None:
+                self.select_node(node) 
+
+            if self.cursor_node:
+                path = self.cursor_node.data.path
+                is_dir = os.path.isdir(path)
+                menu_items = [
+                    ("Rename", "rename"),
+                    ("Delete", "delete"),
+                ]
+                if is_dir:
+                    menu_items += [
+                        ("New File", "new_file"),
+                        ("New Folder", "new_folder")
+                    ]
+                menu = ContextMenu(menu_items, event.screen_x, event.screen_y, path)
+                self.app.push_screen(menu)
+            event.stop()  
+
+
+
 
 
 class NewFileDialog(ModalScreen):
@@ -119,10 +172,10 @@ class NewFileDialog(ModalScreen):
                 f.write("")
             self.dismiss(full_path)
             self.app.post_message(FileCreated(full_path))
-            tree = self.app.query_one(FilterableDirectoryTree)
-            tree.refresh_tree()
+            if hasattr(self.app, "main_tree") and self.app.main_tree:
+                self.app.main_tree.refresh_tree()
+
             editor = self.app.query_one(CodeEditor)
-            # open the file as soon as it's created
             editor.open_file(full_path)
             editor.focus()
             self.dismiss(full_path)
@@ -212,8 +265,8 @@ class NewFolderDialog(ModalScreen):
             os.makedirs(full_path)
             self.dismiss(full_path)
             self.app.post_message(FolderCreated(full_path))
-            tree = self.app.query_one(FilterableDirectoryTree)
-            tree.refresh_tree()
+            if hasattr(self.app, "main_tree") and self.app.main_tree:
+                self.app.main_tree.refresh_tree()
             self.dismiss(full_path)
         except Exception as e:
             self.notify(f"Error creating folder: {str(e)}", severity="error")
@@ -237,6 +290,84 @@ class NewFolderDialog(ModalScreen):
             self.query_one("#foldername").focus()
 
 
+class DeleteConfirmationDialog(ModalScreen):
+    BINDINGS = [
+        Binding("escape", "cancel", "Cancel"),
+        Binding("enter", "confirm", "Confirm"),
+    ]
+
+    def __init__(self, path: str) -> None:
+        super().__init__()
+        self.path = path
+        self.file_name = os.path.basename(path)
+        self.is_directory = os.path.isdir(path)
+
+    def compose(self) -> ComposeResult:
+        with Container(classes="delete-confirm-container"):
+            with Vertical(classes="delete-confirm-dialog"):
+                item_type = "folder" if self.is_directory else "file"
+                yield Static(f"Delete {item_type}", classes="delete-confirm-header")
+                yield Static(f"Are you sure you want to delete this {item_type}?", classes="delete-confirm-message")
+                yield Static(self.file_name, classes="delete-confirm-filename")
+                
+                with Horizontal(classes="form-buttons"):
+                    yield Button("Cancel", variant="primary", id="cancel")
+                    yield Button("Delete", variant="error", id="confirm")
+
+    def on_mount(self) -> None:
+        self.query_one("#cancel").focus()
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "cancel":
+            self.app.notify("Delete cancelled")
+            self.dismiss(False)
+        elif event.button.id == "confirm":
+            self.app.notify("Delete confirmed")
+            path = self.path
+            try:
+                if os.path.isdir(path):
+                    self.app.notify(f"Deleting directory: {path}")
+                    shutil.rmtree(path)
+                else:
+                    self.app.notify(f"Deleting file: {path}")
+                    os.unlink(path)
+                
+                # Post message and refresh
+                self.app.post_message(FileDeleted(path))
+                if hasattr(self.app, "main_tree") and self.app.main_tree:
+                    self.app.main_tree.refresh_tree()
+
+                self.app.notify(f"Deleted: {os.path.basename(path)}")
+            except Exception as e:
+                self.app.notify(f"Error deleting: {str(e)}", severity="error")
+            finally:
+                self.dismiss(True)
+
+    async def action_cancel(self) -> None:
+        self.app.notify("Delete cancelled")
+        self.dismiss(False)
+
+    async def action_confirm(self) -> None:
+        self.app.notify("Delete confirmed")
+        path = self.path
+        try:
+            if os.path.isdir(path):
+                self.app.notify(f"Deleting directory: {path}")
+                shutil.rmtree(path)
+            else:
+                self.app.notify(f"Deleting file: {path}")
+                os.unlink(path)
+            
+            self.app.post_message(FileDeleted(path))
+            if hasattr(self.app, "main_tree") and self.app.main_tree:
+                self.app.main_tree.refresh_tree()
+            self.app.notify(f"Deleted: {os.path.basename(path)}")
+        except Exception as e:
+            self.app.notify(f"Error deleting: {str(e)}", severity="error")
+        finally:
+            self.dismiss(True)
+
+
 class StatusBar(Static):
     def __init__(self) -> None:
         super().__init__("", id="status-bar")
@@ -258,21 +389,17 @@ class StatusBar(Static):
         self._update_content()
 
     def _update_content(self) -> None:
-        # Example: color the mode, but escape dynamic text so it doesn’t break markup
         mode_style = {"NORMAL": "cyan", "INSERT": "green", "COMMAND": "yellow"}
         color = mode_style.get(self.mode, "white")
 
-        # Build markup parts
         parts = [f"[{color}]{self.mode}[/]"]
         if self.file_info:
             parts.append(escape(self.file_info))
         if self.command:
             parts.append(f"[yellow]{escape(self.command)}[/]")
 
-        # Turn the combined markup string into a Rich Text object
         text = Text.from_markup(" ".join(parts))
 
-        # Update the StatusBar with Rich Text (no markup=... argument needed)
         self.update(text)
 
 
@@ -303,7 +430,6 @@ class AutoCompletePopup(DataTable):
 
     def on_mount(self) -> None:
         self.cursor_type = "row"
-        # Select first row by default if there are rows
         if self.row_count > 0:
             self.move_cursor(row=0, column=0)
 
@@ -335,7 +461,6 @@ class AutoCompletePopup(DataTable):
         if event.key == "enter" or event.key == "tab":
             if self.cursor_row is not None:
                 value = self.get_cell_at(Coordinate(self.cursor_row, 0))
-                # Strip the type icon from the value
                 value = value.split(" ", 1)[1] if " " in value else value
                 self.post_message(self.Selected(value))
             event.prevent_default()
@@ -367,7 +492,6 @@ class CodeEditor(TextArea):
 
     def _get_local_completions(self) -> list:
 
-        # Basic pattern for Python identifiers (variable/function/class names, etc.)
         pattern = re.compile(r"[A-Za-z_]\w*")
         tokens_found = set(pattern.findall(self.text))
         python_keywords = {
@@ -409,10 +533,9 @@ class CodeEditor(TextArea):
         }
         tokens_found = tokens_found - python_keywords
 
-        # Convert each found token into a _LocalCompletion object
         local_completions = []
         for tok in sorted(tokens_found):
-            # You might skip single-letter tokens or do more filtering:
+            # We might skip single-letter tokens or do more filtering:
             # if len(tok) == 1:
             #     continue
             local_completions.append(CodeEditor._LocalCompletion(tok))
@@ -488,7 +611,6 @@ class CodeEditor(TextArea):
         self._completion_popup = None
         self._word_pattern = re.compile(r"[\w\.]")
 
-        # Add new attributes for smarter completion
         self._builtins = {
             "print": ("function", "Print objects to the text stream"),
             "len": ("function", "Return the length of an object"),
@@ -499,7 +621,7 @@ class CodeEditor(TextArea):
             "range": ("function", "Create a sequence of numbers"),
             "open": ("function", "Open a file"),
             "type": ("function", "Return the type of an object"),
-            # Add more common builtins
+            # Adding more soon...
         }
 
         self._common_patterns = {
@@ -614,18 +736,14 @@ class CodeEditor(TextArea):
         current_line = lines[self.cursor_location[0]] if lines else ""
         cursor_col = self.cursor_location[1]
 
-        # Check if cursor is between brackets
         if cursor_col > 0 and cursor_col < len(current_line):
             prev_char = current_line[cursor_col - 1]
             next_char = current_line[cursor_col]
-            bracket_pairs = {"{": "}", "(": ")", "[": "]"}
+            bracket_pairs = {"{": "}", "(": ")", "[" : "]"}
 
-            # If we're between matching brackets
             if prev_char in bracket_pairs and next_char == bracket_pairs[prev_char]:
-                # Insert two newlines and position cursor in between
                 indent_level = current_indent + " " * self.tab_size
                 self.insert(f"\n{indent_level}\n{current_indent}")
-                # Move cursor up one line and to end of indent
                 self.move_cursor((self.cursor_location[0] - 1, len(indent_level)))
                 return
 
@@ -656,7 +774,6 @@ class CodeEditor(TextArea):
 
         current_line = lines[cur_row]
 
-        # Check for empty bracket pairs
         if cur_col >= 1 and cur_col < len(current_line) + 1:
             prev_char = current_line[cur_col - 1]
             if prev_char in self.autopairs:
@@ -686,19 +803,14 @@ class CodeEditor(TextArea):
             self.action_delete_left()
 
     def on_key(self, event) -> None:
-        # Handle tab key specially for completions
         if event.key == "tab" and self.mode == "insert":
             if self._completion_popup and self._completion_popup.row_count > 0:
-                # Get the currently selected completion.
                 selected_row = self._completion_popup.cursor_row or 0
                 value = self._completion_popup.get_cell_at(Coordinate(selected_row, 0))
-                # Strip the type icon.
                 value = value.split(" ", 1)[1] if " " in value else value
 
-                # **Save the current scroll offset before updating text**
                 current_scroll = self.scroll_offset
 
-                # Apply the completion.
                 lines = self.text.split("\n")
                 row, col = self.cursor_location
                 current_word, word_start = self._get_current_word()
@@ -707,16 +819,13 @@ class CodeEditor(TextArea):
                 self.text = "\n".join(lines)
                 self.move_cursor((row, word_start + len(value)))
 
-                # **Restore the scroll offset after updating the text**
                 self.scroll_to(current_scroll[0], current_scroll[1], animate=False)
 
-                # Hide popup.
                 self.hide_completions()
                 event.prevent_default()
                 event.stop()
                 return
             else:
-                # Normal tab behavior.
                 self.action_indent()
                 event.prevent_default()
                 event.stop()
@@ -739,12 +848,10 @@ class CodeEditor(TextArea):
         ):
             self.hide_completions()
 
-        # Handle completion popup
         if self._completion_popup:
             if event.key == "escape":
                 self.hide_completions()
                 if self.mode == "insert":
-                    # Don't switch to normal mode when dismissing completion
                     event.prevent_default()
                     event.stop()
                 return
@@ -756,7 +863,6 @@ class CodeEditor(TextArea):
             and event.is_printable
             and self._word_pattern.match(event.character)
         ):
-            # If the popup already exists, update it with new completions.
             if self._completion_popup:
                 completions = self._get_completions()
                 if completions:
@@ -764,7 +870,6 @@ class CodeEditor(TextArea):
                 else:
                     self.hide_completions()
             else:
-                # Create and mount the popup if it doesn’t exist yet.
                 completions = self._get_completions()
                 if completions:
                     row, col = self.cursor_location
@@ -779,7 +884,6 @@ class CodeEditor(TextArea):
             and event.is_printable
             and not self._word_pattern.match(event.character)
         ):
-            # Hide the autocomplete popup if the typed character isn't part of a valid word.
             self.hide_completions()
 
         if self.in_command_mode:
@@ -926,8 +1030,6 @@ class CodeEditor(TextArea):
         while word_start > 0 and re.match(r"\w", line[word_start - 1]):
             word_start -= 1
 
-        # If there's a dot in the part preceding the current word, only complete the part after the last dot.
-        # This should be extended to handle more complex cases (like nested attributes).
         last_dot = line.rfind(".", word_start, col)
         if last_dot != -1:
             word_start = last_dot + 1
@@ -1324,7 +1426,7 @@ class CodeEditor(TextArea):
     def watch_text(self, old_text: str, new_text: str) -> None:
         if old_text != new_text:
             if not self._is_undoing:
-                current_cursor = self.cursor_location
+                # current_cursor = self.cursor_location
                 self._undo_stack.append(old_text)
                 self._redo_stack.clear()
 
@@ -1501,7 +1603,6 @@ class CodeEditor(TextArea):
 
     def open_file(self, filepath: str) -> None:
         try:
-            # Check if file is already open in a tab
             for i, tab in enumerate(self.tabs):
                 if tab.path == filepath:
                     self.active_tab_index = i
@@ -1538,6 +1639,8 @@ class NestView(Container, InitialFocusMixin):
         Binding("r", "refresh_tree", "Refresh Tree", show=True),
         Binding("ctrl+n", "new_file", "New File", show=True),
         Binding("ctrl+shift+n", "new_folder", "New Folder", show=True),
+        Binding("d", "delete_selected", "Delete Selected", show=True),
+        Binding("ctrl+v", "paste", "Paste", show=True),
     ]
 
     def __init__(self) -> None:
@@ -1560,6 +1663,11 @@ class NestView(Container, InitialFocusMixin):
         dialog = NewFolderDialog(current_path)
         await self.app.push_screen(dialog)
 
+    async def action_delete_selected(self) -> None:
+        if self.app.focused is self.query_one(FilterableDirectoryTree):
+            tree = self.query_one(FilterableDirectoryTree)
+            await tree.action_delete_selected()
+
     def on_file_created(self, event: FileCreated) -> None:
         self.notify(f"Created file: {os.path.basename(event.path)}")
         tree = self.query_one(FilterableDirectoryTree)
@@ -1569,6 +1677,24 @@ class NestView(Container, InitialFocusMixin):
         self.notify(f"Created folder: {os.path.basename(event.path)}")
         tree = self.query_one(FilterableDirectoryTree)
         tree.refresh_tree()
+
+    def on_file_deleted(self, event: FileDeleted) -> None:
+        editor = self.query_one(CodeEditor)
+        tabs_to_remove = []
+        
+        for i, tab in enumerate(editor.tabs):
+            if tab.path == event.path or tab.path.startswith(event.path + os.sep):
+                tabs_to_remove.append(i)
+                
+        for i in sorted(tabs_to_remove, reverse=True):
+            if i == editor.active_tab_index:
+                editor.close_current_tab()
+            else:
+                editor.tabs.pop(i)
+                if i < editor.active_tab_index:
+                    editor.active_tab_index -= 1
+                    
+        editor._update_status_info()
 
     def compose(self) -> ComposeResult:
         yield Container(
@@ -1582,7 +1708,9 @@ class NestView(Container, InitialFocusMixin):
                         classes="nav-header",
                     ),
                     FilterableDirectoryTree(
-                        os.path.expanduser("~"), show_hidden=self.show_hidden
+                        os.path.expanduser("~"), 
+                        show_hidden=self.show_hidden, 
+                        id="main_tree"
                     ),
                     classes="file-nav",
                 ),
@@ -1594,8 +1722,10 @@ class NestView(Container, InitialFocusMixin):
 
     def on_mount(self) -> None:
         self.editor = self.query_one(CodeEditor)
-        tree = self.query_one(FilterableDirectoryTree)
+        tree = self.query_one("#main_tree", FilterableDirectoryTree)
         tree.focus()
+
+        self.app.main_tree = tree
 
         self.editor.can_focus_tab = True
         self.editor.key_handlers = {
@@ -1624,7 +1754,6 @@ class NestView(Container, InitialFocusMixin):
         file_nav = self.query_one(".file-nav")
         if not self.show_sidebar:
             file_nav.add_class("hidden")
-            # If the directory tree was focused, focus the code editor
             if self.app.focused is self.query_one(FilterableDirectoryTree):
                 self.query_one(CodeEditor).focus()
         else:
@@ -1640,6 +1769,64 @@ class NestView(Container, InitialFocusMixin):
         tree = self.query_one(FilterableDirectoryTree)
         tree.refresh_tree()
         self.notify("Tree refreshed")
+
+    async def action_paste(self) -> None:
+        """Paste a file or directory from the clipboard."""
+        if not hasattr(self.app, "file_clipboard") or not self.app.file_clipboard:
+            self.notify("Nothing to paste", severity="warning")
+            return
+            
+        clipboard = self.app.file_clipboard
+        source_path = clipboard.get("path")
+        action = clipboard.get("action")
+        
+        if not source_path or not os.path.exists(source_path):
+            self.notify("Source no longer exists", severity="error")
+            self.app.file_clipboard = None
+            return
+        
+        
+        tree = self.query_one(FilterableDirectoryTree)
+        if tree.cursor_node and os.path.isdir(tree.cursor_node.data.path):
+            dest_dir = tree.cursor_node.data.path
+        else:
+            dest_dir = tree.path
+            
+        basename = os.path.basename(source_path)
+        dest_path = os.path.join(dest_dir, basename)
+        
+        
+        if os.path.exists(dest_path):
+            self.notify(f"'{basename}' already exists in destination", severity="error")
+            return
+            
+        try:
+            if action == "copy":
+                if os.path.isdir(source_path):
+                    shutil.copytree(source_path, dest_path)
+                    self.notify(f"Copied folder: {basename}")
+                else:
+                    shutil.copy2(source_path, dest_path)
+                    self.notify(f"Copied file: {basename}")
+            elif action == "cut":
+                shutil.move(source_path, dest_path)
+                self.notify(f"Moved: {basename}")
+                self.app.file_clipboard = None
+                
+            
+                editor = self.app.query_one(CodeEditor)
+                for i, tab in enumerate(editor.tabs):
+                    if tab.path == source_path:
+                        tab.path = dest_path
+                        if i == editor.active_tab_index:
+                            editor.current_file = dest_path
+                        editor._update_status_info()
+            
+            
+            tree.refresh_tree()
+            
+        except Exception as e:
+            self.notify(f"Error during paste operation: {str(e)}", severity="error")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "toggle_hidden":
@@ -1673,7 +1860,7 @@ class NestView(Container, InitialFocusMixin):
                 # Read first chunk
                 chunk = file.read(8192)
 
-                # Common binary file signatures
+                
                 binary_signatures = [
                     b"\x7fELF",
                     b"MZ",
@@ -1685,19 +1872,18 @@ class NestView(Container, InitialFocusMixin):
                     b"\x1f\x8b",
                 ]
 
-                # Check for binary signatures
+
                 if any(chunk.startswith(sig) for sig in binary_signatures):
                     self.notify("Cannot open binary file", severity="warning")
                     event.stop()
                     return
 
-                # Check for null bytes, which definitively indicate binary files
+
                 if b"\x00" in chunk:
                     self.notify("Cannot open binary file", severity="warning")
                     event.stop()
                     return
 
-                # If no binary indicators found, try to decode as text file
                 try:
                     chunk.decode("utf-8")
                     editor = self.query_one(CodeEditor)
@@ -1731,3 +1917,167 @@ class CustomCodeEditor(CodeEditor):
         
     async def action_new_folder(self) -> None:
         await self.app.query_one("NestView").action_new_folder()
+
+
+class ContextMenu(ModalScreen):
+    def __init__(self, items: list[tuple[str, str]], x: int, y: int, path: str) -> None:
+        super().__init__()
+        self.items = items
+        self.pos_x = x
+        self.pos_y = y
+        self.path = path  
+
+    def compose(self) -> ComposeResult:
+        self.styles.background = "transparent"
+        with Container(classes="context-menu"):
+            for item_label, item_action in self.items:
+                yield Button(item_label, id=f"action-{item_action}", classes="context-menu-item")
+
+    def on_mount(self) -> None:
+        menu = self.query_one(".context-menu")
+        
+        screen_width = self.screen.size.width
+        screen_height = self.screen.size.height
+        
+        menu_width = menu.outer_size.width
+        menu_height = menu.outer_size.height
+        
+        x = min(self.pos_x, screen_width - menu_width - 2) 
+        y = min(self.pos_y, screen_height - menu_height - 2)
+        
+        x = max(0, x)
+        y = max(0, y)
+        
+        menu.styles.offset = (x, y)
+        
+        if self.items:
+            self.query_one(Button).focus()
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        button_id = event.button.id
+        if not button_id or not button_id.startswith("action-"):
+            self.dismiss()
+            return
+            
+        action = button_id.replace("action-", "")
+        
+        if action == "delete":
+            self.dismiss()
+            dialog = DeleteConfirmationDialog(self.path)
+            self.app.push_screen(dialog)
+        elif action == "rename":
+            self.dismiss()
+            dialog = RenameDialog(self.path)
+            self.app.push_screen(dialog)
+        elif action == "new_file":
+            self.dismiss()
+            if os.path.isdir(self.path):
+                dialog = NewFileDialog(self.path)
+                self.app.push_screen(dialog)
+        elif action == "new_folder":
+            self.dismiss()
+            if os.path.isdir(self.path):
+                dialog = NewFolderDialog(self.path)
+                self.app.push_screen(dialog)
+        elif action == "copy":
+            self.app.file_clipboard = {"action": "copy", "path": self.path}
+            self.app.notify(f"Copied: {os.path.basename(self.path)}")
+            self.dismiss()
+        elif action == "cut":
+            self.app.file_clipboard = {"action": "cut", "path": self.path}
+            self.app.notify(f"Cut: {os.path.basename(self.path)}")
+            self.dismiss()
+        else:
+            self.dismiss()
+
+    def on_key(self, event: Key) -> None:
+        if event.key == "escape":
+            self.dismiss()
+            event.prevent_default()
+            event.stop()
+
+
+
+class RenameDialog(ModalScreen):
+    """Dialog for renaming files and directories."""
+    
+    BINDINGS = [
+        Binding("escape", "cancel", "Cancel"),
+        Binding("enter", "submit", "Submit"),
+    ]
+    
+    def __init__(self, path: str) -> None:
+        super().__init__()
+        self.path = path
+        self.old_name = os.path.basename(path)
+        self.parent_dir = os.path.dirname(path)
+        
+    def compose(self) -> ComposeResult:
+        with Container(classes="file-form-container"):
+            with Vertical(classes="file-form"):
+                item_type = "Folder" if os.path.isdir(self.path) else "File"
+                yield Static(f"Rename {item_type}", classes="file-form-header")
+                
+                with Vertical():
+                    yield Label("Current name:")
+                    yield Static(self.old_name, id="current-name")
+                
+                with Vertical():
+                    yield Label("New name:")
+                    yield Input(value=self.old_name, id="new-name")
+                
+                with Horizontal(classes="form-buttons"):
+                    yield Button("Cancel", variant="error", id="cancel")
+                    yield Button("Rename", variant="success", id="submit")
+    
+    def on_mount(self) -> None:
+        self.query_one("#new-name").focus()
+    
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "cancel":
+            self.dismiss(False)
+        elif event.button.id == "submit":
+            self._handle_rename()
+    
+    def _handle_rename(self) -> None:
+        new_name = self.query_one("#new-name").value
+        
+        if not new_name:
+            self.notify("Name cannot be empty", severity="error")
+            return
+            
+        if new_name == self.old_name:
+            self.dismiss(False)
+            return
+            
+        new_path = os.path.join(self.parent_dir, new_name)
+        
+        if os.path.exists(new_path):
+            self.notify(f"'{new_name}' already exists", severity="error")
+            return
+            
+        try:
+            os.rename(self.path, new_path)
+            
+            if hasattr(self.app, "main_tree") and self.app.main_tree:
+                self.app.main_tree.refresh_tree()
+                
+            editor = self.app.query_one(CodeEditor)
+            for i, tab in enumerate(editor.tabs):
+                if tab.path == self.path:
+                    tab.path = new_path
+                    if i == editor.active_tab_index:
+                        editor.current_file = new_path
+                    editor._update_status_info()
+                    
+            self.notify(f"Renamed to: {new_name}")
+            self.dismiss(True)
+        except Exception as e:
+            self.notify(f"Error renaming: {str(e)}", severity="error")
+            self.dismiss(False)
+    
+    async def action_submit(self) -> None:
+        self._handle_rename()
+        
+    async def action_cancel(self) -> None:
+        self.dismiss(False)

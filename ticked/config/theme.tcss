@@ -689,8 +689,7 @@ FilterableDirectoryTree:focus {
     display: none !important;
 }
 
-
-#nest-view {
+NestView {
     width: 100%;
     height: 100%;
 }
@@ -706,6 +705,68 @@ FilterableDirectoryTree:focus {
     background: transparent;
     
 }
+
+/* Context Menu Styles */
+.context-menu {
+    background: #2a2a2a;
+    border: round $accent;  
+    width: 10%;
+    height: auto;
+    offset-x: 1;
+    layer: above;
+}
+
+.context-menu-item {
+    width: 100%;
+    padding: 1 2;
+    margin: 0;
+    text-align: left;
+    background: transparent;
+    border: none;
+}
+
+.context-menu-item:hover {
+    background: #444;
+}
+
+/* Delete Confirmation Dialog Styles */
+.delete-confirm-container {
+    align: center middle;
+    width: 100%;
+    height: 100%;
+}
+
+.delete-confirm-dialog {
+    background: #2a2a2a;
+    border: round thick $surface-darken-2;
+    padding: 2 4;
+    width: 50;
+    height: auto;
+    
+}
+
+.delete-confirm-header {
+    text-align: center;
+    text-style: bold;
+    color: #ff6b6b;
+    margin-bottom: 1;
+}
+
+.delete-confirm-message {
+    text-align: center;
+    margin-bottom: 1;
+}
+
+.delete-confirm-filename {
+    text-align: center;
+    text-style: bold;
+    margin-bottom: 2;
+}
+
+.form-buttons {
+
+}
+
 
 .new-file-btn:hover {
     background: $primary
@@ -786,6 +847,7 @@ FilterableDirectoryTree:focus, CodeEditor:focus {
 Screen {
     align: center middle;
     overflow: auto;  
+    layers: below above;
 }
 
 
