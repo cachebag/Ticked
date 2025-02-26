@@ -627,27 +627,36 @@ UpcomingTasksView {
     border-bottom: $primary;
     color: $accent;
     padding: 0 1;
+    layout: horizontal;
+    align: left middle;
 }
 
 .nav-title {
-    width: 2fr;
+    width: auto;
+    min-width: 8;
     color: $accent;
-    padding: 1 2;
+    padding: 1 1;
 }
 
 .toggle-hidden-btn {
-    width: 4;
+    width: auto;
+    min-width: 3;
     height: 3;
     background: transparent;
     content-align: center middle;
     border: none;
     margin-left: 1;
     text-style: none;
-    border-left: $primary;
+    
 }
 
 .toggle-hidden-btn:hover {
     background: $primary-darken-2;
+}
+
+
+.new-file-btn:hover {
+    background: $primary;
 }
 
 
@@ -695,7 +704,7 @@ FilterableDirectoryTree:focus {
     margin-left: 1;
     text-style: none;
     background: transparent;
-    border-left: $primary;
+    
 }
 
 .new-file-btn:hover {

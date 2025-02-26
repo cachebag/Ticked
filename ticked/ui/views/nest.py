@@ -32,6 +32,12 @@ class FileCreated(Message):
         self.path = path
 
 
+class FolderCreated(Message):
+    def __init__(self, path: str) -> None:
+        super().__init__()
+        self.path = path
+
+
 class FilterableDirectoryTree(DirectoryTree):
     def __init__(self, path: str, show_hidden: bool = False) -> None:
         super().__init__(path)
@@ -140,6 +146,95 @@ class NewFileDialog(ModalScreen):
             self.query_one("#filename").focus()
         else:
             self.query_one("#filename").focus()
+
+
+class NewFolderDialog(ModalScreen):
+    BINDINGS = [
+        Binding("escape", "cancel", "Cancel"),
+        Binding("f1", "submit", "Submit"),
+        Binding("tab", "next_field", "Next Field"),
+    ]
+
+    def __init__(self, initial_path: str) -> None:
+        super().__init__()
+        self.selected_path = initial_path
+
+    def compose(self) -> ComposeResult:
+        with Container(classes="file-form-container"):
+            with Vertical(classes="file-form"):
+                yield Static("Create New Folder", classes="file-form-header")
+
+                with Vertical():
+                    yield Label("Selected Directory:", classes="selected-path-label")
+                    yield Static(str(self.selected_path), id="selected-path")
+
+                with Vertical():
+                    yield Label("Folder Name")
+                    yield Input(placeholder="Enter folder name", id="foldername")
+
+                yield FilterableDirectoryTree(os.path.expanduser("~"))
+
+                with Horizontal(classes="form-buttons"):
+                    yield Button("Cancel", variant="error", id="cancel")
+                    yield Button("Create Folder", variant="success", id="submit")
+
+    def on_mount(self) -> None:
+        self.query_one("#foldername").focus()
+
+    def on_directory_tree_directory_selected(
+        self, event: DirectoryTree.DirectorySelected
+    ) -> None:
+        self.selected_path = event.path
+        self.query_one("#selected-path").update(str(self.selected_path))
+
+    def on_input_submitted(self) -> None:
+        self.action_submit()
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "cancel":
+            self.dismiss(None)
+        elif event.button.id == "submit":
+            self._handle_submit()
+
+    def _handle_submit(self) -> None:
+        foldername = self.query_one("#foldername").value
+        if not foldername:
+            self.notify("Folder name is required", severity="error")
+            return
+
+        full_path = os.path.join(self.selected_path, foldername)
+
+        if os.path.exists(full_path):
+            self.notify("Folder already exists!", severity="error")
+            return
+
+        try:
+            os.makedirs(full_path)
+            self.dismiss(full_path)
+            self.app.post_message(FolderCreated(full_path))
+            tree = self.app.query_one(FilterableDirectoryTree)
+            tree.refresh_tree()
+            self.dismiss(full_path)
+        except Exception as e:
+            self.notify(f"Error creating folder: {str(e)}", severity="error")
+            self.dismiss(None)
+
+    async def action_cancel(self) -> None:
+        self.dismiss(None)
+
+    async def action_submit(self) -> None:
+        self._handle_submit()
+
+    async def action_next_field(self) -> None:
+        current = self.app.focused
+        if isinstance(current, Input):
+            self.query_one(FilterableDirectoryTree).focus()
+        elif isinstance(current, FilterableDirectoryTree):
+            self.query_one("#submit").focus()
+        elif isinstance(current, Button):
+            self.query_one("#foldername").focus()
+        else:
+            self.query_one("#foldername").focus()
 
 
 class StatusBar(Static):
@@ -491,7 +586,7 @@ class CodeEditor(TextArea):
         if stripped_line.endswith(":"):
             return True
 
-        brackets = {"(": ")", "[": "]", "{": "}"}
+        brackets = {"(": ")", "[": "]", "{" : "}"}
         counts = {
             k: stripped_line.count(k) - stripped_line.count(v)
             for k, v in brackets.items()
@@ -1441,6 +1536,8 @@ class NestView(Container, InitialFocusMixin):
         Binding("ctrl+b", "toggle_sidebar", "Toggle Sidebar", show=True),
         Binding("ctrl+right", "focus_editor", "Focus Editor", show=True),
         Binding("r", "refresh_tree", "Refresh Tree", show=True),
+        Binding("ctrl+n", "new_file", "New File", show=True),
+        Binding("ctrl+shift+n", "new_folder", "New Folder", show=True),
     ]
 
     def __init__(self) -> None:
@@ -1453,8 +1550,23 @@ class NestView(Container, InitialFocusMixin):
         editor = self.query_one(CodeEditor)
         await editor.action_new_file()
 
+    async def action_new_folder(self) -> None:
+        try:
+            tree = self.query_one(FilterableDirectoryTree)
+            current_path = tree.path if tree.path else os.path.expanduser("~")
+        except Exception:
+            current_path = os.path.expanduser("~")
+
+        dialog = NewFolderDialog(current_path)
+        await self.app.push_screen(dialog)
+
     def on_file_created(self, event: FileCreated) -> None:
         self.notify(f"Created file: {os.path.basename(event.path)}")
+        tree = self.query_one(FilterableDirectoryTree)
+        tree.refresh_tree()
+
+    def on_folder_created(self, event: FolderCreated) -> None:
+        self.notify(f"Created folder: {os.path.basename(event.path)}")
         tree = self.query_one(FilterableDirectoryTree)
         tree.refresh_tree()
 
@@ -1463,9 +1575,10 @@ class NestView(Container, InitialFocusMixin):
             Horizontal(
                 Container(
                     Horizontal(
-                        Static("Explorer", classes="nav-title"),
-                        Button("-", id="toggle_hidden", classes="toggle-hidden-btn"),
-                        Button("New", id="new_file", classes="new-file-btn"),
+                        Static("Files", classes="nav-title"),
+                        Button("-", id="toggle_hidden", variant="default", classes="toggle-hidden-btn"),
+                        Button("New File", id="new_file", variant="default", classes="new-file-btn"),
+                        Button("New Folder", id="new_folder", variant="default", classes="new-file-btn"),
                         classes="nav-header",
                     ),
                     FilterableDirectoryTree(
@@ -1488,9 +1601,13 @@ class NestView(Container, InitialFocusMixin):
         self.editor.key_handlers = {
             "ctrl+left": lambda: self.action_focus_tree(),
             "ctrl+n": self.action_new_file,
+            "ctrl+shift+n": self.action_new_folder,
         }
 
-        tree.key_handlers = {"ctrl+n": self.action_new_file}
+        tree.key_handlers = {
+            "ctrl+n": self.action_new_file,
+            "ctrl+shift+n": self.action_new_folder,
+        }
 
     def action_toggle_hidden(self) -> None:
         self.show_hidden = not self.show_hidden
@@ -1529,7 +1646,10 @@ class NestView(Container, InitialFocusMixin):
             self.action_toggle_hidden()
             event.stop()
         elif event.button.id == "new_file":
-            self.run_worker(self.editor.action_new_file())
+            self.run_worker(self.action_new_file())
+            event.stop()
+        elif event.button.id == "new_folder":
+            self.run_worker(self.action_new_folder())
             event.stop()
         elif event.button.id == "refresh_tree":
             self.action_refresh_tree()
@@ -1603,7 +1723,11 @@ class CustomCodeEditor(CodeEditor):
     BINDINGS = [
         *CodeEditor.BINDINGS,
         Binding("shift+left", "focus_tree", "Focus Tree", show=True),
+        Binding("ctrl+shift+n", "new_folder", "New Folder", show=True),
     ]
 
     def action_focus_tree(self) -> None:
         self.app.query_one("NestView").action_focus_tree()
+        
+    async def action_new_folder(self) -> None:
+        await self.app.query_one("NestView").action_new_folder()
