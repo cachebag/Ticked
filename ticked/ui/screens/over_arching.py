@@ -181,6 +181,7 @@ class HomeScreen(Screen, InitialFocusMixin):
                 canvas_view = CanvasView()
                 content_container.mount(canvas_view)
 
+            # perhaps find a better way to implement a pomodoro timer into the app
             # elif button_id == "menu_pomodoro":
             # content_container.remove_children()
             # pomo_view = PomodoroView()

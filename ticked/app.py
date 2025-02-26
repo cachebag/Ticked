@@ -16,6 +16,7 @@ import requests
 from datetime import datetime
 from packaging import version
 from textual.worker import Worker, get_current_worker
+import webbrowser  # Add this import at the top
 
 
 class Ticked(App):
@@ -157,6 +158,10 @@ class Ticked(App):
                         initial_focus.focus()
         except Exception as e:
             self.notify(f"Error toggling menu: {str(e)}", severity="error")
+
+    def action_open_url(self, url: str) -> None:
+        """Open a URL in the default browser."""
+        webbrowser.open(url)
 
     def compose(self) -> ComposeResult:
         yield NestView()

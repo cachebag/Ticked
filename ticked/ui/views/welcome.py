@@ -19,7 +19,7 @@ class TabButton(Button):
         self.add_class("tab-button")
 
     def toggle_active(self, is_active: bool):
-        if is_active:
+        if (is_active):
             self.add_class("active")
         else:
             self.remove_class("active")
@@ -350,7 +350,8 @@ class WelcomeContent(Container):
         yield WelcomeMessage("║       Welcome to TICK        ║")
         yield WelcomeMessage("")
         yield WelcomeMessage(
-            "For detailed instructions, [yellow]reference the docs on the GitHub[/yellow] | [link=https://github.com/cachebag/Ticked]https://github.com/cachebag/Ticked[/link]"
+            "For detailed instructions, [yellow]reference the docs on our[/yellow] "
+            "[@click='app.open_url(\"https://github.com/cachebag/Ticked\")']GitHub Repository[/]"
         )
         yield WelcomeMessage("")
         yield WelcomeMessage("Navigation:")
