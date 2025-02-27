@@ -87,3 +87,4 @@ x-wr-timezone
 yarl
 bs4
 jedi
+send2trash

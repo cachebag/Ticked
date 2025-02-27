@@ -20,6 +20,7 @@ from difflib import SequenceMatcher
 import re
 from textual.events import Key, MouseDown
 import shutil
+from send2trash import send2trash
 
 
 class EditorTab:
@@ -59,7 +60,6 @@ class FilterableDirectoryTree(DirectoryTree):
         return [path for path in paths if not os.path.basename(path).startswith(".")]
 
     def _get_expanded_paths(self) -> list[str]:
-        """Get a list of all expanded directory paths."""
         expanded_paths = []
         
         def collect_expanded(node):
@@ -75,7 +75,6 @@ class FilterableDirectoryTree(DirectoryTree):
         return expanded_paths
     
     def _restore_expanded_paths(self, paths: list[str]) -> None:
-        """Restore previously expanded directories."""
         for path in paths:
             try:
                 self.select_path(path)
@@ -85,7 +84,6 @@ class FilterableDirectoryTree(DirectoryTree):
                 pass  
     
     def refresh_tree(self) -> None:
-        """Refresh the tree while maintaining expanded directories."""
         expanded_paths = self._get_expanded_paths()
         cursor_path = self.cursor_node.data.path if self.cursor_node else None
         
@@ -118,7 +116,19 @@ class FilterableDirectoryTree(DirectoryTree):
             self.run_worker(self.action_delete_selected())
             event.prevent_default()
             event.stop()
-        elif event.key == "?" and event.shift:
+        elif event.key == "up":
+            last_node = self.get_node_at_line(self.cursor_line - 1)
+            if last_node:
+                self.select_node(last_node)
+            event.prevent_default()
+            event.stop()
+        elif event.key == "down":
+            next_node = self.get_node_at_line(self.cursor_line + 1)
+            if next_node:
+                self.select_node(next_node)
+            event.prevent_default()
+            event.stop()
+        elif event.key == "/" and event.shift:
             if self.cursor_node:
                 path = self.cursor_node.data.path
                 is_dir = os.path.isdir(path)
@@ -443,8 +453,8 @@ class DeleteConfirmationDialog(ModalScreen):
         with Container(classes="file-form-container-d"):
             with Vertical(classes="file-form"):
                 item_type = "folder" if self.is_directory else "file"
-                yield Static(f"Delete {item_type}", classes="file-form-header")
-                yield Static(f"Are you sure you want to delete this {item_type}?", classes="delete-confirm-message")
+                yield Static(f"Move {item_type} to trash", classes="file-form-header")
+                yield Static(f"Are you sure you want to move this {item_type} to trash?", classes="delete-confirm-message")
                 yield Static(self.file_name, classes="delete-confirm-filename")
                 
                 with Horizontal(classes="form-buttons"):
@@ -463,21 +473,17 @@ class DeleteConfirmationDialog(ModalScreen):
     def _handle_delete(self) -> None:
         path = self.path
         try:
-            if os.path.isdir(path):
-                self.app.notify(f"Deleting directory: {path}")
-                shutil.rmtree(path)
-            else:
-                self.app.notify(f"Deleting file: {path}")
-                os.unlink(path)
+            self.app.notify(f"Moving to trash: {path}")
+            send2trash(path)
             
             self.app.post_message(FileDeleted(path))
             if hasattr(self.app, "main_tree") and self.app.main_tree:
                 self.app.main_tree.refresh_tree()
 
-            self.app.notify(f"Deleted: {os.path.basename(path)}")
+            self.app.notify(f"Moved to trash: {os.path.basename(path)}")
             self.dismiss(True)
         except Exception as e:
-            self.app.notify(f"Error deleting: {str(e)}", severity="error")
+            self.app.notify(f"Error moving to trash: {str(e)}", severity="error")
             self.dismiss(False)
 
     async def action_cancel(self) -> None:
@@ -1908,7 +1914,6 @@ class NestView(Container, InitialFocusMixin):
         self.notify("Tree refreshed")
 
     async def action_paste(self) -> None:
-        """Paste a file or directory from the clipboard."""
         if not hasattr(self.app, "file_clipboard") or not self.app.file_clipboard:
             self.notify("Nothing to paste", severity="warning")
             return

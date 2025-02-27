@@ -760,6 +760,16 @@ NestView {
     margin-top: 1;
 }
 
+#coonfirm {
+    width: 40%;
+    height: 3;
+    background: red 20%;
+    color: $text;
+    text-style: bold;
+    border: none;
+    margin: 1;
+}
+
 .delete-confirm-filename {
     text-align: center;
     padding: 1 0;
