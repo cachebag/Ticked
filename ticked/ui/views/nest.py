@@ -63,11 +63,10 @@ class FilterableDirectoryTree(DirectoryTree):
         expanded_paths = []
         
         def collect_expanded(node):
-            # Fix: Change node.expanded to node.is_expanded
             if node.is_expanded and hasattr(node.data, "path"):
                 expanded_paths.append(node.data.path)
             for child in node.children:
-                if child.children:  # Only process nodes that might be directories
+                if child.children: 
                     collect_expanded(child)
         
         if self.root:
@@ -80,26 +79,21 @@ class FilterableDirectoryTree(DirectoryTree):
         for path in paths:
             try:
                 self.select_path(path)
-                # Make sure the node is really selected before toggling
                 if self.cursor_node and not self.cursor_node.is_expanded:
                     self.toggle_node(self.cursor_node)
             except Exception:
-                pass  # Skip if node can't be toggled or found
+                pass  
     
     def refresh_tree(self) -> None:
         """Refresh the tree while maintaining expanded directories."""
-        # Store the expanded paths before refreshing
         expanded_paths = self._get_expanded_paths()
         cursor_path = self.cursor_node.data.path if self.cursor_node else None
         
-        # Reload the tree
         self.path = self.path
         self.reload()
         
-        # Restore expanded paths
         self._restore_expanded_paths(expanded_paths)
         
-        # Try to restore cursor position
         if cursor_path:
             try:
                 self.select_path(cursor_path)
@@ -124,11 +118,34 @@ class FilterableDirectoryTree(DirectoryTree):
             self.run_worker(self.action_delete_selected())
             event.prevent_default()
             event.stop()
+        elif event.key == "?" and event.shift:
+            if self.cursor_node:
+                path = self.cursor_node.data.path
+                is_dir = os.path.isdir(path)
+                menu_items = [
+                    ("Rename", "rename"),
+                    ("Delete", "delete"),
+                ]
+                if is_dir:
+                    menu_items += [
+                        ("New File", "new_file"),
+                        ("New Folder", "new_folder"),
+                        ("Copy", "copy"),
+                        ("Cut", "cut"),
+                    ]
+                else:
+                    menu_items += [
+                        ("Copy", "copy"),
+                        ("Cut", "cut"),
+                    ]
+                menu = ContextMenu(menu_items, 0, 0, path)
+                self.app.push_screen(menu)
+            event.prevent_default()
+            event.stop()
 
     def on_mouse_down(self, event: MouseDown) -> None:
         if event.button == 3:
             try:
-                # Save expanded state before doing anything
                 expanded_paths = self._get_expanded_paths()
                 
                 offset = event.offset 
@@ -158,7 +175,6 @@ class FilterableDirectoryTree(DirectoryTree):
                     menu = ContextMenu(menu_items, event.screen_x, event.screen_y, path)
                     self.app.push_screen(menu)
                     
-                    # Restore expanded paths after context menu is shown
                     self._restore_expanded_paths(expanded_paths)
                 event.stop()
             except Exception as e:
@@ -173,6 +189,9 @@ class NewFileDialog(ModalScreen):
         Binding("escape", "cancel", "Cancel"),
         Binding("f1", "submit", "Submit"),
         Binding("tab", "next_field", "Next Field"),
+        Binding("shift+tab", "previous_field", "Previous Field"),
+        Binding("up", "move_up", "Move Up"),
+        Binding("down", "move_down", "Move Down"),
     ]
 
     def __init__(self, initial_path: str) -> None:
@@ -261,12 +280,40 @@ class NewFileDialog(ModalScreen):
         else:
             self.query_one("#filename").focus()
 
+    async def action_previous_field(self) -> None:
+        current = self.app.focused
+        if isinstance(current, Input):
+            self.query_one("#submit").focus()
+        elif isinstance(current, FilterableDirectoryTree):
+            self.query_one("#filename").focus()
+        elif isinstance(current, Button):
+            self.query_one(FilterableDirectoryTree).focus()
+        else:
+            self.query_one("#filename").focus()
+
+    async def action_move_up(self) -> None:
+        current = self.app.focused
+        if isinstance(current, Button):
+            self.query_one(FilterableDirectoryTree).focus()
+        elif isinstance(current, Input):
+            self.query_one("#submit").focus()
+
+    async def action_move_down(self) -> None:
+        current = self.app.focused
+        if isinstance(current, Button):
+            self.query_one("#filename").focus()
+        elif isinstance(current, Input):
+            self.query_one(FilterableDirectoryTree).focus()
+
 
 class NewFolderDialog(ModalScreen):
     BINDINGS = [
         Binding("escape", "cancel", "Cancel"),
         Binding("f1", "submit", "Submit"),
         Binding("tab", "next_field", "Next Field"),
+        Binding("shift+tab", "previous_field", "Previous Field"),
+        Binding("up", "move_up", "Move Up"),
+        Binding("down", "move_down", "Move Down"),
     ]
 
     def __init__(self, initial_path: str) -> None:
@@ -350,11 +397,40 @@ class NewFolderDialog(ModalScreen):
         else:
             self.query_one("#foldername").focus()
 
+    async def action_previous_field(self) -> None:
+        current = self.app.focused
+        if isinstance(current, Input):
+            self.query_one("#submit").focus()
+        elif isinstance(current, FilterableDirectoryTree):
+            self.query_one("#foldername").focus()
+        elif isinstance(current, Button):
+            self.query_one(FilterableDirectoryTree).focus()
+        else:
+            self.query_one("#foldername").focus()
+
+    async def action_move_up(self) -> None:
+        current = self.app.focused
+        if isinstance(current, Button):
+            self.query_one(FilterableDirectoryTree).focus()
+        elif isinstance(current, Input):
+            self.query_one("#submit").focus()
+
+    async def action_move_down(self) -> None:
+        current = self.app.focused
+        if isinstance(current, Button):
+            self.query_one("#foldername").focus()
+        elif isinstance(current, Input):
+            self.query_one(FilterableDirectoryTree).focus()
+
 
 class DeleteConfirmationDialog(ModalScreen):
     BINDINGS = [
         Binding("escape", "cancel", "Cancel"),
         Binding("enter", "confirm", "Confirm"),
+        Binding("tab", "next_button", "Next Button"),
+        Binding("shift+tab", "previous_button", "Previous Button"),
+        Binding("left", "focus_cancel", "Focus Cancel"),
+        Binding("right", "focus_confirm", "Focus Confirm"),
     ]
 
     def __init__(self, path: str) -> None:
@@ -364,7 +440,6 @@ class DeleteConfirmationDialog(ModalScreen):
         self.is_directory = os.path.isdir(path)
 
     def compose(self) -> ComposeResult:
-        # Use the same container pattern as the working dialogs
         with Container(classes="file-form-container-d"):
             with Vertical(classes="file-form"):
                 item_type = "folder" if self.is_directory else "file"
@@ -410,6 +485,24 @@ class DeleteConfirmationDialog(ModalScreen):
 
     async def action_confirm(self) -> None:
         self._handle_delete()
+
+    async def action_next_button(self) -> None:
+        if self.app.focused == self.query_one("#cancel"):
+            self.query_one("#confirm").focus()
+        else:
+            self.query_one("#cancel").focus()
+
+    async def action_previous_button(self) -> None:
+        if self.app.focused == self.query_one("#confirm"):
+            self.query_one("#cancel").focus()
+        else:
+            self.query_one("#confirm").focus()
+
+    async def action_focus_cancel(self) -> None:
+        self.query_one("#cancel").focus()
+
+    async def action_focus_confirm(self) -> None:
+        self.query_one("#confirm").focus()
 
 
 class StatusBar(Static):
@@ -1684,6 +1777,7 @@ class NestView(Container, InitialFocusMixin):
         Binding("ctrl+shift+n", "new_folder", "New Folder", show=True),
         Binding("d", "delete_selected", "Delete Selected", show=True),
         Binding("ctrl+v", "paste", "Paste", show=True),
+        Binding("shift+/", "ContextMenu", "ContextMenu", show=True)
     ]
 
     def __init__(self) -> None:
@@ -1963,16 +2057,24 @@ class CustomCodeEditor(CodeEditor):
 
 
 class ContextMenu(ModalScreen):
+    BINDINGS = [
+        Binding("escape", "cancel", "Cancel"),
+        Binding("up", "focus_previous", "Previous Item"),
+        Binding("down", "focus_next", "Next Item"),
+        Binding("enter", "select_focused", "Select Item"),
+    ]
+    
     def __init__(self, items: list[tuple[str, str]], x: int, y: int, path: str) -> None:
         super().__init__()
         self.items = items
         self.pos_x = x
         self.pos_y = y
         self.path = path  
+        self.current_focus_index = 0
 
     def compose(self) -> ComposeResult:
         with Container(classes="context-menu-container"):
-            with Vertical(classes="file-form"):
+            with Vertical(classes="file-form", id="menu-container"):
                 yield Static("Actions", classes="file-form-header")
                 
                 for item_label, item_action in self.items:
@@ -1996,13 +2098,41 @@ class ContextMenu(ModalScreen):
                     menu.styles.offset = (menu_x, menu_y)
                     break
 
-            
         if self.items:
-            self.query_one(Button).focus()
+            buttons = self.query(Button)
+            if buttons:
+                buttons.first().focus()
+                self.current_focus_index = 0
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        button_id = event.button.id
-        if not button_id or not button_id.startswith("action-"):
+        self._handle_action(event.button.id)
+
+    def action_focus_next(self) -> None:
+        buttons = list(self.query(Button))
+        if not buttons:
+            return
+            
+        self.current_focus_index = (self.current_focus_index + 1) % len(buttons)
+        buttons[self.current_focus_index].focus()
+
+    def action_focus_previous(self) -> None:
+        buttons = list(self.query(Button))
+        if not buttons:
+            return
+            
+        self.current_focus_index = (self.current_focus_index - 1) % len(buttons)
+        buttons[self.current_focus_index].focus()
+        
+    def action_select_focused(self) -> None:
+        focused = self.app.focused
+        if isinstance(focused, Button):
+            self._handle_action(focused.id)
+    
+    def action_cancel(self) -> None:
+        self.dismiss()
+    
+    def _handle_action(self, button_id) -> None:
+        if not button_id or not isinstance(button_id, str) or not button_id.startswith("action-"):
             self.dismiss()
             return
             
@@ -2040,6 +2170,18 @@ class ContextMenu(ModalScreen):
     def on_key(self, event: Key) -> None:
         if event.key == "escape":
             self.dismiss()
+            event.prevent_default()
+            event.stop()
+        elif event.key == "up":
+            self.action_focus_previous()
+            event.prevent_default()
+            event.stop()
+        elif event.key == "down":
+            self.action_focus_next()
+            event.prevent_default()
+            event.stop()
+        elif event.key == "enter":
+            self.action_select_focused()
             event.prevent_default()
             event.stop()
 

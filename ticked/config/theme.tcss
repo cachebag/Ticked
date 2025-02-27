@@ -428,6 +428,10 @@ DayView {
     text-style: bold;
 }
 
+.form-buttons:focus {
+    border: tall white;
+}
+
 .form-buttons {
     margin-top: 2;
     align-horizontal: center;
