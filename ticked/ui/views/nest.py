@@ -1920,20 +1920,22 @@ class ContextMenu(ModalScreen):
     def on_mount(self) -> None:
         menu = self.query_one(".context-menu-container")
         
-        screen_width = self.screen.size.width
-        screen_height = self.screen.size.height
+        try:
+            tree = self.app.query_one("#main_tree", FilterableDirectoryTree)
+        except Exception:
+            tree = None
         
-        menu_width = menu.outer_size.width
-        menu_height = menu.outer_size.height
-        
-        x = min(self.pos_x, screen_width - menu_width - 2) 
-        y = min(self.pos_y, screen_height - menu_height - 2)
-        
-        x = max(0, x)
-        y = max(0, y)
-        
-        menu.styles.offset = (x, y)
-        
+        if tree:
+            for row in range(tree.row_count):
+                node = tree.get_node_at_line(row)
+                if node and node.data.path == self.path:
+                    tree_offset = tree.screen_relative
+                    menu_x = tree_offset.x + tree.scrollable_content_region.width - 20
+                    menu_y = tree_offset.y + (row * tree.get_content_height() / tree.row_count)
+                    menu.styles.offset = (menu_x, menu_y)
+                    break
+
+            
         if self.items:
             self.query_one(Button).focus()
 

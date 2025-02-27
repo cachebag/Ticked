@@ -721,11 +721,11 @@ NestView {
 /* Context Menu Styles */
 .context-menu-container {
     background: $surface;
-    border: round $accent;  
+    border: round thick $surface-lighten-2;  
     width: 10%;
-    height: 35%;
-    offset: 0 0;
+    height: 42%;
     layer: dialog;
+
 }
 
 .context-menu-item {
