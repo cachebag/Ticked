@@ -58,9 +58,54 @@ class FilterableDirectoryTree(DirectoryTree):
             return paths
         return [path for path in paths if not os.path.basename(path).startswith(".")]
 
+    def _get_expanded_paths(self) -> list[str]:
+        """Get a list of all expanded directory paths."""
+        expanded_paths = []
+        
+        def collect_expanded(node):
+            # Fix: Change node.expanded to node.is_expanded
+            if node.is_expanded and hasattr(node.data, "path"):
+                expanded_paths.append(node.data.path)
+            for child in node.children:
+                if child.children:  # Only process nodes that might be directories
+                    collect_expanded(child)
+        
+        if self.root:
+            collect_expanded(self.root)
+        
+        return expanded_paths
+    
+    def _restore_expanded_paths(self, paths: list[str]) -> None:
+        """Restore previously expanded directories."""
+        for path in paths:
+            try:
+                self.select_path(path)
+                # Make sure the node is really selected before toggling
+                if self.cursor_node and not self.cursor_node.is_expanded:
+                    self.toggle_node(self.cursor_node)
+            except Exception:
+                pass  # Skip if node can't be toggled or found
+    
     def refresh_tree(self) -> None:
+        """Refresh the tree while maintaining expanded directories."""
+        # Store the expanded paths before refreshing
+        expanded_paths = self._get_expanded_paths()
+        cursor_path = self.cursor_node.data.path if self.cursor_node else None
+        
+        # Reload the tree
         self.path = self.path
         self.reload()
+        
+        # Restore expanded paths
+        self._restore_expanded_paths(expanded_paths)
+        
+        # Try to restore cursor position
+        if cursor_path:
+            try:
+                self.select_path(cursor_path)
+            except Exception:
+                pass
+                
         self.refresh(layout=True)
         
     async def action_delete_selected(self) -> None:
@@ -81,27 +126,43 @@ class FilterableDirectoryTree(DirectoryTree):
             event.stop()
 
     def on_mouse_down(self, event: MouseDown) -> None:
-        if event.button == 3:  
-            offset = event.offset 
-            node = self.get_node_at_line(offset.y)
-            if node is not None:
-                self.select_node(node) 
+        if event.button == 3:
+            try:
+                # Save expanded state before doing anything
+                expanded_paths = self._get_expanded_paths()
+                
+                offset = event.offset 
+                node = self.get_node_at_line(offset.y)
+                if node is not None:
+                    self.select_node(node)
 
-            if self.cursor_node:
-                path = self.cursor_node.data.path
-                is_dir = os.path.isdir(path)
-                menu_items = [
-                    ("Rename", "rename"),
-                    ("Delete", "delete"),
-                ]
-                if is_dir:
-                    menu_items += [
-                        ("New File", "new_file"),
-                        ("New Folder", "new_folder")
+                if self.cursor_node:
+                    path = self.cursor_node.data.path
+                    is_dir = os.path.isdir(path)
+                    menu_items = [
+                        ("Rename", "rename"),
+                        ("Delete", "delete"),
                     ]
-                menu = ContextMenu(menu_items, event.screen_x, event.screen_y, path)
-                self.app.push_screen(menu)
-            event.stop()  
+                    if is_dir:
+                        menu_items += [
+                            ("New File", "new_file"),
+                            ("New Folder", "new_folder"),
+                            ("Copy", "copy"),
+                            ("Cut", "cut"),
+                        ]
+                    else:
+                        menu_items += [
+                            ("Copy", "copy"),
+                            ("Cut", "cut"),
+                        ]
+                    menu = ContextMenu(menu_items, event.screen_x, event.screen_y, path)
+                    self.app.push_screen(menu)
+                    
+                    # Restore expanded paths after context menu is shown
+                    self._restore_expanded_paths(expanded_paths)
+                event.stop()
+            except Exception as e:
+                self.app.notify(f"Context menu error: {str(e)}", severity="error")
 
 
 
@@ -1769,7 +1830,7 @@ class NestView(Container, InitialFocusMixin):
         
         
         tree = self.query_one(FilterableDirectoryTree)
-        if tree.cursor_node and os.path.isdir(tree.cursor_node.data.path):
+        if (tree.cursor_node and os.path.isdir(tree.cursor_node.data.path)):
             dest_dir = tree.cursor_node.data.path
         else:
             dest_dir = tree.path

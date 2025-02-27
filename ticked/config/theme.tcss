@@ -752,7 +752,7 @@ NestView {
 
 .delete-confirm-message {
     text-align: center;
-    padding: 1 0;
+    
     margin-top: 1;
 }
 
