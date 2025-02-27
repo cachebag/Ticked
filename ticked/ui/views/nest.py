@@ -303,10 +303,11 @@ class DeleteConfirmationDialog(ModalScreen):
         self.is_directory = os.path.isdir(path)
 
     def compose(self) -> ComposeResult:
-        with Container(classes="delete-confirm-container"):
-            with Vertical(classes="delete-confirm-dialog"):
+        # Use the same container pattern as the working dialogs
+        with Container(classes="file-form-container-d"):
+            with Vertical(classes="file-form"):
                 item_type = "folder" if self.is_directory else "file"
-                yield Static(f"Delete {item_type}", classes="delete-confirm-header")
+                yield Static(f"Delete {item_type}", classes="file-form-header")
                 yield Static(f"Are you sure you want to delete this {item_type}?", classes="delete-confirm-message")
                 yield Static(self.file_name, classes="delete-confirm-filename")
                 
@@ -319,36 +320,11 @@ class DeleteConfirmationDialog(ModalScreen):
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "cancel":
-            self.app.notify("Delete cancelled")
             self.dismiss(False)
         elif event.button.id == "confirm":
-            self.app.notify("Delete confirmed")
-            path = self.path
-            try:
-                if os.path.isdir(path):
-                    self.app.notify(f"Deleting directory: {path}")
-                    shutil.rmtree(path)
-                else:
-                    self.app.notify(f"Deleting file: {path}")
-                    os.unlink(path)
-                
-                # Post message and refresh
-                self.app.post_message(FileDeleted(path))
-                if hasattr(self.app, "main_tree") and self.app.main_tree:
-                    self.app.main_tree.refresh_tree()
+            self._handle_delete()
 
-                self.app.notify(f"Deleted: {os.path.basename(path)}")
-            except Exception as e:
-                self.app.notify(f"Error deleting: {str(e)}", severity="error")
-            finally:
-                self.dismiss(True)
-
-    async def action_cancel(self) -> None:
-        self.app.notify("Delete cancelled")
-        self.dismiss(False)
-
-    async def action_confirm(self) -> None:
-        self.app.notify("Delete confirmed")
+    def _handle_delete(self) -> None:
         path = self.path
         try:
             if os.path.isdir(path):
@@ -361,11 +337,18 @@ class DeleteConfirmationDialog(ModalScreen):
             self.app.post_message(FileDeleted(path))
             if hasattr(self.app, "main_tree") and self.app.main_tree:
                 self.app.main_tree.refresh_tree()
+
             self.app.notify(f"Deleted: {os.path.basename(path)}")
+            self.dismiss(True)
         except Exception as e:
             self.app.notify(f"Error deleting: {str(e)}", severity="error")
-        finally:
-            self.dismiss(True)
+            self.dismiss(False)
+
+    async def action_cancel(self) -> None:
+        self.dismiss(False)
+
+    async def action_confirm(self) -> None:
+        self._handle_delete()
 
 
 class StatusBar(Static):
@@ -451,7 +434,6 @@ class AutoCompletePopup(DataTable):
                 "property": "🔹",
             }
             type_icon = type_indicators.get(type_, "•")
-
             self.add_row(f"{type_icon} {name}", type_, info)
 
         if self.row_count > 0:
@@ -1928,13 +1910,15 @@ class ContextMenu(ModalScreen):
         self.path = path  
 
     def compose(self) -> ComposeResult:
-        self.styles.background = "transparent"
-        with Container(classes="context-menu"):
-            for item_label, item_action in self.items:
-                yield Button(item_label, id=f"action-{item_action}", classes="context-menu-item")
+        with Container(classes="context-menu-container"):
+            with Vertical(classes="file-form"):
+                yield Static("Actions", classes="file-form-header")
+                
+                for item_label, item_action in self.items:
+                    yield Button(item_label, id=f"action-{item_action}", classes="context-menu-item")
 
     def on_mount(self) -> None:
-        menu = self.query_one(".context-menu")
+        menu = self.query_one(".context-menu-container")
         
         screen_width = self.screen.size.width
         screen_height = self.screen.size.height
@@ -1995,7 +1979,6 @@ class ContextMenu(ModalScreen):
             self.dismiss()
             event.prevent_default()
             event.stop()
-
 
 
 class RenameDialog(ModalScreen):

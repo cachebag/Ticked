@@ -5,6 +5,7 @@ Screen {
     overflow: auto;
     background: $surface-darken-2;
     color: $text;
+    layers: base overlay dialog;  /* Define layers for proper stacking */
 }
 
 
@@ -375,14 +376,24 @@ DayView {
 
 .file-form-container {
     width: 30%;
-    height: 70%;
-    margin-top: 5;
-    background: $surface-darken-2;
+    height: 65%;
+    background: $surface;
+    layer: dialog;
+    border: thick $surface-lighten-2;
+}
+
+.file-form-container-d {
+    width: 25%;
+    height: 35%;
+    background: $surface;
+    border: thick $surface-lighten-2;
+    layer: dialog;
 }
 
 .file-form {
     height: 1fr;
     width: 1fr;
+    padding: 1 2;
 }
 
 .file-form-header {
@@ -390,6 +401,7 @@ DayView {
     padding-bottom: 1;
     text-style: bold;
     border-bottom: solid $accent;
+    margin-bottom: 1;
 }
 
 .selected-path-label {
@@ -707,66 +719,49 @@ NestView {
 }
 
 /* Context Menu Styles */
-.context-menu {
-    background: #2a2a2a;
+.context-menu-container {
+    background: $surface;
     border: round $accent;  
     width: 10%;
-    height: auto;
-    offset-x: 1;
-    layer: above;
+    height: 35%;
+    offset: 0 0;
+    layer: dialog;
 }
 
 .context-menu-item {
     width: 100%;
-    padding: 1 2;
-    margin: 0;
-    text-align: left;
-    background: transparent;
+    height: 3;
+    padding: 1;
+    text-align: center;
+    text-style: none;
     border: none;
+    background: $surface;
+    color: $text;
+    margin-top: 1;
 }
 
 .context-menu-item:hover {
-    background: #444;
-}
-
-/* Delete Confirmation Dialog Styles */
-.delete-confirm-container {
-    align: center middle;
-    width: 100%;
-    height: 100%;
-}
-
-.delete-confirm-dialog {
-    background: #2a2a2a;
-    border: round thick $surface-darken-2;
-    padding: 2 4;
-    width: 50;
-    height: auto;
+    background: $accent 20%;
     
 }
 
-.delete-confirm-header {
-    text-align: center;
-    text-style: bold;
-    color: #ff6b6b;
-    margin-bottom: 1;
+.context-menu-item:focus {
+    background: $accent;
 }
+
 
 .delete-confirm-message {
     text-align: center;
-    margin-bottom: 1;
+    padding: 1 0;
+    margin-top: 1;
 }
 
 .delete-confirm-filename {
     text-align: center;
+    padding: 1 0;
+    margin: 1 0;
     text-style: bold;
-    margin-bottom: 2;
 }
-
-.form-buttons {
-
-}
-
 
 .new-file-btn:hover {
     background: $primary
@@ -1909,3 +1904,34 @@ Dropdown {
     background: $accent;
     color: $text;
 }
+
+/* Modal Dialog Styles */
+.modal-background {
+    background: rgba(0, 0, 0, 0.7);
+    width: 100%;
+    height: 100vh;
+    align: center middle;
+}
+
+.modal-dialog {
+    width: auto;
+    height: auto;
+    padding: 1 2;
+    margin: 2;
+    background: $surface;
+    border: thick $accent;
+    layer: dialog; /* Put dialog on top layer */
+}
+
+ModalScreen {
+    align: center middle;
+    background: rgba(0, 0, 0, 0.7);
+}
+
+
+#modal-overlay {
+    width: 100%;
+    height: 100%;
+    align: center middle;
+}
+

@@ -23,7 +23,6 @@ class Ticked(App):
     CSS_PATH = str(Path(__file__).parent / "config" / "theme.tcss")
     SCREENS = {"home": HomeScreen}
     TITLE = "TICKED"
-    COMMANDS = {}
     BINDINGS = [
         Binding("q", "quit", "Quit", show=True),
         Binding("up", "focus_previous", "Move Up", show=True),
@@ -169,7 +168,7 @@ class Ticked(App):
 
 def main():
     app = Ticked()
-    app.run()
+    app.run(mouse=True)
 
 
 if __name__ == "__main__":
