@@ -103,7 +103,7 @@ There are currently a couple of built in features to enhance the code editing ex
 
 I plan on implementing Autocomplete in the near future along with some more motions to create a better code editing experience. If anyone has any suggestions, please feel free to propose changes on the codebase. I'm very open to approaching this in another way if it will help the user experience.
 
-Keep an eye on the [GitHub releases](https://github.com/cachebag/Ticked/releases) and my [Reddit account](https://www.reddit.com/user/cachebags/submitted/) to find out when NEST+ gets updated.
+Keep an eye on the [GitHub releases](https://github.com/cachebag/Ticked/releases) to find out when NEST+ gets updated.
 
 <div align="right">
 <a href="#canvas" onclick="event.preventDefault(); loadPage('canvas');">
