@@ -2,7 +2,7 @@ Screen {
     align: center middle;
     layout: grid;
     grid-size: 1;
-    overflow: auto;
+    
     background: $surface-darken-2;
     color: $text;
     layers: base overlay dialog;  /* Define layers for proper stacking */
@@ -71,7 +71,7 @@ MenuItem:focus {
 .content {
     height: 100%;
     width: 100%;
-    overflow-y: auto;
+    
 }
 
 .content-area {
@@ -103,83 +103,20 @@ WelcomeMessage {
     padding: 1;
 }
 
-CalendarView {
-    width: 100%;
-    height: 90;
-    margin-bottom: -15;
-}
 
 NavBar {
-    width: 100%;
+    width: 10;
     height: 5;
     padding: 1;
     align: center middle;
+    background: $surface-darken-1;
+    padding: 0 1;
+    border-bottom: solid $accent;
+    margin-bottom: 1;
+    layout: horizontal;
+    align-horizontal: center;
+    align-vertical: middle;
 }
-
-CalendarHeader {
-    width: 100%;
-    height: 5;
-    content-align: center middle;
-    text-style: bold;
-    padding: 1;
-}
-
-CalendarGrid {
-    width: 100%;
-    height: 100%;    
-}
-
-.calendar-weekday, .calendar-empty-day {
-    width: 1fr;
-    height: 1fr;
-    min-height: 3;
-}
-
-.calendar-weekday {
-    text-align: center;
-    text-style: bold;
-}
-
-CalendarDayButton {
-    background: $surface;
-    border: thick $surface-darken-2;
-    text-style: bold;
-    padding: 1;
-}
-
-CalendarDayButton:hover {
-    background: $surface-lighten-1;
-}
-
-CalendarDayButton:focus {
-    background: $accent 40%;
-}
-
-CalendarDayButton.current-day {
-    background: $accent 40%;
-    color: $text;
-}
-
-.calendar-empty-day {}
-
-.calendar-nav-left, .calendar-nav-right {
-    
-}
-
-.calendar-nav-left {
-    dock: left;
-}
-
-.calendar-nav-right {
-    dock: right;
-}
-
-.calendar-nav-left:hover, .calendar-nav-right:hover {}
-
-.calendar-nav-left:focus, .calendar-nav-right:focus {
-    border: tall white;
-}
-
 
 SystemStats {
     padding: 0 1;
@@ -201,170 +138,6 @@ SystemStatsHeader {
     text-align: center;
     padding: 0 1;
 }
-
-
-DayView {
-    padding: 2;
-    overflow: auto;
-}
-
-.day-view-header {
-    height: 3;
-    width: 100%;
-    content-align: center middle;
-    margin-bottom: 1;
-    text-style: none;
-    dock: top;
-}
-
-.day-view-content {
-    width: 100%;
-    height: 100%;
-    margin-top: 1;
-}
-
-
-.schedule-section {
-    background: black 30%;
-    height: auto;
-    padding: 1;
-    margin: 1 0;
-    text-align: center;
-    text-style: bold;
-}
-
-.schedule-text {
-    width: auto;
-    align: center middle;
-    margin: 1;
-}
-
-.schedule-button {
-    width: 10;
-    height: 3;
-    background: $accent 40%;
-    color: $text;
-    text-style: none;
-    border: none;
-    margin: 1;
-}
-
-.schedule-button:hover {
-    background: $accent 60%;
-    color: $text;
-}
-
-.schedule-container, .notes-container {
-    width: 1fr;
-    height: 100%;
-    padding: 1;
-}
-
-
-.notes-container {
-    height: 40;
-}
-
-.notes-editor {
-    height: 1fr;
-    border: solid;
-    margin-bottom: 1;
-}
-
-.notes-controls {
-    width: 100%;
-    height: auto;
-    align: left middle;
-    padding: 1;
-}
-
-.notes-content {
-    height: 100%;
-    width: 100%;
-    padding: 1;
-}
-
-
-.section-header, .task-header, .middle-header {
-    dock: top;
-    padding: 1 2;
-    margin-bottom: 1;
-    text-align: center;
-    text-style: bold;
-    background: $surface-darken-2;
-    border-bottom: $primary;
-    width: 100%;
-}
-
-  .day-view-content {
-    width: 100%;
-    height: 100%;
-    margin-top: 1;
-    layout: horizontal;
-    align: center middle;
-}
-
-.schedule-container {
-    width: 0.6fr;
-    height: 100%;
-    padding: 1;
-}
-
-.middle-container {
-    width: 1fr;
-    height: 100%;
-    padding: 1;
-    border-left: solid $secondary;
-    border-right: solid $secondary;
-}
-
-.notes-container {
-    width: 1fr;
-    height: 100%;
-    padding: 1;
-}
-
-
-.middle-container {
-  width: 1fr;
-}
-
-
-.tasks-list {
-    margin: 1 2;
-    height: 90%;  
-    overflow-y: auto;
-    position: relative;  
-}
-
-.tasks-list-day {
-    overflow-y: auto;
-    margin-top: 1;
-    position: relative;
-}
-
-.task-item {
-    padding: 1;
-    border: wide white 35%;
-    margin-bottom: 1;
-    position: relative;
-}
-
-.task-item:hover {
-    border: wide $accent !important;
-}
-
-
-.task-text:hover {
-    color: $accent;
-}
-
-
-.empty-schedule {
-    padding: 2;
-    text-align: center;
-}
-
 
 .task-form-container {
     width: 50%;
@@ -849,14 +622,6 @@ FilterableDirectoryTree:focus, CodeEditor:focus {
 
 .file-nav, .editor-container {
     border: solid $secondary;
-}
-
-
-
-Screen {
-    align: center middle;
-    overflow: auto;  
-    layers: below above;
 }
 
 
@@ -1579,85 +1344,6 @@ Label {
     margin-bottom: 1;
 }
 
-.stat-item {
-    padding: 1;
-    text-align: center;
-}
-
-
-.week-day-column {
-    width: 1fr;
-    height: 65%;
-    border: solid $secondary;
-    padding: 1;
-}
-
-.week-day-column:hover {
-    width: 1fr;
-    height: 65%;
-    border: solid $secondary;
-    padding: 1;
-}
-
-.week-day-column:focus {
-    width: 1fr;
-    height: 150%;
-    border: solid $secondary;
-    padding: 1;
-}
-
-.weekday-header {
-    text-align: center;
-    background: $surface-darken-2;
-    height: 4;
-    padding: 1;
-    border-bottom: solid $primary;
-}
-
-
-.week-day-content {
-    padding: 1;
-    height: 1fr;
-    overflow-y: auto;
-}
-
-.view-toggle {
-    width: auto;
-    height: 3;
-    margin: 1;
-    background: $accent 40%;
-    color: $text;
-    border: none;
-    dock: top;
-    text-style: none;
-}
-
-.view-toggle:hover {
-    background: $accent 60%;
-}
-
-.week-day-column CalendarDayButton {
-    width: 100%;
-    height: 2;
-    margin-top: 1;
-    background: $surface-darken-2;
-    border: none;
-}
-
-.week-day-column CalendarDayButton:hover {
-    background: $primary 20%;
-}
-
-.week-day-column CalendarDayButton:focus {
-    background: $primary 10%;
-    height: 150;
-}
-
-.week-day-column CalendarDayButton.current-day {
-    background: $accent 40%;
-    color: $text;
-}
-
 #time-inputs {
     width: 100%;
     margin-top: 1;
@@ -1947,5 +1633,393 @@ ModalScreen {
     width: 100%;
     height: 100%;
     align: center middle;
+}
+
+/* Calendar View and Day View - Complete separation */
+CalendarView {
+    width: 100%;
+    height: 100; /* Fixed height */
+    background: $surface-darken-2;
+    padding: 1;
+}
+
+/* Make DayView completely independent with no scrolling */
+DayView {
+    width: 100%;
+    height: 100%;
+    max-height: 50;
+    padding: 1;
+    background: $surface-darken-2;
+    overflow: hidden !important;
+    overflow-y: hidden; /* Allow scrolling in day view */
+    position: absolute;
+    layer: above; 
+}
+
+/* All content within DayView must not scroll */
+DayView > * {
+    overflow: hidden !important;
+}
+
+CalendarView > * {
+    overflow: hidden !important;
+}
+
+.day-view-content {
+    width: 100%;
+    height: 1fr;
+    layout: horizontal;
+    overflow: hidden !important;
+}
+
+.schedule-container {
+    width: 45%;
+    height: 100%;
+    padding: 0 1 0 0;
+    border-right: solid $accent 30%;
+    overflow: hidden !important;
+}
+
+.notes-container {
+    width: 55%;
+    height: 100%;
+    padding: 0 0 0 1;
+    overflow: hidden !important;
+}
+
+.notes-content {
+    height: 1fr;
+    width: 100%;
+    overflow: hidden !important;
+}
+
+#notes-editor {
+    height: 100%;
+    border: solid $surface-lighten-1 30%;
+    padding: 1;
+    overflow-y: auto; /* Allow only the editor itself to scroll */
+}
+
+/* Make task lists inside DayView scrollable but contained */
+.tasks-list-day {
+    height: 1fr;
+    max-height: 30; /* Limit the height */
+    overflow-y: auto;
+    width: 100%;
+    padding: 0 1 0 0;
+}
+
+/* Calendar Grid View Styles */
+CalendarGrid {
+    grid-gutter: 1 1;
+    padding: 0;
+    width: 100%;
+    height: auto; /* Changed from 85% to auto to allow content to determine height */
+    min-height: 85%; /* Ensures minimum height is maintained */
+}
+
+/* Calendar Day View */
+DayView {
+    width: 100%;
+    height: 100%; /* Keep day view height unchanged */
+    padding: 1;
+    background: $surface-darken-2;
+    overflow: hidden; /* Prevent scrolling in day view */
+}
+
+/* Week View Styles */
+WeekView {
+    grid-gutter: 1 0;
+    padding: 0;
+    width: 100%;
+    height: auto; /* Changed from 85% to auto to allow content to determine height */
+    min-height: 85%; /* Ensures minimum height is maintained */
+}
+
+/* Navigation Bar Styles */
+.calendar-nav-left {
+    width: 1;
+    height: 3;
+    background: $accent 30%;
+    border: none;
+    content-align: center middle;
+}
+
+.calendar-nav-right {
+    width: 1;
+    height: 3;
+    background: $accent 30%;
+    border: none;
+    dock: right;
+}
+
+.calendar-nav-left:hover, .calendar-nav-right:hover {
+    background: $accent 60%;
+}
+
+.calendar-nav-left:focus, .calendar-nav-right:focus {
+    border: tall $accent;
+}
+
+CalendarHeader {
+    color: $accent;
+    text-style: bold;
+}
+
+/* View Toggle Button */
+#toggle-view {
+    width: 15;
+    height: 3;
+    background: $accent 40%;
+    color: $text;
+    text-style: none;
+    border: none;
+    margin: 0 0 1 0;
+    dock: top;
+}
+
+#toggle-view:hover {
+    background: $accent 60%;
+}
+
+#toggle-view:focus {
+    border: tall $accent;
+}
+
+/* Month Grid View Styles */
+CalendarGrid {
+    grid-gutter: 1 1;
+    padding: 0;
+    width: 100%;
+    height: 85%;
+}
+
+.calendar-weekday {
+    background: $accent 20%;
+    color: $text;
+    text-style: bold;
+    border-bottom: solid $accent;
+    height: 3;
+    content-align: center middle;
+}
+
+CalendarDayButton {
+    min-height: 8;
+    background: $surface-darken-1;
+    border: solid $surface-lighten-1 30%;
+    padding: 0 1;
+    content-align: left top;
+    text-align: left;
+}
+
+CalendarDayButton:hover {
+    background: $surface;
+    border: solid $accent;
+}
+
+CalendarDayButton:focus {
+    border: solid $accent;
+    background: $surface;
+}
+
+CalendarDayButton.current-day {
+    background: $accent 20%;
+    border: solid $accent;
+}
+
+.calendar-empty-day {
+    background: $surface-darken-3;
+    border: solid $surface-darken-3;
+}
+
+/* Week View Styles */
+WeekView {
+    grid-gutter: 1 0;
+    padding: 0;
+    width: 100%;
+    height: 85%;
+}
+
+.week-day-column {
+    width: 1fr;
+    height: 100%;
+    padding: 0;
+    border-right: solid $surface-lighten-1 30%;
+}
+
+.weekday-header {
+    height: 3;
+    background: $accent 20%;
+    color: $text;
+    text-style: bold;
+    border-bottom: solid $accent;
+    content-align: center middle;
+    text-align: center;
+}
+
+/* Calendar Day View */
+DayView {
+    width: 100%;
+    height: 100%;
+    padding: 1;
+    background: $surface-darken-2;
+}
+
+#day-view-header {
+    width: 100%;
+    text-align: center;
+    text-style: bold;
+    color: $accent;
+    height: 3;
+    margin-bottom: 1;
+}
+
+.day-view-content {
+    width: 100%;
+    height: 1fr;
+    layout: horizontal;
+}
+
+/* Schedule Section */
+.schedule-container {
+    width: 45%;
+    height: 100%;
+    padding: 0 1 0 0;
+    border-right: solid $accent 30%;
+}
+
+.section-header {
+    color: $accent;
+    text-style: bold;
+    margin-bottom: 1;
+    border-bottom: solid $accent 30%;
+    padding-bottom: 1;
+}
+
+.schedule-controls {
+    margin-bottom: 1;
+    width: 100%;
+}
+
+.schedule-button {
+    background: $accent 40%;
+    color: $text;
+    border: none;
+    width: 15;
+    height: 3;
+}
+
+.schedule-button:hover {
+    background: $accent 60%;
+}
+
+.schedule-button:focus {
+    border: tall $accent;
+}
+
+.task-header {
+    color: $text;
+    text-style: bold;
+    margin: 1 0;
+}
+
+.tasks-list-day {
+    height: 1fr;
+    overflow-y: auto;
+    width: 100%;
+    padding: 0 1 0 0;
+}
+
+.empty-schedule {
+    padding: 1;
+    color: $text-muted;
+    text-align: center;
+    margin-top: 2;
+}
+
+/* Middle Container */
+.middle-container {
+    width: 0;  /* Hidden initially */
+    display: none;
+}
+
+.middle-header {
+    color: $accent;
+    text-style: bold;
+}
+
+/* Notes Section */
+.notes-container {
+    width: 55%;
+    height: 100%;
+    padding: 0 0 0 1;
+}
+
+.notes-content {
+    height: 1fr;
+    width: 100%;
+}
+
+#notes-editor {
+    height: 100%;
+    border: solid $surface-lighten-1 30%;
+    padding: 1;
+}
+
+#notes-editor:focus {
+    border: solid $accent;
+}
+
+/* Stats Container */
+.stats-container {
+    width: 100%;
+    height: auto;
+    background: $surface-darken-1;
+    border: solid $accent 30%;
+    padding: 1;
+    margin-bottom: 1;
+}
+
+.stat-item {
+    height: 3;
+    background: $surface;
+    border: none;
+    content-align: center middle;
+    text-align: center;
+}
+
+/* Calendar Navigation Bar Adjustments - Fixed buttons */
+
+
+#prev_month:hover, #next_month:hover {
+    background: $accent 60%;
+    color: $text;
+}
+
+#prev_month:focus, #next_month:focus {
+    border: tall $accent;
+}
+
+CalendarHeader {
+    width: 60%;
+    color: $accent;
+    text-style: bold;
+    text-align: center;
+}
+
+#prev_month:hover, #next_month:hover {
+    background: $accent 60%;
+    color: $text;
+}
+
+#prev_month:focus, #next_month:focus {
+    border: tall $accent;
+}
+
+CalendarHeader {
+    width: 60%;
+    color: $accent;
+    text-style: bold;
+    text-align: center;
 }
 

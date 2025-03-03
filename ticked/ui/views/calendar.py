@@ -28,11 +28,10 @@ class NavBar(Horizontal):
         self.styles.align = ("center", "middle")
 
     def compose(self) -> ComposeResult:
-        prev_btn = Button("\u25c4 \n \n", id="prev_month", classes="calendar-nav-left")
-        next_btn = Button("\u25ba", id="next_month", classes="calendar-nav-right")
+        prev_btn = Button("PREV", id="prev_month", classes="calendar-nav-left")
+        next_btn = Button("NEXT", id="next_month", classes="calendar-nav-right")
         header = CalendarHeader(self.current_date)
-        header.styles.width = "100%"
-        header.styles.margin = (0, 5)
+
 
         yield prev_btn
         yield header
