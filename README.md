@@ -3,11 +3,9 @@
 <br>
 [![Lint](https://github.com/cachebag/Ticked/actions/workflows/lint.yml/badge.svg)](https://github.com/USERNAME/REPO/actions/workflows/lint.yml)
 <br>
-[![Tests](https://github.com/cachebag/Ticked/actions/workflows/test.yml/badge.svg)](https://github.com/USERNAME/REPO/actions/workflows/test.yml)
-<br>
 [![Security](https://github.com/cachebag/Ticked/actions/workflows/security.yml/badge.svg)](https://github.com/USERNAME/REPO/actions/workflows/security.yml)
 <br>
-
+[![Python Tests](https://github.com/USERNAME/Ticked/actions/workflows/pytest.yml/badge.svg)](https://github.com/cachebag/Ticked/actions/workflows/pytest.yml/badge.svg)
 
 # 📟 **Ticked** is a Terminal based task and productivity manager built in Python over the Textual framework.
 
@@ -64,4 +62,36 @@ If you want to contribute:
 1. Fork the repository.
 2. Make your changes.
 3. Submit a pull request for review.
+
+## Testing
+
+```bash
+pytest
+```
+
+## Development
+
+### Running CI Checks Locally
+
+You can run the same checks that run in GitHub Actions locally using the provided script:
+
+1. First, make the script executable:
+   ```bash
+   chmod +x run_checks.sh
+   ```
+
+2. Install development dependencies:
+   ```bash
+   pip install -r requirements-dev.txt
+   ```
+
+3. Run specific checks:
+   - For security checks: `./run_checks.sh security`
+   - For linting: `./run_checks.sh lint`
+   - For tests: `./run_checks.sh pytest`
+   - For all checks: `./run_checks.sh all`
+
+## License
+
+[MIT](LICENSE)
 

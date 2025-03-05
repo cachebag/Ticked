@@ -2,10 +2,10 @@ from textual.widgets import Static
 import psutil
 from datetime import datetime
 import getpass
+import platform
 
 
 class SystemStatsHeader(Static):
-    """A widget that displays system statistics."""
 
     def __init__(self):
         super().__init__("")
@@ -30,3 +30,33 @@ class SystemStatsHeader(Static):
         self.update(
             f"UPTIME: {uptime} | CPU% {cpu} | MEM%: {mem} | user: {self.user_name}"
         )
+
+
+def get_system_info():
+    try:
+        os_name = platform.system()
+        os_version = platform.version()
+
+        python_version = platform.python_version()
+
+        memory = psutil.virtual_memory()
+        memory_total = memory.total / (1024 * 1024)
+        memory_available = memory.available / (1024 * 1024)
+
+        cpu_percent = psutil.cpu_percent(interval=0.1)
+
+        return {
+            "os_name": os_name,
+            "os_version": os_version,
+            "python_version": python_version,
+            "memory_total": memory_total,
+            "memory_available": memory_available,
+            "cpu_percent": cpu_percent,
+            "python_implementation": platform.python_implementation(),
+        }
+    except Exception as e:
+        return {
+            "error": str(e),
+            "os_name": platform.system(),
+            "python_version": platform.python_version(),
+        }
