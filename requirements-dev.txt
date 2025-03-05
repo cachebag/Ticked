@@ -1,0 +1,12 @@
+pytest
+pytest-asyncio
+pytest-cov
+
+flake8
+black
+isort
+mypy
+
+pip-audit
+safety
+bandit

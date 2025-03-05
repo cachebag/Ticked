@@ -111,7 +111,8 @@ dependencies = [
     "vobject",
     "x-wr-timezone",
     "yarl",
-    "jedi"
+    "jedi",
+    "send2trash"
 ]
 
 [project.urls]
