@@ -161,7 +161,7 @@ To get this setup, I'll quickly go over an example using iCloud syncing.
 <br>
 
 <div align="right">
-<a href="#nest" onclick="event.preventDefault(); loadPage('advanced');">
+<a href="#nest" onclick="event.preventDefault(); loadPage('nest');">
     <kbd>Next: NEST+ →</kbd>
 </a>
 </div>  

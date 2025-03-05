@@ -1,5 +1,4 @@
 from textual.app import ComposeResult
-from textual.widget import Widget
 from textual.containers import Horizontal, Container, Vertical
 from textual.screen import ModalScreen
 from textual.widgets import DirectoryTree, Static, Button, TextArea, Input, Label
@@ -53,7 +52,6 @@ class FilterableDirectoryTree(DirectoryTree):
         super().__init__(path, **kwargs)
         self.show_hidden = show_hidden
 
-
     def filter_paths(self, paths: list[str]) -> list[str]:
         if self.show_hidden:
             return paths
@@ -61,19 +59,19 @@ class FilterableDirectoryTree(DirectoryTree):
 
     def _get_expanded_paths(self) -> list[str]:
         expanded_paths = []
-        
+
         def collect_expanded(node):
             if node.is_expanded and hasattr(node.data, "path"):
                 expanded_paths.append(node.data.path)
             for child in node.children:
-                if child.children: 
+                if child.children:
                     collect_expanded(child)
-        
+
         if self.root:
             collect_expanded(self.root)
-        
+
         return expanded_paths
-    
+
     def _restore_expanded_paths(self, paths: list[str]) -> None:
         for path in paths:
             try:
@@ -81,36 +79,36 @@ class FilterableDirectoryTree(DirectoryTree):
                 if self.cursor_node and not self.cursor_node.is_expanded:
                     self.toggle_node(self.cursor_node)
             except Exception:
-                pass  
-    
+                pass
+
     def refresh_tree(self) -> None:
         expanded_paths = self._get_expanded_paths()
         cursor_path = self.cursor_node.data.path if self.cursor_node else None
-        
+
         self.path = self.path
         self.reload()
-        
+
         self._restore_expanded_paths(expanded_paths)
-        
+
         if cursor_path:
             try:
                 self.select_path(cursor_path)
             except Exception:
                 pass
-                
+
         self.refresh(layout=True)
-        
+
     async def action_delete_selected(self) -> None:
         if self.cursor_node is None:
             self.app.notify("No file or folder selected", severity="warning")
             return
-            
+
         path = self.cursor_node.data.path
         dialog = DeleteConfirmationDialog(path)
         await self.app.push_screen(dialog)
         if hasattr(self.app, "main_tree") and self.app.main_tree:
             self.app.main_tree.refresh_tree()
-    
+
     def on_key(self, event: Key) -> None:
         if event.key == "d":
             self.run_worker(self.action_delete_selected())
@@ -157,8 +155,8 @@ class FilterableDirectoryTree(DirectoryTree):
         if event.button == 3:
             try:
                 expanded_paths = self._get_expanded_paths()
-                
-                offset = event.offset 
+
+                offset = event.offset
                 node = self.get_node_at_line(offset.y)
                 if node is not None:
                     self.select_node(node)
@@ -184,14 +182,11 @@ class FilterableDirectoryTree(DirectoryTree):
                         ]
                     menu = ContextMenu(menu_items, event.screen_x, event.screen_y, path)
                     self.app.push_screen(menu)
-                    
+
                     self._restore_expanded_paths(expanded_paths)
                 event.stop()
             except Exception as e:
                 self.app.notify(f"Context menu error: {str(e)}", severity="error")
-
-
-
 
 
 class NewFileDialog(ModalScreen):
@@ -454,9 +449,12 @@ class DeleteConfirmationDialog(ModalScreen):
             with Vertical(classes="file-form"):
                 item_type = "folder" if self.is_directory else "file"
                 yield Static(f"Move {item_type} to trash", classes="file-form-header")
-                yield Static(f"Are you sure you want to move this {item_type} to trash?", classes="delete-confirm-message")
+                yield Static(
+                    f"Are you sure you want to move this {item_type} to trash?",
+                    classes="delete-confirm-message",
+                )
                 yield Static(self.file_name, classes="delete-confirm-filename")
-                
+
                 with Horizontal(classes="form-buttons"):
                     yield Button("Cancel", variant="primary", id="cancel")
                     yield Button("Delete", variant="error", id="confirm")
@@ -475,7 +473,7 @@ class DeleteConfirmationDialog(ModalScreen):
         try:
             self.app.notify(f"Moving to trash: {path}")
             send2trash(path)
-            
+
             self.app.post_message(FileDeleted(path))
             if hasattr(self.app, "main_tree") and self.app.main_tree:
                 self.app.main_tree.refresh_tree()
@@ -850,7 +848,7 @@ class CodeEditor(TextArea):
         if stripped_line.endswith(":"):
             return True
 
-        brackets = {"(": ")", "[": "]", "{" : "}"}
+        brackets = {"(": ")", "[": "]", "{": "}"}
         counts = {
             k: stripped_line.count(k) - stripped_line.count(v)
             for k, v in brackets.items()
@@ -881,7 +879,7 @@ class CodeEditor(TextArea):
         if cursor_col > 0 and cursor_col < len(current_line):
             prev_char = current_line[cursor_col - 1]
             next_char = current_line[cursor_col]
-            bracket_pairs = {"{": "}", "(": ")", "[" : "]"}
+            bracket_pairs = {"{": "}", "(": ")", "[": "]"}
 
             if prev_char in bracket_pairs and next_char == bracket_pairs[prev_char]:
                 indent_level = current_indent + " " * self.tab_size
@@ -1783,7 +1781,7 @@ class NestView(Container, InitialFocusMixin):
         Binding("ctrl+shift+n", "new_folder", "New Folder", show=True),
         Binding("d", "delete_selected", "Delete Selected", show=True),
         Binding("ctrl+v", "paste", "Paste", show=True),
-        Binding("shift+/", "ContextMenu", "ContextMenu", show=True)
+        Binding("shift+/", "ContextMenu", "ContextMenu", show=True),
     ]
 
     def __init__(self) -> None:
@@ -1824,11 +1822,11 @@ class NestView(Container, InitialFocusMixin):
     def on_file_deleted(self, event: FileDeleted) -> None:
         editor = self.query_one(CodeEditor)
         tabs_to_remove = []
-        
+
         for i, tab in enumerate(editor.tabs):
             if tab.path == event.path or tab.path.startswith(event.path + os.sep):
                 tabs_to_remove.append(i)
-                
+
         for i in sorted(tabs_to_remove, reverse=True):
             if i == editor.active_tab_index:
                 editor.close_current_tab()
@@ -1836,7 +1834,7 @@ class NestView(Container, InitialFocusMixin):
                 editor.tabs.pop(i)
                 if i < editor.active_tab_index:
                     editor.active_tab_index -= 1
-                    
+
         editor._update_status_info()
 
     def compose(self) -> ComposeResult:
@@ -1845,15 +1843,30 @@ class NestView(Container, InitialFocusMixin):
                 Container(
                     Horizontal(
                         Static("Files", classes="nav-title"),
-                        Button("-", id="toggle_hidden", variant="default", classes="toggle-hidden-btn"),
-                        Button("New File", id="new_file", variant="default", classes="new-file-btn"),
-                        Button("New Folder", id="new_folder", variant="default", classes="new-file-btn"),
+                        Button(
+                            "-",
+                            id="toggle_hidden",
+                            variant="default",
+                            classes="toggle-hidden-btn",
+                        ),
+                        Button(
+                            "New File",
+                            id="new_file",
+                            variant="default",
+                            classes="new-file-btn",
+                        ),
+                        Button(
+                            "New Folder",
+                            id="new_folder",
+                            variant="default",
+                            classes="new-file-btn",
+                        ),
                         classes="nav-header",
                     ),
                     FilterableDirectoryTree(
-                        os.path.expanduser("~"), 
-                        show_hidden=self.show_hidden, 
-                        id="main_tree"
+                        os.path.expanduser("~"),
+                        show_hidden=self.show_hidden,
+                        id="main_tree",
                     ),
                     classes="file-nav",
                 ),
@@ -1917,31 +1930,29 @@ class NestView(Container, InitialFocusMixin):
         if not hasattr(self.app, "file_clipboard") or not self.app.file_clipboard:
             self.notify("Nothing to paste", severity="warning")
             return
-            
+
         clipboard = self.app.file_clipboard
         source_path = clipboard.get("path")
         action = clipboard.get("action")
-        
+
         if not source_path or not os.path.exists(source_path):
             self.notify("Source no longer exists", severity="error")
             self.app.file_clipboard = None
             return
-        
-        
+
         tree = self.query_one(FilterableDirectoryTree)
-        if (tree.cursor_node and os.path.isdir(tree.cursor_node.data.path)):
+        if tree.cursor_node and os.path.isdir(tree.cursor_node.data.path):
             dest_dir = tree.cursor_node.data.path
         else:
             dest_dir = tree.path
-            
+
         basename = os.path.basename(source_path)
         dest_path = os.path.join(dest_dir, basename)
-        
-        
+
         if os.path.exists(dest_path):
             self.notify(f"'{basename}' already exists in destination", severity="error")
             return
-            
+
         try:
             if action == "copy":
                 if os.path.isdir(source_path):
@@ -1954,8 +1965,7 @@ class NestView(Container, InitialFocusMixin):
                 shutil.move(source_path, dest_path)
                 self.notify(f"Moved: {basename}")
                 self.app.file_clipboard = None
-                
-            
+
                 editor = self.app.query_one(CodeEditor)
                 for i, tab in enumerate(editor.tabs):
                     if tab.path == source_path:
@@ -1963,10 +1973,9 @@ class NestView(Container, InitialFocusMixin):
                         if i == editor.active_tab_index:
                             editor.current_file = dest_path
                         editor._update_status_info()
-            
-            
+
             tree.refresh_tree()
-            
+
         except Exception as e:
             self.notify(f"Error during paste operation: {str(e)}", severity="error")
 
@@ -2002,7 +2011,6 @@ class NestView(Container, InitialFocusMixin):
                 # Read first chunk
                 chunk = file.read(8192)
 
-                
                 binary_signatures = [
                     b"\x7fELF",
                     b"MZ",
@@ -2014,12 +2022,10 @@ class NestView(Container, InitialFocusMixin):
                     b"\x1f\x8b",
                 ]
 
-
                 if any(chunk.startswith(sig) for sig in binary_signatures):
                     self.notify("Cannot open binary file", severity="warning")
                     event.stop()
                     return
-
 
                 if b"\x00" in chunk:
                     self.notify("Cannot open binary file", severity="warning")
@@ -2056,7 +2062,7 @@ class CustomCodeEditor(CodeEditor):
 
     def action_focus_tree(self) -> None:
         self.app.query_one("NestView").action_focus_tree()
-        
+
     async def action_new_folder(self) -> None:
         await self.app.query_one("NestView").action_new_folder()
 
@@ -2068,38 +2074,44 @@ class ContextMenu(ModalScreen):
         Binding("down", "focus_next", "Next Item"),
         Binding("enter", "select_focused", "Select Item"),
     ]
-    
+
     def __init__(self, items: list[tuple[str, str]], x: int, y: int, path: str) -> None:
         super().__init__()
         self.items = items
         self.pos_x = x
         self.pos_y = y
-        self.path = path  
+        self.path = path
         self.current_focus_index = 0
 
     def compose(self) -> ComposeResult:
         with Container(classes="context-menu-container"):
             with Vertical(classes="file-form", id="menu-container"):
                 yield Static("Actions", classes="file-form-header")
-                
+
                 for item_label, item_action in self.items:
-                    yield Button(item_label, id=f"action-{item_action}", classes="context-menu-item")
+                    yield Button(
+                        item_label,
+                        id=f"action-{item_action}",
+                        classes="context-menu-item",
+                    )
 
     def on_mount(self) -> None:
         menu = self.query_one(".context-menu-container")
-        
+
         try:
             tree = self.app.query_one("#main_tree", FilterableDirectoryTree)
         except Exception:
             tree = None
-        
+
         if tree:
             for row in range(tree.row_count):
                 node = tree.get_node_at_line(row)
                 if node and node.data.path == self.path:
                     tree_offset = tree.screen_relative
                     menu_x = tree_offset.x + tree.scrollable_content_region.width - 20
-                    menu_y = tree_offset.y + (row * tree.get_content_height() / tree.row_count)
+                    menu_y = tree_offset.y + (
+                        row * tree.get_content_height() / tree.row_count
+                    )
                     menu.styles.offset = (menu_x, menu_y)
                     break
 
@@ -2116,7 +2128,7 @@ class ContextMenu(ModalScreen):
         buttons = list(self.query(Button))
         if not buttons:
             return
-            
+
         self.current_focus_index = (self.current_focus_index + 1) % len(buttons)
         buttons[self.current_focus_index].focus()
 
@@ -2124,25 +2136,29 @@ class ContextMenu(ModalScreen):
         buttons = list(self.query(Button))
         if not buttons:
             return
-            
+
         self.current_focus_index = (self.current_focus_index - 1) % len(buttons)
         buttons[self.current_focus_index].focus()
-        
+
     def action_select_focused(self) -> None:
         focused = self.app.focused
         if isinstance(focused, Button):
             self._handle_action(focused.id)
-    
+
     def action_cancel(self) -> None:
         self.dismiss()
-    
+
     def _handle_action(self, button_id) -> None:
-        if not button_id or not isinstance(button_id, str) or not button_id.startswith("action-"):
+        if (
+            not button_id
+            or not isinstance(button_id, str)
+            or not button_id.startswith("action-")
+        ):
             self.dismiss()
             return
-            
+
         action = button_id.replace("action-", "")
-        
+
         if action == "delete":
             self.dismiss()
             dialog = DeleteConfirmationDialog(self.path)
@@ -2193,68 +2209,68 @@ class ContextMenu(ModalScreen):
 
 class RenameDialog(ModalScreen):
     """Dialog for renaming files and directories."""
-    
+
     BINDINGS = [
         Binding("escape", "cancel", "Cancel"),
         Binding("enter", "submit", "Submit"),
     ]
-    
+
     def __init__(self, path: str) -> None:
         super().__init__()
         self.path = path
         self.old_name = os.path.basename(path)
         self.parent_dir = os.path.dirname(path)
-        
+
     def compose(self) -> ComposeResult:
         with Container(classes="file-form-container"):
             with Vertical(classes="file-form"):
                 item_type = "Folder" if os.path.isdir(self.path) else "File"
                 yield Static(f"Rename {item_type}", classes="file-form-header")
-                
+
                 with Vertical():
                     yield Label("Current name:")
                     yield Static(self.old_name, id="current-name")
-                
+
                 with Vertical():
                     yield Label("New name:")
                     yield Input(value=self.old_name, id="new-name")
-                
+
                 with Horizontal(classes="form-buttons"):
                     yield Button("Cancel", variant="error", id="cancel")
                     yield Button("Rename", variant="success", id="submit")
-    
+
     def on_mount(self) -> None:
         self.query_one("#new-name").focus()
-    
+
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "cancel":
             self.dismiss(False)
         elif event.button.id == "submit":
             self._handle_rename()
-    
+
     def _handle_rename(self) -> None:
         new_name = self.query_one("#new-name").value
-        
+
         if not new_name:
             self.notify("Name cannot be empty", severity="error")
             return
-            
+
         if new_name == self.old_name:
             self.dismiss(False)
             return
-            
+
         new_path = os.path.join(self.parent_dir, new_name)
-        
+
         if os.path.exists(new_path):
             self.notify(f"'{new_name}' already exists", severity="error")
             return
-            
+
         try:
             os.rename(self.path, new_path)
-            
+
             if hasattr(self.app, "main_tree") and self.app.main_tree:
                 self.app.main_tree.refresh_tree()
-                
+
             editor = self.app.query_one(CodeEditor)
             for i, tab in enumerate(editor.tabs):
                 if tab.path == self.path:
@@ -2262,15 +2278,15 @@ class RenameDialog(ModalScreen):
                     if i == editor.active_tab_index:
                         editor.current_file = new_path
                     editor._update_status_info()
-                    
+
             self.notify(f"Renamed to: {new_name}")
             self.dismiss(True)
         except Exception as e:
             self.notify(f"Error renaming: {str(e)}", severity="error")
             self.dismiss(False)
-    
+
     async def action_submit(self) -> None:
         self._handle_rename()
-        
+
     async def action_cancel(self) -> None:
         self.dismiss(False)

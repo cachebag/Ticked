@@ -1,5 +1,14 @@
 from textual.containers import Container, Grid, Horizontal, Vertical
-from textual.widgets import Button, Input, Label, Static, TextArea, Select, Switch
+from textual.widgets import (
+    Button,
+    Input,
+    Label,
+    Static,
+    TextArea,
+    Select,
+    Switch,
+    Markdown,
+)
 from textual.screen import ModalScreen
 from textual import on
 from textual.app import ComposeResult
@@ -7,14 +16,11 @@ from datetime import datetime, timedelta
 import calendar
 from ...widgets.task_widget import Task
 from textual.binding import Binding
-from ...core.database.ticked_db import CalendarDB
 from ...core.database.caldav_sync import CalDAVSync
 from .calendar_setup import CalendarSetupScreen
 from typing import Optional
 from textual.widget import Widget
 from ...utils.time_utils import (
-    convert_to_12hour,
-    convert_to_24hour,
     generate_time_options,
 )
 
@@ -28,11 +34,9 @@ class NavBar(Horizontal):
         self.styles.align = ("center", "middle")
 
     def compose(self) -> ComposeResult:
-        prev_btn = Button("\u25c4 \n \n", id="prev_month", classes="calendar-nav-left")
-        next_btn = Button("\u25ba", id="next_month", classes="calendar-nav-right")
+        prev_btn = Button("PREV", id="prev_month", classes="calendar-nav-left")
+        next_btn = Button("NEXT", id="next_month", classes="calendar-nav-right")
         header = CalendarHeader(self.current_date)
-        header.styles.width = "100%"
-        header.styles.margin = (0, 5)
 
         yield prev_btn
         yield header
@@ -53,7 +57,7 @@ class CalendarDayButton(Button):
         self.day = day
         self.is_current = is_current
         self.tooltip = tooltip_text
-        self.full_date = full_date  # Add full_date attribute
+        self.full_date = full_date
         self.styles.content_align = ("center", "top")
         self.styles.text_align = "center"
         self.styles.width = "100%"
@@ -126,6 +130,7 @@ class CalendarGrid(Grid):
         )
 
         today = datetime.now()
+        current_day_button = None
 
         for week in month_calendar:
             for day in week:
@@ -150,20 +155,32 @@ class CalendarGrid(Grid):
                     tooltip_text = ""
                     if tasks:
                         task_display = "\n".join(
-                            f"{'🟢 ' if task['completed'] else '🟠 ' if task['in_progress'] else '- '}{task['title'][:15] + '...' if len(task['title']) > 15 else task['title']}"
+                            f"{'✅ ' if task['completed'] else '🟠 ' if task['in_progress'] else '💤 '}{task['title'][:15] + '...' if len(task['title']) > 15 else task['title']}"
                             for task in tasks[:5]
                         )
-                    tooltip_text = "\n".join(
-                        f"{'🟢 ' if task['completed'] else '🟠 ' if task['in_progress'] else '- '}{task['title']}"
-                        for task in tasks
-                    )
+                        tooltip_text = "\n".join(
+                            f"{'✅ ' if task['completed'] else '🟠 ' if task['in_progress'] else '💤 '}{task['title']}"
+                            for task in tasks
+                        )
 
                     day_btn = CalendarDayButton(
                         day, is_current, task_display, tooltip_text, full_date=full_date
                     )
                     if is_current:
-                        day_btn.focus()
+                        current_day_button = day_btn
                     yield day_btn
+
+        self.current_day_button = current_day_button
+
+    def on_mount(self) -> None:
+        """Focus on current day when grid is mounted and scroll it into view."""
+        self.call_later(self.focus_current_day)
+
+    def focus_current_day(self) -> None:
+        """Focus on the current day button and ensure it's visible."""
+        if hasattr(self, "current_day_button") and self.current_day_button:
+            self.current_day_button.focus()
+            self.current_day_button.scroll_visible()
 
 
 class WeekView(Grid):
@@ -213,6 +230,9 @@ class WeekView(Grid):
         yield self._create_stats_container()
 
         week_dates = self._get_week_dates()
+        current_day_button = None
+        today = datetime.now().date()
+
         for date in week_dates:
             with Vertical(classes="week-day-column"):
                 header = Static(
@@ -230,7 +250,7 @@ class WeekView(Grid):
                 else:
                     task_display = ""
 
-                is_current = date.date() == datetime.now().date()
+                is_current = date.date() == today
                 day_btn = CalendarDayButton(
                     date.day,
                     is_current,
@@ -238,10 +258,408 @@ class WeekView(Grid):
                     task_display if tasks else "No tasks",
                 )
                 day_btn.full_date = date
-
                 yield day_btn
+
                 if is_current:
-                    day_btn.focus()
+                    current_day_button = day_btn
+
+        self.current_day_button = current_day_button
+
+    def on_mount(self) -> None:
+        """Focus on current day when week view is mounted and scroll it into view."""
+        self.call_later(self.focus_current_day)
+
+    def focus_current_day(self) -> None:
+        """Focus on the current day button and ensure it's visible."""
+        if hasattr(self, "current_day_button") and self.current_day_button:
+            self.current_day_button.focus()
+            self.current_day_button.scroll_visible()
+
+
+class ScheduleSection(Vertical):
+    def __init__(self, date: datetime) -> None:
+        super().__init__()
+        self.date = date
+
+    def compose(self) -> ComposeResult:
+        yield Static("Schedule & Tasks", classes="section-header")
+        with Horizontal(classes="schedule-controls"):
+            yield Button("+ Add Task", id="add-task", classes="schedule-button")
+        yield Static("Today's Tasks:", classes="task-header")
+        with Vertical(id="tasks-list-day", classes="tasks-list-day"):
+            yield Static(
+                "No tasks scheduled for today",
+                id="empty-schedule",
+                classes="empty-schedule",
+            )
+
+    @on(Button.Pressed, "#add-task")
+    async def show_task_form(self, event: Button.Pressed) -> None:
+        task_form = TaskForm(self.date)
+        task = await self.app.push_screen(task_form)
+
+        if task:
+            try:
+                day_view_modal = self.app.screen
+                if isinstance(day_view_modal, DayViewModal):
+                    day_view_modal.refresh_tasks()
+                    self.notify("Task added successfully!", severity="information")
+
+                    try:
+                        for screen in self.app.screen_stack:
+                            if hasattr(screen, "query_one"):
+                                try:
+                                    calendar_view = screen.query_one(CalendarView)
+                                    if calendar_view:
+                                        if calendar_view.query("CalendarGrid"):
+                                            grid = calendar_view.query_one(CalendarGrid)
+                                            grid.refresh_stats()
+                                        if calendar_view.query("WeekView"):
+                                            week = calendar_view.query_one(WeekView)
+                                            week.refresh_stats()
+                                except Exception:
+                                    pass
+                    except Exception:
+                        pass
+            except Exception as e:
+                self.notify(f"Error refreshing tasks: {str(e)}", severity="error")
+
+        event.stop()
+
+
+class NotesSection(Vertical):
+
+    BINDINGS = [
+        Binding("ctrl+left", "exit_notes", "Exit Notes", show=True, priority=True),
+        Binding("shift+tab", "cycle_focus", "Cycle Focus", show=True),
+        Binding("ctrl+s", "save_notes", "Save Notes", show=True),
+        Binding("ctrl+m", "toggle_view", "Toggle Markdown View", show=True),
+    ]
+
+    def __init__(self, date: datetime | None = None):
+        super().__init__()
+        self.date = date
+        self.notes_content = "# Notes\nStart writing your notes here..."
+        self.view_mode = "edit"
+
+    def compose(self) -> ComposeResult:
+        yield Static("Notes", classes="section-header")
+        with Horizontal(classes="notes-controls"):
+            yield Button(
+                "Edit Mode",
+                id="edit-mode",
+                variant="primary",
+                classes="notes-mode-button active",
+            )
+            yield Button(
+                "Preview",
+                id="preview-mode",
+                variant="default",
+                classes="notes-mode-button",
+            )
+
+        with Container(classes="notes-content", id="notes-container"):
+            yield TextArea(self.notes_content, id="notes-editor")
+            yield Markdown("", id="notes-viewer", classes="hidden markdown-content")
+
+    def on_mount(self) -> None:
+        if self.date:
+            date_str = self.date.strftime("%Y-%m-%d")
+
+            notes = self.app.db.get_notes(date_str)
+            if notes:
+                self.notes_content = notes
+                self.query_one("#notes-editor").text = notes
+                self.query_one("#notes-viewer").update(notes)
+
+            saved_view_mode = self.app.db.get_notes_view_mode(date_str)
+            if saved_view_mode:
+                self.view_mode = saved_view_mode
+                self.set_view_mode(saved_view_mode)
+
+    def on_key(self, event) -> None:
+        if event.key == "ctrl+left" or event.key == "ctrl+right":
+            add_task_button = self.app.screen.query_one("#add-task")
+            if add_task_button:
+                add_task_button.focus()
+            event.stop()
+        elif event.key == "ctrl+m":
+            self.action_toggle_view()
+            event.stop()
+
+    @on(Button.Pressed, "#edit-mode")
+    def switch_to_edit(self) -> None:
+        self.set_view_mode("edit")
+
+    @on(Button.Pressed, "#preview-mode")
+    def switch_to_preview(self) -> None:
+        self.set_view_mode("view")
+
+    def set_view_mode(self, mode: str) -> None:
+        self.view_mode = mode
+        editor = self.query_one("#notes-editor")
+        viewer = self.query_one("#notes-viewer")
+        edit_btn = self.query_one("#edit-mode")
+        preview_btn = self.query_one("#preview-mode")
+
+        if mode == "edit":
+            editor.remove_class("hidden")
+            viewer.add_class("hidden")
+            edit_btn.add_class("active")
+            preview_btn.remove_class("active")
+            editor.focus()
+        else:
+            content = editor.text
+            viewer.update(content)
+            self._apply_markdown_classes()
+            editor.add_class("hidden")
+            viewer.remove_class("hidden")
+            edit_btn.remove_class("active")
+            preview_btn.add_class("active")
+
+        if self.date:
+            self.app.db.save_notes_view_mode(self.date.strftime("%Y-%m-%d"), mode)
+
+    def _apply_markdown_classes(self) -> None:
+        """Apply the proper CSS classes to markdown elements after rendering."""
+        try:
+            viewer = self.query_one("#notes-viewer")
+
+            for i in range(1, 7):
+                for heading in viewer.query(f"Heading{i}"):
+                    heading.add_class(f"markdown--h{i}")
+
+            for ul in viewer.query("UnorderedList"):
+                ul.add_class("markdown--list")
+
+            for ol in viewer.query("OrderedList"):
+                ol.add_class("markdown--list")
+
+            for code in viewer.query("CodeBlock"):
+                code.add_class("markdown--code")
+
+            for blockquote in viewer.query("BlockQuote"):
+                blockquote.add_class("markdown--blockquote")
+
+            for link in viewer.query("Link"):
+                link.add_class("markdown--link")
+
+            for table in viewer.query("Table"):
+                table.add_class("markdown--table")
+
+            for th in viewer.query("TableHeader"):
+                th.add_class("markdown--th")
+
+            for td in viewer.query("TableCell"):
+                td.add_class("markdown--td")
+
+        except Exception as e:
+            print(f"Error applying markdown classes: {e}")
+
+    async def action_toggle_view(self) -> None:
+        new_mode = "view" if self.view_mode == "edit" else "edit"
+        self.set_view_mode(new_mode)
+
+    async def action_exit_notes(self) -> None:
+        add_task_button = self.app.screen.query_one("#add-task")
+        if add_task_button:
+            add_task_button.focus()
+
+    async def action_save_notes(self) -> None:
+        notes_editor = self.query_one("#notes-editor")
+        content = notes_editor.text
+
+        try:
+            success = self.app.db.save_notes(self.date.strftime("%Y-%m-%d"), content)
+            if success:
+                self.app.db.save_notes_view_mode(
+                    self.date.strftime("%Y-%m-%d"), self.view_mode
+                )
+
+                self.notify("Notes saved successfully!", severity="information")
+                viewer = self.query_one("#notes-viewer")
+                viewer.update(content)
+                if self.view_mode == "view":
+                    self._apply_markdown_classes()
+            else:
+                self.notify("Failed to save notes", severity="error")
+        except Exception as e:
+            self.notify(f"Error saving notes: {str(e)}", severity="error")
+
+
+class DayViewModal(ModalScreen):
+    BINDINGS = [
+        Binding("escape", "close_modal", "Close"),
+        Binding("up", "move_up", "Previous"),
+        Binding("down", "move_down", "Next"),
+        Binding("ctrl+s", "save_notes", "Save Notes"),
+        Binding("enter", "edit_task", "Edit Task"),
+    ]
+
+    def __init__(self, date: datetime):
+        super().__init__()
+        self.date = date
+
+    def compose(self) -> ComposeResult:
+        with Container(classes="modal-dialog day-view-modal"):
+            yield Static(f"{self.date.strftime('%B %d, %Y')}", id="day-view-header")
+            yield Button("Close", id="close-modal", classes="back-button")
+
+            with Horizontal(classes="day-view-content"):
+                with Container(classes="schedule-container"):
+                    yield ScheduleSection(self.date)
+                with Container(classes="notes-container"):
+                    yield NotesSection(self.date)
+
+    def on_mount(self) -> None:
+        self.refresh_tasks()
+        self.load_notes()
+        self.query_one("#add-task").focus()
+
+    def set_date(self, new_date: datetime) -> None:
+        self.date = new_date
+        self.query_one("#day-view-header").update(f"{self.date.strftime('%B %d, %Y')}")
+
+        schedule_section = self.query_one(ScheduleSection)
+        schedule_section.date = new_date
+
+        notes_section = self.query_one(NotesSection)
+        notes_section.date = new_date
+        self.refresh_tasks()
+        self.load_notes()
+        self.query_one("#add-task").focus()
+
+    def refresh_tasks(self) -> None:
+        current_date = self.date.strftime("%Y-%m-%d")
+        tasks = self.app.db.get_tasks_for_date(current_date)
+        tasks_list = self.query_one("#tasks-list-day")
+
+        tasks_list.remove_children()
+
+        if tasks:
+            for task in tasks:
+                task_widget = Task(task)
+                tasks_list.mount(task_widget)
+        else:
+            tasks_list.mount(
+                Static("No tasks scheduled for today", classes="empty-schedule")
+            )
+
+    def load_notes(self) -> None:
+        notes = self.app.db.get_notes(self.date.strftime("%Y-%m-%d"))
+        notes_section = self.query_one(NotesSection)
+        editor = notes_section.query_one("#notes-editor", TextArea)
+        viewer = notes_section.query_one("#notes-viewer", Markdown)
+
+        if notes:
+            editor.text = notes
+            viewer.update(notes)
+            if notes_section.view_mode == "view":
+                notes_section._apply_markdown_classes()
+        else:
+            default_notes = "# Notes\nStart writing your notes here..."
+            editor.text = default_notes
+            viewer.update(default_notes)
+
+    async def action_close_modal(self) -> None:
+        self.app.pop_screen()
+
+    async def action_move_up(self) -> None:
+        current = self.app.focused
+        focusable = list(self.query("Button, Task, TextArea"))
+        if current in focusable:
+            idx = focusable.index(current)
+            prev_idx = (idx - 1) % len(focusable)
+            focusable[prev_idx].focus()
+
+    async def action_move_down(self) -> None:
+        current = self.app.focused
+        focusable = list(self.query("Button, Task, TextArea"))
+        if current in focusable:
+            idx = focusable.index(current)
+            next_idx = (idx + 1) % len(focusable)
+            focusable[next_idx].focus()
+
+    async def action_edit_task(self) -> None:
+        current = self.app.focused
+        if isinstance(current, Task):
+            task_form = TaskEditForm(current.task_data)
+            result = await self.app.push_screen(task_form)
+            if result or result is None:
+                self.refresh_tasks()
+                try:
+                    calendar_grid = self.app.screen.query_one(CalendarGrid)
+                    if calendar_grid:
+                        calendar_grid.refresh_stats()
+                except Exception:
+                    pass
+
+    async def action_save_notes(self) -> None:
+        notes_section = self.query_one(NotesSection)
+        await notes_section.action_save_notes()
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "close-modal":
+            try:
+                for screen in self.app.screen_stack:
+                    if hasattr(screen, "query_one"):
+                        try:
+                            calendar_view = screen.query_one(CalendarView)
+                            if calendar_view:
+                                calendar_view._refresh_calendar()
+                        except Exception:
+                            pass
+            except Exception:
+                pass
+
+            self.app.pop_screen()
+            event.stop()
+        elif event.button.id == "add-task":
+            pass
+
+    def on_task_completed(self, event) -> None:
+        self.refresh_tasks()
+
+        try:
+            for screen in self.app.screen_stack:
+                if hasattr(screen, "query_one"):
+                    try:
+                        calendar_view = screen.query_one(CalendarView)
+                        if calendar_view:
+                            if calendar_view.query("CalendarGrid"):
+                                grid = calendar_view.query_one(CalendarGrid)
+                                grid.refresh_stats()
+                            if calendar_view.query("WeekView"):
+                                week = calendar_view.query_one(WeekView)
+                                week.refresh_stats()
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+
+        event.stop()
+
+    def on_task_in_progress(self, event) -> None:
+        self.refresh_tasks()
+
+        try:
+            for screen in self.app.screen_stack:
+                if hasattr(screen, "query_one"):
+                    try:
+                        calendar_view = screen.query_one(CalendarView)
+                        if calendar_view:
+                            if calendar_view.query("CalendarGrid"):
+                                grid = calendar_view.query_one(CalendarGrid)
+                                grid.refresh_stats()
+                            if calendar_view.query("WeekView"):
+                                week = calendar_view.query_one(WeekView)
+                                week.refresh_stats()
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+
+        event.stop()
 
 
 class CalendarView(Container):
@@ -265,7 +683,6 @@ class CalendarView(Container):
         yield Button("Toggle Month View", id="toggle-view", classes="view-toggle")
         yield WeekView(self.current_date)
         yield CalendarGrid(self.current_date)
-        yield DayView(self.current_date)
 
     def on_mount(self) -> None:
         self.is_month_view = self.app.db.get_calendar_view_preference()
@@ -276,15 +693,22 @@ class CalendarView(Container):
         if self.is_month_view:
             week_view.styles.display = "none"
             month_view.styles.display = "block"
-            current_day = self.query_one(".current-day", CalendarDayButton)
-            if current_day:
-                current_day.focus()
         else:
             month_view.styles.display = "none"
             week_view.styles.display = "block"
-            current_day = week_view.query_one(".current-day", CalendarDayButton)
-            if current_day:
-                current_day.focus()
+
+        self.call_later(self.focus_current_day)
+
+    def focus_current_day(self) -> None:
+        """Focus on the current day in the active calendar view."""
+        if self.is_month_view:
+            calendar_grid = self.query_one(CalendarGrid)
+            if hasattr(calendar_grid, "focus_current_day"):
+                calendar_grid.focus_current_day()
+        else:
+            week_view = self.query_one(WeekView)
+            if hasattr(week_view, "focus_current_day"):
+                week_view.focus_current_day()
 
     async def action_open_settings(self) -> None:
         setup_screen = CalendarSetupScreen()
@@ -330,20 +754,12 @@ class CalendarView(Container):
             else:
                 selected_date = event.button.full_date
 
-            day_view = self.query_one(DayView)
-            day_view.set_date(selected_date)
-
-            self.query_one(CalendarGrid).styles.display = "none"
-            self.query_one(WeekView).styles.display = "none"
-            self.query_one(NavBar).styles.display = "none"
-            self.query_one("#toggle-view").styles.display = "none"  #
-            day_view.styles.display = "block"
+            day_view_modal = DayViewModal(selected_date)
+            self.app.push_screen(day_view_modal)
             event.stop()
 
         elif button_id == "save_notes":
-            day_view = self.query_one(DayView)
             event.stop()
-            day_view.refresh_tasks()
 
         elif button_id == "add-task":
             event.stop()
@@ -351,56 +767,6 @@ class CalendarView(Container):
         elif button_id == "toggle-view":
             self.action_toggle_view()
             event.stop()
-
-        elif button_id == "back-to-calendar":
-            month_view = self.query_one(CalendarGrid)
-            week_view = self.query_one(WeekView)
-            nav_bar = self.query_one(NavBar)
-            toggle_button = self.query_one("#toggle-view")
-            day_view = self.query_one(DayView)
-
-            day_view.styles.display = "none"
-
-            nav_bar.styles.display = "block"
-            toggle_button.styles.display = "block"
-
-            if self.is_month_view:
-                month_view.styles.display = "block"
-                week_view.styles.display = "none"
-            else:
-                week_view.styles.display = "block"
-                month_view.styles.display = "none"
-
-            self._refresh_calendar()
-            event.stop()
-
-        else:
-            self.query_one(CalendarGrid).styles.display = "block"
-            self.query_one(NavBar).styles.display = "block"
-            self.query_one(DayView).styles.display = "none"
-            self._refresh_calendar()
-            event.stop()
-
-    def action_back_to_calendar(self) -> None:
-        month_view = self.query_one(CalendarGrid)
-        week_view = self.query_one(WeekView)
-        nav_bar = self.query_one(NavBar)
-        toggle_button = self.query_one("#toggle-view")
-        day_view = self.query_one(DayView)
-
-        day_view.styles.display = "none"
-
-        nav_bar.styles.display = "block"
-        toggle_button.styles.display = "block"
-
-        if self.is_month_view:
-            month_view.styles.display = "block"
-            week_view.styles.display = "none"
-        else:
-            week_view.styles.display = "block"
-            month_view.styles.display = "none"
-
-        self._refresh_calendar()
 
     def action_toggle_view(self) -> None:
         self.is_month_view = not self.is_month_view
@@ -416,6 +782,8 @@ class CalendarView(Container):
 
         self.app.db.save_calendar_view_preference(self.is_month_view)
 
+        self.call_later(self.focus_current_day)
+
     def _refresh_calendar(self) -> None:
         self.query("NavBar").first().remove()
 
@@ -423,12 +791,16 @@ class CalendarView(Container):
             if self.query("CalendarGrid"):
                 self.query("CalendarGrid").first().remove()
             self.mount(NavBar(self.current_date))
-            self.mount(CalendarGrid(self.current_date))
+            cal_grid = CalendarGrid(self.current_date)
+            self.mount(cal_grid)
+            self.call_later(self.focus_current_day)
         else:
             if self.query("WeekView"):
                 self.query("WeekView").first().remove()
             self.mount(NavBar(self.current_date))
-            self.mount(WeekView(self.current_date))
+            week_view = WeekView(self.current_date)
+            self.mount(week_view)
+            self.call_later(self.focus_current_day)
 
     async def action_move_up(self) -> None:
         current = self.app.focused
@@ -471,11 +843,6 @@ class CalendarView(Container):
             focusable[next_idx].focus()
         elif focusable:
             focusable[0].focus()
-
-    async def action_back(self) -> None:
-        day_view = self.query_one(DayView)
-        if day_view and day_view.styles.display == "block":
-            self.action_back_to_calendar()
 
     def action_focus_previous(self) -> None:
         try:
@@ -562,7 +929,6 @@ class TaskForm(ModalScreen):
         time_input = time_input.replace(" ", "").replace(":", "")
 
         try:
-            # this will handle cases like 1030, 930, etc.
             if len(time_input) == 3:
                 time_input = "0" + time_input
             elif len(time_input) == 1 or len(time_input) == 2:
@@ -574,7 +940,6 @@ class TaskForm(ModalScreen):
             if hours > 12 or minutes > 59:
                 raise ValueError
 
-            # convert to 24-hour format
             if meridian == "PM" and hours < 12:
                 hours += 12
             elif meridian == "AM" and hours == 12:
@@ -634,24 +999,16 @@ class TaskForm(ModalScreen):
                 "start_time": start_time,
                 "end_time": end_time,
                 "description": description,
+                "completed": False,
+                "in_progress": False,
             }
 
+            for screen in self.app.screen_stack:
+                if isinstance(screen, DayViewModal):
+                    screen.refresh_tasks()
+                    break
+
             self.dismiss(task)
-
-            try:
-                day_view = self.app.screen.query_one(DayView)
-                if day_view:
-                    day_view.refresh_tasks()
-                    self.notify("Task added successfully!")
-            except Exception:
-                pass
-
-            try:
-                calendar_grid = self.app.screen.query_one(CalendarGrid)
-                if calendar_grid:
-                    calendar_grid.refresh_stats()
-            except Exception:
-                pass
 
         except Exception as e:
             self.notify(f"Error saving task: {str(e)}", severity="error")
@@ -707,30 +1064,64 @@ class TaskEditForm(TaskForm):
                     yield Button("Cancel", variant="primary", id="cancel")
                     yield Button("Save", variant="success", id="submit")
 
+    @on(Switch.Changed, "#all-day")
+    def handle_all_day_toggle(self, event: Switch.Changed) -> None:
+        time_inputs = self.query_one("#time-inputs")
+        start_time = self.query_one("#start-time")
+        end_time = self.query_one("#end-time")
+
+        if event.value:
+            time_inputs.styles.display = "none"
+            start_time.value = "00:00"
+            end_time.value = "23:59"
+        else:
+            time_inputs.styles.display = "block"
+            start_time.value = "09:00"
+            end_time.value = "17:00"
+
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "cancel":
             event.stop()
         elif event.button.id == "delete":
             self.app.db.delete_task(self.task_data["id"])
-            self.dismiss(None)
 
             try:
-                day_view = self.app.screen.query_one(DayView)
-                if day_view:
-                    day_view.refresh_tasks()
-            except Exception:
-                pass
+                for screen in self.app.screen_stack:
+                    if isinstance(screen, DayViewModal):
+                        screen.refresh_tasks()
+                        break
 
-            try:
-                from .welcome import TodayContent
+                try:
+                    for screen in self.app.screen_stack:
+                        if hasattr(screen, "query_one"):
+                            try:
+                                calendar_view = screen.query_one(CalendarView)
+                                if calendar_view:
+                                    if calendar_view.query("CalendarGrid"):
+                                        grid = calendar_view.query_one(CalendarGrid)
+                                        grid.refresh_stats()
+                                    if calendar_view.query("WeekView"):
+                                        week = calendar_view.query_one(WeekView)
+                                        week.refresh_stats()
+                            except Exception:
+                                pass
+                except Exception:
+                    pass
 
-                today_content = self.app.screen.query_one(TodayContent)
-                if today_content:
-                    today_content.refresh_tasks()
+                try:
+                    from .welcome import TodayContent
+
+                    today_content = self.app.screen.query_one(TodayContent)
+                    if today_content:
+                        today_content.refresh_tasks()
+                except Exception:
+                    pass
+
             except Exception:
                 pass
 
             self.notify("Task deleted successfully!")
+            self.dismiss(None)
             event.stop()
         elif event.button.id == "submit":
             self._submit_form()
@@ -771,218 +1162,34 @@ class TaskEditForm(TaskForm):
                 "description": description,
             }
 
+            for screen in self.app.screen_stack:
+                if isinstance(screen, DayViewModal):
+                    screen.refresh_tasks()
+                    break
+
             self.dismiss(task)
 
-            try:
-                day_view = self.app.screen.query_one(DayView)
-                if day_view:
-                    day_view.refresh_tasks()
-                    self.notify("Task updated successfully!")
-            except Exception:
-                pass
-
-            try:
-                from .welcome import TodayContent
-
-                today_content = self.app.screen.query_one(TodayContent)
-                if today_content:
-                    today_content.refresh_tasks()
-            except Exception:
-                pass
-
         except Exception as e:
             self.notify(f"Error updating task: {str(e)}", severity="error")
-
-            try:
-                day_view = self.app.screen.query_one(DayView)
-                if day_view:
-                    day_view.refresh_tasks()
-                    self.notify("Task updated successfully!")
-            except Exception:
-                pass
-
-            try:
-                from .welcome import TodayContent
-
-                today_content = self.app.screen.query_one(TodayContent)
-                if today_content:
-                    today_content.refresh_tasks()
-            except Exception:
-                pass
-
-        except Exception as e:
-            self.notify(f"Error updating task: {str(e)}", severity="error")
-
-
-class ScheduleSection(Vertical):
-    def __init__(self, date: datetime) -> None:
-        super().__init__()
-        self.date = date
-
-    def compose(self) -> ComposeResult:
-        yield Static("Schedule & Tasks", classes="section-header")
-        with Horizontal(classes="schedule-controls"):
-            yield Button("+ Add Task", id="add-task", classes="schedule-button")
-        yield Static("Today's Tasks:", classes="task-header")
-        with Vertical(id="tasks-list-day", classes="tasks-list-day"):
-            yield Static(
-                "No tasks scheduled for today",
-                id="empty-schedule",
-                classes="empty-schedule",
-            )
-
-    @on(Button.Pressed, "#add-task")
-    async def show_task_form(self, event: Button.Pressed) -> None:
-        task_form = TaskForm(self.date)
-        task = await self.app.push_screen(task_form)
-
-        event.stop()
-
-
-class NotesSection(Vertical):
-
-    BINDINGS = [
-        Binding("ctrl+left", "exit_notes", "Exit Notes", show=True, priority=True),
-        Binding("shift+tab", "cycle_focus", "Cycle Focus", show=True),
-        Binding("ctrl+s", "save_notes", "Save Notes", show=True),
-    ]
-
-    def __init__(self, date: datetime | None = None):
-        super().__init__()
-        self.date = date
-        self.notes_content = "# Notes\nStart writing your notes here..."
-
-    def compose(self) -> ComposeResult:
-        yield Static("Notes", classes="section-header")
-        with Container(classes="notes-content"):
-            yield TextArea(self.notes_content, id="notes-editor")
-
-    def on_key(self, event) -> None:
-        if event.key == "ctrl+left" or event.key == "ctrl+right":
-            add_task_button = self.app.screen.query_one("#add-task")
-            if add_task_button:
-                add_task_button.focus()
-            event.stop()
-
-    async def action_exit_notes(self) -> None:
-        add_task_button = self.app.screen.query_one("#add-task")
-        if add_task_button:
-            add_task_button.focus()
-
-    async def action_save_notes(self) -> None:
-        notes_editor = self.query_one("#notes-editor")
-        content = notes_editor.text
 
         try:
-            db = CalendarDB()
-            success = db.save_notes(self.date.strftime("%Y-%m-%d"), content)
-            if success:
-                self.notify("Notes saved successfully!", severity="information")
-            else:
-                self.notify("Failed to save notes", severity="error")
-        except Exception as e:
-            self.notify(f"Error saving notes: {str(e)}", severity="error")
+            day_view_modal = None
+            for screen in self.app.screen_stack:
+                if isinstance(screen, DayViewModal):
+                    day_view_modal = screen
+                    break
 
-
-class DayView(Vertical):
-
-    BINDINGS = [
-        Binding("up", "move_up", "Previous"),
-        Binding("down", "move_down", "Next"),
-        Binding("escape", "toggle_menu", "Menu"),
-        Binding("ctrl+s", "save_notes", "Save Notes"),
-        Binding("left", "move_left", "Left", show=False),
-        Binding("right", "move_right", "Right", show=False),
-        Binding("enter", "edit_task", "Edit Task"),
-    ]
-
-    def __init__(self, date: datetime):
-        super().__init__()
-        self.date = date
-        self.styles.display = "none"
-
-    def compose(self) -> ComposeResult:
-        yield Static(f"{self.date.strftime('%B %d, %Y')}", id="day-view-header")
-        yield Button("Back to Calendar", id="back-to-calendar", classes="back-button")
-
-        with Horizontal(classes="day-view-content"):
-            with Container(classes="schedule-container"):
-                yield ScheduleSection(self.date)
-            with Horizontal(classes="middle-container"):
-                yield Static("Nothing to see here yet", classes="middle-header")
-            with Container(classes="notes-container"):
-                yield NotesSection(self.date)
-
-    def set_date(self, new_date: datetime) -> None:
-        self.date = new_date
-        self.query_one("#day-view-header").update(f"{self.date.strftime('%B %d, %Y')}")
-
-        schedule_section = self.query_one(ScheduleSection)
-        schedule_section.date = new_date
-
-        notes_section = self.query_one(NotesSection)
-        notes_section.date = new_date
-        self.refresh_tasks()
-        self.load_notes()
-        self.query_one("#add-task").focus()
-
-    def refresh_tasks(self) -> None:
-        current_date = self.date.strftime("%Y-%m-%d")
-        tasks = self.app.db.get_tasks_for_date(current_date)
-        tasks_list = self.query_one("#tasks-list-day")
-
-        tasks_list.remove_children()
-
-        if tasks:
-            for task in tasks:
-                tasks_list.mount(Task(task))
-        else:
-            tasks_list.mount(
-                Static("No tasks scheduled for today", classes="empty-schedule")
-            )
-
-        async def action_save_notes(self) -> None:
-            notes_editor = self.query_one("#notes-editor")
-            content = notes_editor.text
+            if day_view_modal:
+                day_view_modal.refresh_tasks()
 
             try:
-                db = CalendarDB()
-                success = db.save_notes(str(self.date), content)
-                if success:
-                    self.notify("Notes saved successfully!", severity="information")
-                else:
-                    self.notify("Failed to save notes", severity="error")
-            except Exception as e:
-                self.notify(f"Error saving notes: {str(e)}", severity="error")
+                from .welcome import TodayContent
 
-    def load_notes(self) -> None:
-        notes = self.app.db.get_notes(self.date.strftime("%Y-%m-%d"))
-        notes_editor = self.query_one("#notes-editor", TextArea)
-        if notes:
-            notes_editor.text = notes
-        else:
-            notes_editor.text = "# Notes\nStart writing your notes here..."
+                today_content = self.app.screen.query_one(TodayContent)
+                if today_content:
+                    today_content.refresh_tasks()
+            except Exception:
+                pass
 
-    async def action_move_up(self) -> None:
-        current = self.app.focused
-        focusable = list(self.query("Button, Task, TextArea"))
-        if current in focusable:
-            idx = focusable.index(current)
-            prev_idx = (idx - 1) % len(focusable)
-            focusable[prev_idx].focus()
-
-    async def action_move_down(self) -> None:
-        current = self.app.focused
-        focusable = list(self.query("Button, Task, TextArea"))
-        if current in focusable:
-            idx = focusable.index(current)
-            next_idx = (idx + 1) % len(focusable)
-            focusable[next_idx].focus()
-
-    async def action_edit_task(self) -> None:
-        current = self.app.focused
-        if isinstance(current, Task):
-            task_form = TaskEditForm(current.task_data)
-            result = await self.app.push_screen(task_form)
-            if result or result is None:
-                self.refresh_tasks()
+        except Exception as e:
+            self.notify(f"Error refreshing UI: {str(e)}", severity="error")
