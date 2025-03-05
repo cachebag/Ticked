@@ -3,7 +3,6 @@ from textual.widget import Widget
 from textual.containers import Horizontal, Container, Vertical
 from textual.screen import ModalScreen
 from textual.widgets import DirectoryTree, Static, Button, TextArea, Input, Label
-from textual.widget import Widget
 from textual.binding import Binding
 from ...ui.mixins.focus_mixin import InitialFocusMixin
 import time
