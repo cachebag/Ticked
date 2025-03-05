@@ -6,7 +6,6 @@ from ticked.utils.time_utils import (
 
 
 def test_convert_to_12hour():
-    # Standard conversions
     assert convert_to_12hour("00:00") == "12:00 AM"
     assert convert_to_12hour("01:00") == "1:00 AM"
     assert convert_to_12hour("09:30") == "9:30 AM"
@@ -16,12 +15,10 @@ def test_convert_to_12hour():
     assert convert_to_12hour("15:45") == "3:45 PM"
     assert convert_to_12hour("23:59") == "11:59 PM"
 
-    # Minutes formatting
     assert convert_to_12hour("05:05") == "5:05 AM"
     assert convert_to_12hour("12:01") == "12:01 PM"
     assert convert_to_12hour("23:00") == "11:00 PM"
 
-    # Edge cases
     assert convert_to_12hour("00:01") == "12:01 AM"
     assert convert_to_12hour("12:59") == "12:59 PM"
 
@@ -32,11 +29,10 @@ def test_convert_to_12hour_error_handling():
     assert convert_to_12hour("") == ""
     assert convert_to_12hour("not a time") == "not a time"
     assert convert_to_12hour("12-30") == "12-30"
-    assert convert_to_12hour(None) == None
+    assert convert_to_12hour(None) is None
 
 
 def test_convert_to_24hour():
-    # Standard conversions
     assert convert_to_24hour("12:00 AM") == "00:00"
     assert convert_to_24hour("1:00 AM") == "01:00"
     assert convert_to_24hour("9:30 AM") == "09:30"
@@ -46,12 +42,10 @@ def test_convert_to_24hour():
     assert convert_to_24hour("3:45 PM") == "15:45"
     assert convert_to_24hour("11:59 PM") == "23:59"
 
-    # Minutes formatting
     assert convert_to_24hour("5:05 AM") == "05:05"
     assert convert_to_24hour("12:01 PM") == "12:01"
     assert convert_to_24hour("11:00 PM") == "23:00"
 
-    # Edge cases
     assert convert_to_24hour("12:01 AM") == "00:01"
     assert convert_to_24hour("12:59 PM") == "12:59"
 
@@ -62,7 +56,7 @@ def test_convert_to_24hour_error_handling():
     assert convert_to_24hour("") == ""
     assert convert_to_24hour("not a time") == "not a time"
     assert convert_to_24hour("12-30 PM") == "12-30 PM"
-    assert convert_to_24hour(None) == None
+    assert convert_to_24hour(None) is None
 
 
 def test_generate_time_options():
