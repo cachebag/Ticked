@@ -1,8 +1,8 @@
 from textual.app import ComposeResult
+from textual.widget import Widget
 from textual.containers import Horizontal, Container, Vertical
 from textual.screen import ModalScreen
 from textual.widgets import DirectoryTree, Static, Button, TextArea, Input, Label
-from textual.widget import Widget
 from textual.binding import Binding
 from ...ui.mixins.focus_mixin import InitialFocusMixin
 import time
@@ -19,7 +19,6 @@ from difflib import SequenceMatcher
 import re
 from textual.events import Key, MouseDown
 import shutil
-from send2trash import send2trash
 
 
 class EditorTab:
@@ -58,6 +57,7 @@ class FilterableDirectoryTree(DirectoryTree):
         return [path for path in paths if not os.path.basename(path).startswith(".")]
 
     def _get_expanded_paths(self) -> list[str]:
+        """Get a list of all expanded directory paths."""
         expanded_paths = []
 
         def collect_expanded(node):
@@ -73,6 +73,7 @@ class FilterableDirectoryTree(DirectoryTree):
         return expanded_paths
 
     def _restore_expanded_paths(self, paths: list[str]) -> None:
+        """Restore previously expanded directories."""
         for path in paths:
             try:
                 self.select_path(path)
@@ -82,6 +83,7 @@ class FilterableDirectoryTree(DirectoryTree):
                 pass
 
     def refresh_tree(self) -> None:
+        """Refresh the tree while maintaining expanded directories."""
         expanded_paths = self._get_expanded_paths()
         cursor_path = self.cursor_node.data.path if self.cursor_node else None
 
@@ -114,19 +116,7 @@ class FilterableDirectoryTree(DirectoryTree):
             self.run_worker(self.action_delete_selected())
             event.prevent_default()
             event.stop()
-        elif event.key == "up":
-            last_node = self.get_node_at_line(self.cursor_line - 1)
-            if last_node:
-                self.select_node(last_node)
-            event.prevent_default()
-            event.stop()
-        elif event.key == "down":
-            next_node = self.get_node_at_line(self.cursor_line + 1)
-            if next_node:
-                self.select_node(next_node)
-            event.prevent_default()
-            event.stop()
-        elif event.key == "/" and event.shift:
+        elif event.key == "?" and event.shift:
             if self.cursor_node:
                 path = self.cursor_node.data.path
                 is_dir = os.path.isdir(path)
@@ -154,20 +144,22 @@ class FilterableDirectoryTree(DirectoryTree):
     def on_mouse_down(self, event: MouseDown) -> None:
         if event.button == 3:
             try:
-                expanded_paths = self._get_expanded_paths()
-
                 offset = event.offset
-                node = self.get_node_at_line(offset.y)
+                node = self.get_node_at_line(
+                    offset.y - 1
+                )  # offset might come with padding so we -1 to get the actual line
+
                 if node is not None:
                     self.select_node(node)
 
-                if self.cursor_node:
-                    path = self.cursor_node.data.path
+                    path = node.data.path
                     is_dir = os.path.isdir(path)
+
                     menu_items = [
                         ("Rename", "rename"),
                         ("Delete", "delete"),
                     ]
+
                     if is_dir:
                         menu_items += [
                             ("New File", "new_file"),
@@ -180,10 +172,10 @@ class FilterableDirectoryTree(DirectoryTree):
                             ("Copy", "copy"),
                             ("Cut", "cut"),
                         ]
+
                     menu = ContextMenu(menu_items, event.screen_x, event.screen_y, path)
                     self.app.push_screen(menu)
 
-                    self._restore_expanded_paths(expanded_paths)
                 event.stop()
             except Exception as e:
                 self.app.notify(f"Context menu error: {str(e)}", severity="error")
@@ -448,9 +440,9 @@ class DeleteConfirmationDialog(ModalScreen):
         with Container(classes="file-form-container-d"):
             with Vertical(classes="file-form"):
                 item_type = "folder" if self.is_directory else "file"
-                yield Static(f"Move {item_type} to trash", classes="file-form-header")
+                yield Static(f"Delete {item_type}", classes="file-form-header")
                 yield Static(
-                    f"Are you sure you want to move this {item_type} to trash?",
+                    f"Are you sure you want to delete this {item_type}?",
                     classes="delete-confirm-message",
                 )
                 yield Static(self.file_name, classes="delete-confirm-filename")
@@ -471,17 +463,27 @@ class DeleteConfirmationDialog(ModalScreen):
     def _handle_delete(self) -> None:
         path = self.path
         try:
-            self.app.notify(f"Moving to trash: {path}")
-            send2trash(path)
+            if os.path.isdir(path):
+                self.app.notify(f"Deleting directory: {path}")
+                shutil.rmtree(path)
+            else:
+                self.app.notify(f"Deleting file: {path}")
+                os.unlink(path)
 
             self.app.post_message(FileDeleted(path))
             if hasattr(self.app, "main_tree") and self.app.main_tree:
                 self.app.main_tree.refresh_tree()
+                try:
+                    parent_path = os.path.dirname(path)
+                    if os.path.exists(parent_path):
+                        self.app.main_tree.select_path(parent_path)
+                except Exception:
+                    pass
 
-            self.app.notify(f"Moved to trash: {os.path.basename(path)}")
+            self.app.notify(f"Deleted: {os.path.basename(path)}")
             self.dismiss(True)
         except Exception as e:
-            self.app.notify(f"Error moving to trash: {str(e)}", severity="error")
+            self.app.notify(f"Error deleting: {str(e)}", severity="error")
             self.dismiss(False)
 
     async def action_cancel(self) -> None:
@@ -1927,6 +1929,7 @@ class NestView(Container, InitialFocusMixin):
         self.notify("Tree refreshed")
 
     async def action_paste(self) -> None:
+        """Paste a file or directory from the clipboard."""
         if not hasattr(self.app, "file_clipboard") or not self.app.file_clipboard:
             self.notify("Nothing to paste", severity="warning")
             return
@@ -2108,7 +2111,10 @@ class ContextMenu(ModalScreen):
                 node = tree.get_node_at_line(row)
                 if node and node.data.path == self.path:
                     tree_offset = tree.screen_relative
-                    menu_x = tree_offset.x + tree.scrollable_content_region.width - 20
+                    menu_x = tree_offset.x + min(
+                        tree.scrollable_content_region.width - 20,
+                        tree.scrollable_content_region.width * 0.7,
+                    )
                     menu_y = tree_offset.y + (
                         row * tree.get_content_height() / tree.row_count
                     )
