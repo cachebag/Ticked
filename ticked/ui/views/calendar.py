@@ -680,7 +680,7 @@ class CalendarView(Container):
     def compose(self) -> ComposeResult:
         self.current_date = datetime.now()
         yield NavBar(self.current_date)
-        yield Button("Toggle Month View", id="toggle-view", classes="view-toggle")
+        yield Button("Toggle View", id="toggle-view", classes="view-toggle")
         yield WeekView(self.current_date)
         yield CalendarGrid(self.current_date)
 

@@ -187,11 +187,11 @@ class NowPlayingCard(Container):
 
 class NotesCard(Container):
     """Card to display the current day's notes."""
-    
+
     def __init__(self) -> None:
         super().__init__()
         self.notes_content = "# Today's Notes\nStart writing your notes here..."
-        
+
     def compose(self) -> ComposeResult:
         yield Static("Today's Notes", classes="card-title")
         yield Markdown("", id="daily-notes-content", classes="markdown-content")
@@ -199,12 +199,12 @@ class NotesCard(Container):
     def on_mount(self) -> None:
         today_date = datetime.now().strftime("%Y-%m-%d")
         notes = self.app.db.get_notes(today_date)
-        
+
         if notes:
             self.notes_content = notes
         else:
             self.notes_content = "# Today's Notes\nStart writing your notes here..."
-            
+
         self.query_one("#daily-notes-content").update(self.notes_content)
         self.call_later(self._apply_markdown_classes)
 
@@ -247,12 +247,12 @@ class NotesCard(Container):
     def refresh_notes(self) -> None:
         today_date = datetime.now().strftime("%Y-%m-%d")
         notes = self.app.db.get_notes(today_date)
-        
+
         if notes:
             self.notes_content = notes
         else:
             self.notes_content = "# Today's Notes\nStart writing your notes here..."
-            
+
         viewer = self.query_one("#daily-notes-content")
         viewer.update(self.notes_content)
         self.call_later(self._apply_markdown_classes)
@@ -275,7 +275,7 @@ class TodayContent(Container):
                                 "No Tasks - Head over to your calendar to add some!",
                                 classes="empty-schedule",
                             )
-                
+
                 # Add notes card below the tasks card
                 with Container(classes="notes-card"):
                     yield NotesCard()
@@ -434,7 +434,7 @@ class WelcomeView(Container):
     def __init__(self):
         super().__init__()
         self._focused_tasks = False
-        
+
     def on_focus(self, event) -> None:
         if isinstance(event.widget, Task):
             tasks_list = self.query_one("#today-tasks-list")
@@ -491,7 +491,9 @@ class WelcomeView(Container):
         today_tab = self.query_one("TabButton#tab_today")
         welcome_tab = self.query_one("TabButton#tab_welcome")
         welcome_content = self.query_one(WelcomeContent)
-        today_content = self.query_one(TodayContent)  # Make sure to get the today_content
+        today_content = self.query_one(
+            TodayContent
+        )  # Make sure to get the today_content
 
         if is_first_time:
             welcome_tab.toggle_active(True)
@@ -651,4 +653,3 @@ class UpcomingTasksView(Container):
                     classes="empty-schedule",
                 )
             )
-
