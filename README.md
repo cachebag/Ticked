@@ -5,7 +5,7 @@
 <br>
 [![Security](https://github.com/cachebag/Ticked/actions/workflows/security.yml/badge.svg)](https://github.com/USERNAME/REPO/actions/workflows/security.yml)
 <br>
-[![Python Tests](https://github.com/USERNAME/Ticked/actions/workflows/pytest.yml/badge.svg)](https://github.com/cachebag/Ticked/actions/workflows/pytest.yml/badge.svg)
+[![Python Tests](https://github.com/cachebag/Ticked/actions/workflows/pytest.yml/badge.svg)](https://github.com/cachebag/Ticked/actions/workflows/pytest.yml/badge.svg)
 
 # 📟 **Ticked** is a Terminal based task and productivity manager built in Python over the Textual framework.
 
