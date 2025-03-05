@@ -285,12 +285,10 @@ class TodayContent(Container):
         tasks = self.app.db.get_tasks_for_date(today)
         self._do_mount_tasks(tasks)
 
-        # Also refresh upcoming tasks view
         upcoming_view = self.query_one(UpcomingTasksView)
         if upcoming_view:
             upcoming_view.refresh_tasks()
 
-        # Force a screen refresh
         self.refresh()
 
     def get_cached_quote(self):
