@@ -1639,7 +1639,7 @@ ModalScreen {
     align: center middle;
 }
 
-/* Calendar View and Day View - Complete separation */
+/* Calendar View and Day View - Complete separation */  
 CalendarView {
     width: 100%;
     height: 100; /* Fixed height */
