@@ -1,4 +1,4 @@
-from textual.app import ComposeResult, App
+from textual.app import ComposeResult
 from textual.containers import Container, Vertical, Horizontal
 from textual.widgets import Button, Static, Input, Label
 from textual.reactive import reactive

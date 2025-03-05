@@ -1,5 +1,4 @@
 import asyncio
-from asyncio import to_thread
 from typing import List, Dict
 import json
 from pathlib import Path

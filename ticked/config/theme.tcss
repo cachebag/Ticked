@@ -116,6 +116,7 @@ NavBar {
     layout: horizontal;
     align-horizontal: center;
     align-vertical: middle;
+    dock: top;
 }
 
 SystemStats {
@@ -137,14 +138,14 @@ SystemStatsHeader {
     height: 2;
     text-align: center;
     padding: 0 1;
+    text-style: none;
 }
 
 .task-form-container {
     width: 50%;
     height: 100%;
-    margin-top: 5;
+    border: thick $surface-lighten-2;
     background: $surface-darken-2;
-    
 }
 
 .file-form-container {
@@ -153,6 +154,7 @@ SystemStatsHeader {
     background: $surface;
     layer: dialog;
     border: thick $surface-lighten-2;
+    text-style: none;
 }
 
 .file-form-container-d {
@@ -161,12 +163,14 @@ SystemStatsHeader {
     background: $surface;
     border: thick $surface-lighten-2;
     layer: dialog;
+    text-style: none;
 }
 
 .file-form {
     height: 1fr;
     width: 1fr;
     padding: 1 2;
+    text-style: none;
 }
 
 .file-form-header {
@@ -662,7 +666,7 @@ Tooltip {
     width: auto;
     max-width: 60;
     offset-x: 1;
-    border: thick $accent;
+    border: solid $accent;
 }
 
 
@@ -1262,7 +1266,7 @@ Label {
     height: 3;
     background: $accent 40%;
     color: $text;
-    text-style: bold;
+    text-style: none;
     border: none;
     margin: 1;
 }
@@ -1640,7 +1644,8 @@ CalendarView {
     width: 100%;
     height: 100; /* Fixed height */
     background: $surface-darken-2;
-    padding: 1;
+    margin-bottom: -10;
+    
 }
 
 /* Make DayView completely independent with no scrolling */
@@ -1767,24 +1772,43 @@ CalendarHeader {
 }
 
 /* View Toggle Button */
-#toggle-view {
-    width: 15;
+#toggle-view {  
+    width: 10;
     height: 3;
     background: $accent 40%;
     color: $text;
     text-style: none;
     border: none;
-    margin: 0 0 1 0;
-    dock: top;
+    margin: 1;
+    padding: 1;
 }
 
 #toggle-view:hover {
     background: $accent 60%;
+    width: 10;
+    height: 3;
+    background: $accent 40%;
+    color: $text;
+    text-style: none;
+    border: none;
+    margin: 1;
+    padding: 1;
+
 }
 
 #toggle-view:focus {
     border: tall $accent;
+    width: 10;
+    height: 3;
+    background: $accent 40%;
+    color: $text;
+    text-style: none;
+    border: none;
+    margin: 1;
+    padding: 1;
+
 }
+
 
 /* Month Grid View Styles */
 CalendarGrid {
@@ -1810,6 +1834,7 @@ CalendarDayButton {
     padding: 0 1;
     content-align: left top;
     text-align: left;
+    text-style: none;
 }
 
 CalendarDayButton:hover {
@@ -1907,6 +1932,7 @@ DayView {
     border: none;
     width: 15;
     height: 3;
+    text-style: none;
 }
 
 .schedule-button:hover {
@@ -2021,5 +2047,187 @@ CalendarHeader {
     color: $accent;
     text-style: bold;
     text-align: center;
+}
+
+/* Day View Modal Style */
+.day-view-modal {
+    width: 80%;
+    height: 80%;
+    background: $surface;
+    border: thick $accent;
+    padding: 1;
+    overflow: hidden;
+}
+
+.day-view-modal #day-view-header {
+    width: 100%;
+    text-align: center;
+    text-style: bold;
+    color: $accent;
+    height: 3;
+    margin-bottom: 1;
+    border-bottom: solid $accent;
+}
+
+.day-view-modal .day-view-content {
+    width: 100%;
+    height: 1fr;
+    layout: horizontal;
+    overflow: hidden;
+}
+
+.day-view-modal .schedule-container {
+    width: 45%;
+    height: 100%;
+    padding: 0 1 0 0;
+    border-right: solid $accent 30%;
+    overflow: hidden;
+}
+
+.day-view-modal .tasks-list-day {
+    height: 1fr;
+    max-height: 65%;
+    overflow-y: auto;
+    width: 100%;
+    padding: 0 1 0 0;
+    border: solid $accent 30%;
+}
+
+.day-view-modal .notes-container {
+    width: 55%;
+    height: 100%;
+    padding: 0 0 0 1;
+    overflow: hidden;
+}
+
+.day-view-modal #notes-editor {
+    height: 100%;
+    border: solid $surface-lighten-1 30%;
+    padding: 1;
+    overflow-y: auto;
+}
+
+.day-view-modal #close-modal {
+    dock: bottom;
+    width: auto;
+    min-width: 8;
+    height: 3;
+    background: $accent 40%;
+    color: $text;
+    text-style: none;
+    border: none;
+    margin: 0;
+}
+
+.day-view-modal #close-modal:hover {
+    background: $accent 60%;
+    text-style: none;
+}
+
+/* Notes Section Styles */
+.notes-controls {
+    width: 100%;
+    height: 3;
+    margin-bottom: 1;
+}
+
+.notes-mode-button {
+    width: 1fr;
+    height: 3;
+    background: $surface-darken-1;
+    color: $text;
+    border: none;
+    margin: 0;
+    text-style: none;
+}
+
+.notes-mode-button:focus {
+    background: $accent 40%;
+    color: $text;
+    text-style: none;
+}
+
+.notes-mode-button.active {
+    background: $accent;
+    color: $text;
+    text-style: bold;
+}
+
+.notes-mode-button:hover {
+    background: $accent 60%;
+    color: $text;
+}
+
+#notes-editor {
+    height: 100%;
+    border: solid $surface-lighten-1 30%;
+    padding: 1;
+    overflow-y: auto;
+}
+
+#notes-viewer {
+    height: 100%;
+    border: solid $surface-lighten-1 30%;
+    padding: 1;
+    overflow-y: auto;
+    background: $surface;
+}
+
+/* Markdown Formatting for Textual */
+.markdown--h1 {
+    color: $accent;
+    text-style: bold;
+    margin-bottom: 1;
+}
+
+.markdown--h2 {
+    color: $accent 80%;
+    text-style: bold;
+    margin-bottom: 1;
+}
+
+.markdown--h3 {
+    color: $accent 70%;
+    text-style: bold;
+    margin-bottom: 1;
+}
+
+.markdown--list {
+    margin-left: 2;
+}
+
+.markdown--code {
+    background: $surface-darken-3;
+    color: $accent-lighten-1;
+}
+
+.markdown--blockquote {
+    border-left: thick $accent;
+    padding-left: 1;
+    color: $text-muted;
+}
+
+.markdown--link {
+    color: $primary-lighten-2;
+    text-style: underline;
+}
+
+.markdown--table {
+    width: auto;
+    margin: 1 0;
+}
+
+.markdown--th {
+    background: $surface-lighten-1;
+    color: $text;
+    text-style: bold;
+}
+
+.markdown--td {
+    padding: 0 1;
+}
+
+.hidden {
+    display: none !important;
 }
 

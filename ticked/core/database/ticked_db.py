@@ -1,7 +1,7 @@
 from __future__ import annotations
 import sqlite3
-from datetime import datetime, timedelta
-from typing import Set, Optional, List, Dict, Any
+from datetime import datetime
+from typing import Optional, List, Dict, Any
 from pathlib import Path
 import os
 
@@ -25,19 +25,18 @@ class CalendarDB:
             self.db_path = db_path
 
         self._create_tables()
-        self._migrate_database()  # Add migration check
+        self._migrate_database()
 
     def _migrate_database(self) -> None:
         """Migrate database to new schema while preserving user data."""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
 
-            # Check if migration is needed
+            # Migration check
             cursor.execute("PRAGMA table_info(tasks)")
             columns = {col[1]: col[2] for col in cursor.fetchall()}
 
             if "start_time" in columns and columns["start_time"] == "TIME":
-                # Create temporary table with new schema
                 cursor.execute(
                     """
                     CREATE TABLE tasks_new (
@@ -55,7 +54,6 @@ class CalendarDB:
                 """
                 )
 
-                # Copy data from old table to new table
                 cursor.execute(
                     """
                     INSERT INTO tasks_new 
@@ -68,7 +66,6 @@ class CalendarDB:
                 """
                 )
 
-                # Drop old table and rename new table
                 cursor.execute("DROP TABLE tasks")
                 cursor.execute("ALTER TABLE tasks_new RENAME TO tasks")
 
@@ -78,7 +75,6 @@ class CalendarDB:
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
 
-            # Create tasks table
             cursor.execute(
                 """
                 CREATE TABLE IF NOT EXISTS tasks (
@@ -96,7 +92,6 @@ class CalendarDB:
             """
             )
 
-            # Create other tables
             cursor.execute(
                 """
                 CREATE TABLE IF NOT EXISTS notes (
@@ -137,6 +132,16 @@ class CalendarDB:
                     password TEXT NOT NULL,
                     last_sync TIMESTAMP,
                     selected_calendar TEXT
+                )
+            """
+            )
+
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS notes_preferences (
+                    date TEXT PRIMARY KEY,
+                    view_mode TEXT DEFAULT 'edit',
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """
             )
@@ -236,14 +241,12 @@ class CalendarDB:
         if not update_fields:
             return False
 
-        # Build query safely with explicit column names
         query_parts = []
         values = []
         for field in update_fields:
             query_parts.append(f"{field} = ?")
             values.append(update_fields[field])
 
-        # Add the WHERE clause value
         values.append(task_id)
 
         query = "UPDATE tasks SET " + ", ".join(query_parts) + " WHERE id = ?"
@@ -255,14 +258,6 @@ class CalendarDB:
         return cursor.rowcount > 0
 
     def delete_task(self, task_id: int) -> bool:
-        """Delete a task by its ID.
-
-        Args:
-            task_id (int): The ID of the task to delete
-
-        Returns:
-            bool: True if task was deleted, False if task was not found
-        """
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
@@ -275,7 +270,6 @@ class CalendarDB:
 
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
-            # Create placeholders safely
             placeholders = ",".join(["?"] * len(uids))
             query = """
                 DELETE FROM tasks 
@@ -501,5 +495,30 @@ class CalendarDB:
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT value FROM settings WHERE key = 'theme'")
+            result = cursor.fetchone()
+            return result[0] if result else None
+
+    def save_notes_view_mode(self, date: str, view_mode: str) -> bool:
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                INSERT INTO notes_preferences (date, view_mode, updated_at)
+                VALUES (?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(date) DO UPDATE SET
+                    view_mode = excluded.view_mode,
+                    updated_at = CURRENT_TIMESTAMP
+            """,
+                (date, view_mode),
+            )
+            conn.commit()
+            return True
+
+    def get_notes_view_mode(self, date: str) -> Optional[str]:
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT view_mode FROM notes_preferences WHERE date = ?", (date,)
+            )
             result = cursor.fetchone()
             return result[0] if result else None
