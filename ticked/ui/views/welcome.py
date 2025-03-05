@@ -1,4 +1,4 @@
-from textual.widgets import Static, Button
+from textual.widgets import Static, Button, TextArea, Markdown
 from textual.containers import Container, Grid, Horizontal, Vertical
 from textual.widget import Widget
 from textual.app import ComposeResult
@@ -185,33 +185,80 @@ class NowPlayingCard(Container):
             self.notify(f"Playback error: {str(e)}", severity="error")
 
 
+class NotesCard(Container):
+    """Card to display the current day's notes."""
+    
+    def __init__(self) -> None:
+        super().__init__()
+        self.notes_content = "# Today's Notes\nStart writing your notes here..."
+        
+    def compose(self) -> ComposeResult:
+        yield Static("Today's Notes", classes="card-title")
+        yield Markdown("", id="daily-notes-content", classes="markdown-content")
+
+    def on_mount(self) -> None:
+        today_date = datetime.now().strftime("%Y-%m-%d")
+        notes = self.app.db.get_notes(today_date)
+        
+        if notes:
+            self.notes_content = notes
+        else:
+            self.notes_content = "# Today's Notes\nStart writing your notes here..."
+            
+        self.query_one("#daily-notes-content").update(self.notes_content)
+        self.call_later(self._apply_markdown_classes)
+
+    def _apply_markdown_classes(self) -> None:
+        """Apply the proper CSS classes to markdown elements after rendering."""
+        try:
+            viewer = self.query_one("#daily-notes-content")
+
+            for i in range(1, 7):
+                for heading in viewer.query(f"Heading{i}"):
+                    heading.add_class(f"markdown--h{i}")
+
+            for ul in viewer.query("UnorderedList"):
+                ul.add_class("markdown--list")
+
+            for ol in viewer.query("OrderedList"):
+                ol.add_class("markdown--list")
+
+            for code in viewer.query("CodeBlock"):
+                code.add_class("markdown--code")
+
+            for blockquote in viewer.query("BlockQuote"):
+                blockquote.add_class("markdown--blockquote")
+
+            for link in viewer.query("Link"):
+                link.add_class("markdown--link")
+
+            for table in viewer.query("Table"):
+                table.add_class("markdown--table")
+
+            for th in viewer.query("TableHeader"):
+                th.add_class("markdown--th")
+
+            for td in viewer.query("TableCell"):
+                td.add_class("markdown--td")
+
+        except Exception as e:
+            print(f"Error applying markdown classes: {e}")
+
+    def refresh_notes(self) -> None:
+        today_date = datetime.now().strftime("%Y-%m-%d")
+        notes = self.app.db.get_notes(today_date)
+        
+        if notes:
+            self.notes_content = notes
+        else:
+            self.notes_content = "# Today's Notes\nStart writing your notes here..."
+            
+        viewer = self.query_one("#daily-notes-content")
+        viewer.update(self.notes_content)
+        self.call_later(self._apply_markdown_classes)
+
+
 class TodayContent(Container):
-    DEFAULT_CSS = """
-    .dashboard-grid {
-        grid-size: 2;
-        grid-columns: 1fr 1fr;
-        height: 100%;
-        padding: 1;
-        grid-gutter: 1;
-    }
-    
-    .right-column {
-        layout: vertical; 
-        height: auto;  /* changed from 100% */
-    }
-    
-    .right-top-grid {
-        grid-size: 2;
-        grid-columns: 1fr 1fr;
-        height: 100%;
-        padding: 0;
-        grid-gutter: 1;
-    }
-    
-    .bottom-card {
-        height: auto;  /* changed from 100% */
-    }
-    """
 
     def __init__(self) -> None:
         super().__init__()
@@ -220,13 +267,18 @@ class TodayContent(Container):
 
     def compose(self) -> ComposeResult:
         with Grid(classes="dashboard-grid"):
-            with Container(classes="tasks-card"):
-                with DashboardCard("Today's Tasks"):
-                    with Vertical(id="today-tasks-list", classes="tasks-list"):
-                        yield Static(
-                            "No Tasks - Head over to your calendar to add some!",
-                            classes="empty-schedule",
-                        )
+            with Vertical():
+                with Container(classes="tasks-card"):
+                    with DashboardCard("Today's Tasks"):
+                        with Vertical(id="today-tasks-list", classes="tasks-list"):
+                            yield Static(
+                                "No Tasks - Head over to your calendar to add some!",
+                                classes="empty-schedule",
+                            )
+                
+                # Add notes card below the tasks card
+                with Container(classes="notes-card"):
+                    yield NotesCard()
 
             with Container(classes="right-column"):
                 with Grid(classes="right-top-grid"):
@@ -288,6 +340,11 @@ class TodayContent(Container):
         upcoming_view = self.query_one(UpcomingTasksView)
         if upcoming_view:
             upcoming_view.refresh_tasks()
+
+        # Also refresh the notes when refreshing tasks
+        notes_card = self.query_one(NotesCard)
+        if notes_card:
+            notes_card.refresh_notes()
 
         self.refresh()
 
@@ -377,7 +434,7 @@ class WelcomeView(Container):
     def __init__(self):
         super().__init__()
         self._focused_tasks = False
-
+        
     def on_focus(self, event) -> None:
         if isinstance(event.widget, Task):
             tasks_list = self.query_one("#today-tasks-list")
@@ -385,7 +442,7 @@ class WelcomeView(Container):
                 self._focused_tasks = True
 
     def on_blur(self, event) -> None:
-        if self._focused_tasks:
+        if self._focused_tasks and isinstance(event.widget, Task):
             self._focused_tasks = False
 
     async def action_move_down(self) -> None:
@@ -400,8 +457,9 @@ class WelcomeView(Container):
             tasks = list(self.query_one("#today-tasks-list").query(Task))
             if tasks:
                 current_idx = tasks.index(current)
-                next_idx = (current_idx + 1) % len(tasks)
-                tasks[next_idx].focus()
+                if current_idx < len(tasks) - 1:  # Only navigate within tasks
+                    next_idx = current_idx + 1
+                    tasks[next_idx].focus()
 
     async def action_move_up(self) -> None:
         current = self.app.focused
@@ -432,14 +490,14 @@ class WelcomeView(Container):
 
         today_tab = self.query_one("TabButton#tab_today")
         welcome_tab = self.query_one("TabButton#tab_welcome")
+        welcome_content = self.query_one(WelcomeContent)
+        today_content = self.query_one(TodayContent)  # Make sure to get the today_content
 
         if is_first_time:
             welcome_tab.toggle_active(True)
             welcome_tab.focus()
 
-            welcome_content = self.query_one(WelcomeContent)
             welcome_content.styles.display = "block"
-            today_content = self.query_one(TodayContent)
             today_content.styles.display = "none"
 
             self.app.db.mark_first_launch_complete()
@@ -447,9 +505,7 @@ class WelcomeView(Container):
             today_tab.toggle_active(True)
             today_tab.focus()
 
-            welcome_content = self.query_one(WelcomeContent)
             welcome_content.styles.display = "none"
-            today_content = self.query_one(TodayContent)
             today_content.styles.display = "block"
 
             today = datetime.now().strftime("%Y-%m-%d")
@@ -595,3 +651,4 @@ class UpcomingTasksView(Container):
                     classes="empty-schedule",
                 )
             )
+

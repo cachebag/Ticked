@@ -2231,3 +2231,52 @@ CalendarHeader {
     display: none !important;
 }
 
+/* Notes Card Styles for Welcome View - Simplified */
+.notes-card {
+    border: solid $secondary;
+    overflow-y: auto;
+    padding: 0;
+}
+
+NotesCard {
+    width: 100%;
+    height: 100%;
+    padding: 1;
+    overflow-y: auto;
+}
+
+#daily-notes-content {
+    height: 100%;
+    width: 100%;
+    padding: 1;
+    overflow-y: auto;
+    background: $surface-darken-2;
+}
+
+/* Adjust task card and notes card heights for balance */
+.tasks-card, .notes-card {
+    height: 50%;
+}
+
+/* Ensure proper padding/spacing */
+.tasks-card > .dashboard-card,
+.notes-card > NotesCard {
+    height: 100%;
+    width: 100%;
+}
+
+/* Make sure the vertical layout in TodayContent works well */
+TodayContent > .dashboard-grid > Vertical {
+    height: 100%;
+    width: 100%;
+    layout: vertical;
+}
+
+/* Ensure the tasks list scrolls properly */
+.tasks-list {
+    height: 90%; /* Allow room for header */
+    overflow-y: auto;
+}
+
+/* Remove the unnecessary button styles since they don't exist anymore */
+
