@@ -4,10 +4,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ticked"
-version = "0.3.2"
+version = "0.3.5"
 description = "A terminal-based task management and productivity tool."
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 license = {text = "MIT"}
 authors = [
     {name = "Akrm Al-Hakimi", email = "alhakimiakrmj@gmail.com"}
