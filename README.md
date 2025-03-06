@@ -75,7 +75,7 @@ You can run the same checks that run in GitHub Actions locally using the provide
 
 1. First, make the script executable:
    ```bash
-   chmod +x run_checks.sh
+   chmod +x check.sh
    ```
 
 2. Install development dependencies:
@@ -84,10 +84,10 @@ You can run the same checks that run in GitHub Actions locally using the provide
    ```
 
 3. Run specific checks:
-   - For security checks: `./run_checks.sh security`
-   - For linting: `./run_checks.sh lint`
-   - For tests: `./run_checks.sh pytest`
-   - For all checks: `./run_checks.sh all`
+   - For security checks: `./check.sh security`
+   - For linting: `./check.sh lint`
+   - For tests: `./check.sh pytest`
+   - For all checks: `./check.sh all`
 
 ## License
 
