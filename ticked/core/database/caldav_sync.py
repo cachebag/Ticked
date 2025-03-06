@@ -1,7 +1,8 @@
-from datetime import datetime, timedelta
-import caldav
-from typing import List, Dict, Any, Optional
 import re
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
+
+import caldav
 
 
 class CalDAVSync:

@@ -1,27 +1,27 @@
 import os
-import pytest
-import tempfile
 import shutil
-from unittest.mock import MagicMock, patch, PropertyMock
+import tempfile
 from typing import Generator, Tuple
+from unittest.mock import MagicMock, PropertyMock, patch
 
-from textual.app import App, ComposeResult
+import pytest
 from textual._context import active_app
+from textual.app import App, ComposeResult
 from textual.screen import Screen
 
 from ticked.ui.views.nest import (
-    FilterableDirectoryTree,
+    AutoCompletePopup,
     CodeEditor,
-    NestView,
     ContextMenu,
+    DeleteConfirmationDialog,
+    FileCreated,
+    FilterableDirectoryTree,
+    FolderCreated,
+    NestView,
     NewFileDialog,
     NewFolderDialog,
-    DeleteConfirmationDialog,
     RenameDialog,
-    FileCreated,
-    FolderCreated,
     StatusBar,
-    AutoCompletePopup,
 )
 
 

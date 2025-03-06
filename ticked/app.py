@@ -1,22 +1,22 @@
-from textual.app import App, ComposeResult
-from textual.screen import Screen
-from .ui.views.nest import NewFileDialog
-from .ui.views.pomodoro import PomodoroView
-from .ui.screens.over_arching import HomeScreen
-from .ui.views.nest import NestView
-from textual.dom import NoMatches
-from textual.binding import Binding
-from textual import events
-from .core.database.ticked_db import CalendarDB
+import json
+import os
+import webbrowser
 from importlib.metadata import version as get_version
 from pathlib import Path
-import os
-import json
+
 import requests
-from datetime import datetime
 from packaging import version
-from textual.worker import Worker, get_current_worker
-import webbrowser  # Add this import at the top
+from textual import events
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.dom import NoMatches
+from textual.screen import Screen
+from textual.worker import get_current_worker
+
+from .core.database.ticked_db import CalendarDB
+from .ui.screens.over_arching import HomeScreen
+from .ui.views.nest import NestView, NewFileDialog
+from .ui.views.pomodoro import PomodoroView
 
 
 class Ticked(App):
@@ -54,9 +54,7 @@ class Ticked(App):
             response = requests.get("https://pypi.org/pypi/ticked/json")
             if response.status_code == 200:
                 latest_version = response.json()["info"]["version"]
-                current_version = get_version(
-                    "ticked"
-                )  # Dynamically get the installed version
+                current_version = get_version("ticked")
 
                 if version.parse(latest_version) > version.parse(current_version):
                     self.notify(
@@ -68,7 +66,6 @@ class Ticked(App):
 
             self.db.save_last_update_check()
         except Exception as e:
-            # Log the error for debugging
             print(f"Update check failed: {str(e)}")
             pass
 

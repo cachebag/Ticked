@@ -1,10 +1,11 @@
-from textual.widgets import Static
-from textual.containers import Horizontal
-from textual.message import Message
-from textual.app import ComposeResult
 from textual import on
+from textual.app import ComposeResult
 from textual.binding import Binding
+from textual.containers import Horizontal
 from textual.events import Click
+from textual.message import Message
+from textual.widgets import Static
+
 from ..utils.time_utils import convert_to_12hour
 
 

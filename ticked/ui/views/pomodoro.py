@@ -1,14 +1,15 @@
-from textual.app import ComposeResult
-from textual.containers import Container, Vertical, Horizontal
-from textual.widgets import Button, Static, Input, Label
-from textual.reactive import reactive
-from textual import work
-from textual.binding import Binding
-from textual.screen import ModalScreen
 import asyncio
-from pathlib import Path
 import json
+from pathlib import Path
+
 import pyfiglet
+from textual import work
+from textual.app import ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Horizontal, Vertical
+from textual.reactive import reactive
+from textual.screen import ModalScreen
+from textual.widgets import Button, Input, Label, Static
 
 
 class CustomizeModal(ModalScreen[dict]):

@@ -1,20 +1,23 @@
+from typing import Optional
+
+from textual import work
 from textual.app import ComposeResult
+from textual.binding import Binding
 from textual.containers import Container, ScrollableContainer
 from textual.screen import Screen
-from textual.widgets import Header, Button, Static, Footer
-from textual.binding import Binding
-from ticked.ui.views.welcome import WelcomeView
+from textual.widget import Widget
+from textual.widgets import Button, Footer, Header, Static
+
+from ticked.ui.mixins.focus_mixin import InitialFocusMixin
 from ticked.ui.views.calendar import CalendarView
-from ticked.utils.system_stats import SystemStatsHeader
 from ticked.ui.views.nest import NestView
 from ticked.ui.views.settings import SettingsView
-from ticked.ui.mixins.focus_mixin import InitialFocusMixin
-from textual.widget import Widget
-from typing import Optional
+from ticked.ui.views.welcome import WelcomeView
+from ticked.utils.system_stats import SystemStatsHeader
+
+from ..views.canvas import CanvasView
 from ..views.pomodoro import PomodoroView
 from ..views.spotify import SpotifyView
-from ..views.canvas import CanvasView
-from textual import work
 
 
 class MenuItem(Button):

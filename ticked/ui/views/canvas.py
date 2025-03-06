@@ -1,17 +1,18 @@
 import asyncio
-from typing import List, Dict
 import json
-from pathlib import Path
-from datetime import datetime
-from canvasapi import Canvas
-from textual.widgets import DataTable, Static, LoadingIndicator, Button, Input, Markdown
-from textual.containers import Vertical, Grid
-from textual.app import ComposeResult
-from textual.widget import Widget, NoMatches
-from textual.reactive import reactive
-from textual.message import Message
-from bs4 import BeautifulSoup
 import re
+from datetime import datetime
+from pathlib import Path
+from typing import Dict, List
+
+from bs4 import BeautifulSoup
+from canvasapi import Canvas
+from textual.app import ComposeResult
+from textual.containers import Grid, Vertical
+from textual.message import Message
+from textual.reactive import reactive
+from textual.widget import NoMatches, Widget
+from textual.widgets import Button, DataTable, Input, LoadingIndicator, Markdown, Static
 
 
 class CanvasLoginMessage(Message):

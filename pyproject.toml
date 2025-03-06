@@ -179,8 +179,33 @@ skip-magic-trailing-comma = false
 
 [tool.black]
 line-length = 88
-target-version = ['py38']
+target-version = ["py38"]
 include = '\.pyi?$'
+
+[tool.isort]
+profile = "black"
+line_length = 88
+
+[tool.mypy]
+python_version = "3.8"
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+strict_optional = true
+warn_redundant_casts = true
+warn_return_any = true
+warn_unused_ignores = true
+
+[tool.pylint.messages_control]
+disable = ["C0111", "C0103", "C0330", "C0326"]
+
+[tool.pylint.format]
+max-line-length = "88"
+
+[tool.bandit]
+exclude_dirs = ["tests", "venv"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "strict"

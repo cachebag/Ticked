@@ -1,9 +1,10 @@
 # calendar_setup.py
-from textual.screen import ModalScreen
-from textual.containers import Container, Vertical, Horizontal
-from textual.widgets import Button, Input, Label, Static, Select
 from textual.app import ComposeResult
 from textual.binding import Binding
+from textual.containers import Container, Horizontal, Vertical
+from textual.screen import ModalScreen
+from textual.widgets import Button, Input, Label, Select, Static
+
 from ...core.database.caldav_sync import CalDAVSync
 
 

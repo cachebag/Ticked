@@ -1,9 +1,10 @@
 from __future__ import annotations
+
+import os
 import sqlite3
 from datetime import datetime
-from typing import Optional, List, Dict, Any
 from pathlib import Path
-import os
+from typing import Any, Dict, List, Optional
 
 
 def get_data_home() -> Path:

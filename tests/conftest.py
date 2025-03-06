@@ -1,8 +1,10 @@
-import pytest
 import os
-import tempfile
 import shutil
-from typing import Generator, Dict, Any
+import tempfile
+from typing import Any, Dict, Generator
+
+import pytest
+
 from ticked.core.database.ticked_db import CalendarDB
 
 

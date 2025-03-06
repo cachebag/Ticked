@@ -1,5 +1,6 @@
-from ticked.utils.system_stats import get_system_info
 import platform
+
+from ticked.utils.system_stats import get_system_info
 
 
 def test_get_system_info():

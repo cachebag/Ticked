@@ -1,28 +1,28 @@
+import calendar
+from datetime import datetime, timedelta
+from typing import Optional
+
+from textual import on
+from textual.app import ComposeResult
+from textual.binding import Binding
 from textual.containers import Container, Grid, Horizontal, Vertical
+from textual.screen import ModalScreen
+from textual.widget import Widget
 from textual.widgets import (
     Button,
     Input,
     Label,
-    Static,
-    TextArea,
-    Select,
-    Switch,
     Markdown,
+    Select,
+    Static,
+    Switch,
+    TextArea,
 )
-from textual.screen import ModalScreen
-from textual import on
-from textual.app import ComposeResult
-from datetime import datetime, timedelta
-import calendar
-from ...widgets.task_widget import Task
-from textual.binding import Binding
+
 from ...core.database.caldav_sync import CalDAVSync
+from ...utils.time_utils import generate_time_options
+from ...widgets.task_widget import Task
 from .calendar_setup import CalendarSetupScreen
-from typing import Optional
-from textual.widget import Widget
-from ...utils.time_utils import (
-    generate_time_options,
-)
 
 
 class NavBar(Horizontal):

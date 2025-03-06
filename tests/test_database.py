@@ -1,6 +1,8 @@
-import pytest
 import os
 from datetime import datetime, timedelta
+
+import pytest
+
 from ticked.core.database.ticked_db import CalendarDB
 
 

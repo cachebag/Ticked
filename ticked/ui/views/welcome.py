@@ -1,15 +1,17 @@
-from textual.widgets import Static, Button, TextArea, Markdown
-from textual.containers import Container, Grid, Horizontal, Vertical
-from textual.widget import Widget
-from textual.app import ComposeResult
-from typing import Optional
-from textual.binding import Binding
+import json
+import random
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
+
 import requests
+from textual.app import ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Grid, Horizontal, Vertical
+from textual.widget import Widget
+from textual.widgets import Button, Markdown, Static, TextArea
+
 from ticked.widgets.task_widget import Task
-import random
-import json
 
 
 class TabButton(Button):

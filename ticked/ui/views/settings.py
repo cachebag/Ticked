@@ -1,9 +1,10 @@
-from textual.containers import Container, Horizontal, Vertical
-from textual.widgets import Static, Button
-from textual.app import ComposeResult
-from textual.widget import Widget
-from textual.binding import Binding
 from typing import Optional
+
+from textual.app import ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Horizontal, Vertical
+from textual.widget import Widget
+from textual.widgets import Button, Static
 
 
 class SettingsButton(Button):

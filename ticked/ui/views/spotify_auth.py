@@ -1,11 +1,12 @@
-from http.server import HTTPServer, BaseHTTPRequestHandler
+import os
 import threading
 import urllib.parse
+import webbrowser
+from datetime import datetime, timedelta
+from http.server import BaseHTTPRequestHandler, HTTPServer
+
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
-import webbrowser
-import os
-from datetime import datetime, timedelta
 
 
 class SpotifyCallbackHandler(BaseHTTPRequestHandler):

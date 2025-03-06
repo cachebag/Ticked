@@ -1,24 +1,33 @@
-from textual.app import ComposeResult
-from textual.widget import Widget
-from textual.containers import Horizontal, Container, Vertical
-from textual.screen import ModalScreen
-from textual.widgets import DirectoryTree, Static, Button, TextArea, Input, Label
-from textual.binding import Binding
-from ...ui.mixins.focus_mixin import InitialFocusMixin
+import os
+import re
+import shutil
 import time
+from difflib import SequenceMatcher
 from typing import Optional
-from textual.message import Message
+
+from jedi import Script
+from rich.markup import escape
 from rich.syntax import Syntax
 from rich.text import Text
-from rich.markup import escape
-import os
+from textual.app import ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Horizontal, Vertical
 from textual.coordinate import Coordinate
-from textual.widgets import DataTable
-from jedi import Script
-from difflib import SequenceMatcher
-import re
 from textual.events import Key, MouseDown
-import shutil
+from textual.message import Message
+from textual.screen import ModalScreen
+from textual.widget import Widget
+from textual.widgets import (
+    Button,
+    DataTable,
+    DirectoryTree,
+    Input,
+    Label,
+    Static,
+    TextArea,
+)
+
+from ...ui.mixins.focus_mixin import InitialFocusMixin
 
 
 class EditorTab:

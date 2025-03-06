@@ -1,22 +1,24 @@
-from textual.app import ComposeResult
-from textual.containers import Container, Horizontal, ScrollableContainer, Vertical
-from textual.widgets import Button, Static, Input
-from textual.widget import Widget
-from textual import work
-from textual.worker import get_current_worker
 import asyncio
-from ...core.database.ticked_db import CalendarDB
-from textual.binding import Binding
-from textual.message import Message
+import json
+import threading
+import urllib.parse
+import webbrowser
 from datetime import datetime, timedelta
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from pathlib import Path
+
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
-import webbrowser
-import threading
-from http.server import HTTPServer, BaseHTTPRequestHandler
-import urllib.parse
-from pathlib import Path
-import json
+from textual import work
+from textual.app import ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Horizontal, ScrollableContainer, Vertical
+from textual.message import Message
+from textual.widget import Widget
+from textual.widgets import Button, Input, Static
+from textual.worker import get_current_worker
+
+from ...core.database.ticked_db import CalendarDB
 
 
 class SpotifyCallbackHandler(BaseHTTPRequestHandler):

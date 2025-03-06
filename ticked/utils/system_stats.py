@@ -1,8 +1,9 @@
-from textual.widgets import Static
-import psutil
-from datetime import datetime
 import getpass
 import platform
+from datetime import datetime
+
+import psutil
+from textual.widgets import Static
 
 
 class SystemStatsHeader(Static):

@@ -1,5 +1,6 @@
-from textual.widget import Widget
 from typing import Optional
+
+from textual.widget import Widget
 
 
 class InitialFocusMixin:
