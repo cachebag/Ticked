@@ -153,7 +153,7 @@ function saveCurrentPage(pageId) {
     localStorage.setItem('currentPage', pageId);
 }
 
-async function loadPage(pageId, shouldScroll = false) {
+async function loadPage(pageId, shouldScroll = true) {
     const page = docs.sections
         .flatMap(section => section.items)
         .find(item => item.id === pageId);
@@ -205,15 +205,23 @@ async function loadPage(pageId, shouldScroll = false) {
         updateSectionNav();
         
         if (shouldScroll) {
-            window.scrollTo(0, 0);
+            window.scrollTo({
+                top: 0,
+                behavior: 'auto'
+            });
         }
 
+        // Only scroll to hash element after ensuring page is at top first
         const hash = window.location.hash.slice(1);
-        if (hash) {
-            const element = document.getElementById(hash);
-            if (element) {
-                element.scrollIntoView();
-            }
+        if (hash && hash !== pageId) {
+            setTimeout(() => {
+                const element = document.getElementById(hash);
+                if (element) {
+                    element.scrollIntoView({
+                        behavior: 'smooth'
+                    });
+                }
+            }, 100);
         }
 
         // Update the active link in the sidebar
