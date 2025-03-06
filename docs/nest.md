@@ -39,9 +39,6 @@ In general, you will navigate between your file navigator and code editor using 
 
 <br>
 
-*There will be future support for deleting files, in addition to creating/deleting folders as well.* 
-
-
 # Using the code editor
 
 ## Code Editor Features
@@ -101,7 +98,28 @@ There are currently a couple of built in features to enhance the code editing ex
 
 <img src="./images/autoindent.gif" alt="Autoindent GIF" width="800" />
 
-I plan on implementing Autocomplete in the near future along with some more motions to create a better code editing experience. If anyone has any suggestions, please feel free to propose changes on the codebase. I'm very open to approaching this in another way if it will help the user experience.
+### Autcomplete is now supported in NEST+
+- Only works decently enough in Python. But the local completions generally work everywhere.
+- This is still a large WIP, there are many bugs, conceptual issues and overall improvements to be made
+- This is a *very* hardcoded implementation. There's nothing really "intelligent" going on here- this was the best way I could imagine implementing this for the time being.
+
+<img src="./images/ss37.png" alt="Screenshot of Tick interface" width="800">
+
+<img src="./images/ss36.png" alt="Screenshot of Tick interface" width="800">
+
+- You can now create and delete files/directories
+- You can also open up a context menu by right clicking a folder from the navigation tree. (See section for getting this to work on iTerm2 as there is a roadblock there)
+
+<img src="./images/ss38.png" alt="Screenshot of Tick interface" width="800">
+
+* Still figuring out how to get the context menu to open at the cursor position or something more intuitive
+
+## Getting the context menu to work on iTerm2
+
+If you are using iTerm2, you will need to disable the native context menu opening on right click if you want the context menu in Ticked to work.
+
+- This setting is in iTerm2 -> Settings -> Pointer -> Bindings 
+- Remove the 'Right button single click' setting or whatever is closest.
 
 Keep an eye on the [GitHub releases](https://github.com/cachebag/Ticked/releases) to find out when NEST+ gets updated.
 
