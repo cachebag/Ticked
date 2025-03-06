@@ -321,12 +321,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const pageId = window.location.hash.slice(1);
     
     if (!pageId) {
-        const lastPage = localStorage.getItem('currentPage');
-        if (lastPage) {
-            navigateToPage(lastPage);
-        } else {
-            navigateToPage('introduction');
-        }
+        // Always navigate to introduction when no hash is present
+        navigateToPage('introduction');
     } else {
         loadPage(pageId);
     }
