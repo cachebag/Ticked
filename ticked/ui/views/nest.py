@@ -761,7 +761,11 @@ class CodeEditor(TextArea):
         )
         self._completion_popup = None
         self._word_pattern = re.compile(r"[\w\.]")
+        # Store undo/redo state with positions
+        self._undo_state_stack = []
+        self._redo_state_stack = []
 
+        # Add missing definition for _builtins
         self._builtins = {
             "print": ("function", "Print objects to the text stream"),
             "len": ("function", "Return the length of an object"),
@@ -772,9 +776,10 @@ class CodeEditor(TextArea):
             "range": ("function", "Create a sequence of numbers"),
             "open": ("function", "Open a file"),
             "type": ("function", "Return the type of an object"),
-            # Adding more soon...
+            # Add more builtins as needed
         }
 
+        # Add missing definition for _common_patterns
         self._common_patterns = {
             "if ": ("keyword", "Start an if statement"),
             "for ": ("keyword", "Start a for loop"),
@@ -788,6 +793,7 @@ class CodeEditor(TextArea):
             "with ": ("keyword", "Context manager statement"),
         }
 
+        # Add missing definition for _common_imports
         self._common_imports = {
             "os": "Operating system interface",
             "sys": "System-specific parameters and functions",
@@ -859,7 +865,7 @@ class CodeEditor(TextArea):
         if stripped_line.endswith(":"):
             return True
 
-        brackets = {"(": ")", "[": "]", "{": "}"}
+        brackets = {"(": ")", "[": "]", "{" : "}"}
         counts = {
             k: stripped_line.count(k) - stripped_line.count(v)
             for k, v in brackets.items()
@@ -1577,9 +1583,13 @@ class CodeEditor(TextArea):
     def watch_text(self, old_text: str, new_text: str) -> None:
         if old_text != new_text:
             if not self._is_undoing:
-                # current_cursor = self.cursor_location
-                self._undo_stack.append(old_text)
-                self._redo_stack.clear()
+                # Save the current state including text, cursor, and scroll positions
+                self._undo_state_stack.append({
+                    'text': old_text,
+                    'cursor': self.cursor_location,
+                    'scroll': self.scroll_offset
+                })
+                self._redo_state_stack.clear()
 
             self._modified = True
             self.post_message(self.FileModified(True))
@@ -1652,72 +1662,51 @@ class CodeEditor(TextArea):
             self.scroll_to(current_scroll[0], current_scroll[1], animate=False)
 
     def action_undo(self) -> None:
-        if self.mode == "normal" and self._undo_stack:
-            current_scroll = self.scroll_offset
+        if self.mode == "normal" and self._undo_state_stack:
             self._is_undoing = True
-            self._redo_stack.append(self.text)
-            self.text = self._undo_stack.pop()
+            
+            # Save current state to redo stack
+            self._redo_state_stack.append({
+                'text': self.text,
+                'cursor': self.cursor_location,
+                'scroll': self.scroll_offset
+            })
+            
+            # Get state from undo stack
+            state = self._undo_state_stack.pop()
+            
+            # Restore text
+            self.text = state['text']
+            
+            # Restore cursor position and scroll offset
+            self.move_cursor(state['cursor'])
+            self.scroll_to(state['scroll'][0], state['scroll'][1], animate=False)
+            
             self._undo_batch = []
             self._is_undoing = False
-            self.scroll_to(current_scroll[0], current_scroll[1], animate=False)
 
     def action_redo(self) -> None:
-        if self.mode == "normal" and self._redo_stack:
-            current_scroll = self.scroll_offset
+        if self.mode == "normal" and self._redo_state_stack:
             self._is_undoing = True
-            self._undo_stack.append(self.text)
-            self.text = self._redo_stack.pop()
+            
+            # Save current state to undo stack
+            self._undo_state_stack.append({
+                'text': self.text,
+                'cursor': self.cursor_location,
+                'scroll': self.scroll_offset
+            })
+            
+            # Get state from redo stack
+            state = self._redo_state_stack.pop()
+            
+            # Restore text
+            self.text = state['text']
+            
+            # Restore cursor position and scroll offset
+            self.move_cursor(state['cursor'])
+            self.scroll_to(state['scroll'][0], state['scroll'][1], animate=False)
+            
             self._is_undoing = False
-            self.scroll_to(current_scroll[0], current_scroll[1], animate=False)
-
-    def action_delete_char(self) -> None:
-        if self.mode == "normal":
-            current_scroll = self.scroll_offset
-            self._save_undo_state()
-            cur_row, cur_col = self.cursor_location
-            lines = self.text.split("\n")
-            if cur_row < len(lines):
-                if cur_col < len(lines[cur_row]):
-                    lines[cur_row] = (
-                        lines[cur_row][:cur_col] + lines[cur_row][cur_col + 1 :]
-                    )
-                else:
-                    lines[cur_row] = lines[cur_row][:cur_col]
-                self.text = "\n".join(lines)
-                if cur_col < len(lines[cur_row]):
-                    self.move_cursor((cur_row, cur_col))
-                else:
-                    self.move_cursor((cur_row, max(cur_col - 1, 0)))
-            self.scroll_to(current_scroll[0], current_scroll[1], animate=False)
-
-    def action_delete_line(self) -> None:
-        if self.mode == "normal":
-            self._save_undo_state()
-            cur_row, _ = self.cursor_location
-            current_scroll = self.scroll_offset
-            lines = self.text.split("\n")
-            if cur_row < len(lines):
-                lines.pop(cur_row)
-                self.text = "\n".join(lines)
-                target_row = min(cur_row, len(lines) - 1) if lines else 0
-                self.move_cursor((target_row, 0))
-                self.scroll_to(current_scroll[0], current_scroll[1], animate=False)
-
-    def action_delete_to_end(self) -> None:
-        if self.mode == "normal":
-            current_scroll = self.scroll_offset
-            self._save_undo_state()
-            cur_row, cur_col = self.cursor_location
-            lines = self.text.split("\n")
-            if cur_row < len(lines):
-                line = lines[cur_row]
-                start_col = cur_col
-                while cur_col < len(line) and not line[cur_col].isspace():
-                    cur_col += 1
-                lines[cur_row] = line[:start_col] + line[cur_col:]
-                self.text = "\n".join(lines)
-                self.move_cursor((cur_row, start_col))
-            self.scroll_to(current_scroll[0], current_scroll[1], animate=False)
 
     def action_move_line_end(self) -> None:
         if self.mode == "normal":
@@ -1734,10 +1723,19 @@ class CodeEditor(TextArea):
             current_time = time.time()
             if current_time - self._last_action_time > self._batch_timeout:
                 if self._undo_batch:
-                    self._undo_stack.append(self._undo_batch[-1])
+                    self._undo_state_stack.append({
+                        'text': self._undo_batch[-1],
+                        'cursor': self.cursor_location,
+                        'scroll': self.scroll_offset
+                    })
                     self._undo_batch = []
-                self._undo_stack.append(self.text)
-                self._redo_stack.clear()
+                else:
+                    self._undo_state_stack.append({
+                        'text': self.text,
+                        'cursor': self.cursor_location,
+                        'scroll': self.scroll_offset
+                    })
+                self._redo_state_stack.clear()
             else:
                 self._undo_batch = [self.text]
             self._last_action_time = current_time
@@ -2077,6 +2075,19 @@ class CustomCodeEditor(CodeEditor):
 
     async def action_new_folder(self) -> None:
         await self.app.query_one("NestView").action_new_folder()
+        
+    # Add missing action methods that are referenced in the CodeEditor's on_key method
+    def action_delete_char(self) -> None:
+        # Call the parent class method
+        super().action_delete_char()
+        
+    def action_delete_line(self) -> None:
+        # Call the parent class method
+        super().action_delete_line()
+        
+    def action_delete_to_end(self) -> None:
+        # Call the parent class method
+        super().action_delete_to_end()
 
 
 class ContextMenu(ModalScreen):
