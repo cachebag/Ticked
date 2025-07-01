@@ -35,6 +35,12 @@ class EditorTab:
         self.path = path
         self.content = content
         self.modified = False
+        # Per-buffer undo/redo stacks
+        self.undo_stack = []
+        self.redo_stack = []
+        # Cursor and scroll position for this buffer
+        self.cursor_position = (0, 0)
+        self.scroll_position = (0, 0)
 
 
 class FileCreated(Message):
@@ -145,7 +151,26 @@ class FilterableDirectoryTree(DirectoryTree):
                         ("Copy", "copy"),
                         ("Cut", "cut"),
                     ]
-                menu = ContextMenu(menu_items, 0, 0, path)
+                # Position the menu near the currently selected node when triggered via keyboard
+                tree_region = self.region
+                
+                # Try to position near the selected node if possible
+                try:
+                    if hasattr(self.cursor_node, 'line') and self.cursor_node.line >= 0:
+                        # Calculate approximate position of the selected node
+                        node_y = tree_region.y + (self.cursor_node.line * 2) + 20  # Rough estimate
+                        menu_x = tree_region.x + tree_region.width - 160  # Right side of tree
+                        menu_y = max(tree_region.y + 20, min(node_y, tree_region.y + tree_region.height - 200))
+                    else:
+                        # Fallback to a position near the start of the tree
+                        menu_x = tree_region.x + tree_region.width - 160
+                        menu_y = tree_region.y + 50
+                except Exception:
+                    # Final fallback
+                    menu_x = tree_region.x + tree_region.width - 160
+                    menu_y = tree_region.y + 50
+                
+                menu = ContextMenu(menu_items, menu_x, menu_y, path)
                 self.app.push_screen(menu)
             event.prevent_default()
             event.stop()
@@ -541,14 +566,20 @@ class StatusBar(Static):
         self._update_content()
 
     def _update_content(self) -> None:
-        mode_style = {"NORMAL": "cyan", "INSERT": "green", "COMMAND": "yellow"}
-        color = mode_style.get(self.mode, "white")
+        mode_style = {
+            "NORMAL": "bold blue", 
+            "INSERT": "bold green", 
+            "COMMAND": "bold magenta",
+            "VISUAL": "bold cyan",
+            "VISUAL LINE": "bold cyan"
+        }
+        color = mode_style.get(self.mode, "bold white")
 
         parts = [f"[{color}]{self.mode}[/]"]
         if self.file_info:
             parts.append(escape(self.file_info))
         if self.command:
-            parts.append(f"[yellow]{escape(self.command)}[/]")
+            parts.append(f"[bold yellow]{escape(self.command)}[/]")
 
         text = Text.from_markup(" ".join(parts))
 
@@ -609,11 +640,16 @@ class AutoCompletePopup(DataTable):
             self.move_cursor(row=0, column=0)
 
     def on_key(self, event) -> None:
-        if event.key == "enter" or event.key == "tab":
+        if event.key == "tab":
             if self.cursor_row is not None:
                 value = self.get_cell_at(Coordinate(self.cursor_row, 0))
                 value = value.split(" ", 1)[1] if " " in value else value
                 self.post_message(self.Selected(value))
+            event.prevent_default()
+            event.stop()
+        elif event.key == "enter":
+            # Enter should just hide the popup without selecting
+            self.post_message(self.Selected(""))
             event.prevent_default()
             event.stop()
         elif event.key == "escape":
@@ -642,85 +678,66 @@ class CodeEditor(TextArea):
             self.score = 0
 
     def _get_local_completions(self) -> list:
+        # Cache local completions to avoid expensive regex on every keystroke
+        if not hasattr(self, '_local_completions_cache') or self._text_changed_since_cache:
+            pattern = re.compile(r"[A-Za-z_]\w*")
+            tokens_found = set(pattern.findall(self.text))
+            python_keywords = {
+                "False", "None", "True", "and", "as", "assert", "async", "await",
+                "break", "class", "continue", "def", "del", "elif", "else", "except",
+                "finally", "for", "from", "global", "if", "import", "in", "is",
+                "lambda", "nonlocal", "not", "or", "pass", "raise", "return",
+                "try", "while", "with", "yield",
+            }
+            tokens_found = tokens_found - python_keywords
 
-        pattern = re.compile(r"[A-Za-z_]\w*")
-        tokens_found = set(pattern.findall(self.text))
-        python_keywords = {
-            "False",
-            "None",
-            "True",
-            "and",
-            "as",
-            "assert",
-            "async",
-            "await",
-            "break",
-            "class",
-            "continue",
-            "def",
-            "del",
-            "elif",
-            "else",
-            "except",
-            "finally",
-            "for",
-            "from",
-            "global",
-            "if",
-            "import",
-            "in",
-            "is",
-            "lambda",
-            "nonlocal",
-            "not",
-            "or",
-            "pass",
-            "raise",
-            "return",
-            "try",
-            "while",
-            "with",
-            "yield",
-        }
-        tokens_found = tokens_found - python_keywords
+            self._local_completions_cache = []
+            for tok in sorted(tokens_found):
+                if len(tok) > 1:  # Skip single-letter tokens
+                    self._local_completions_cache.append(CodeEditor._LocalCompletion(tok))
+            
+            self._text_changed_since_cache = False
 
-        local_completions = []
-        for tok in sorted(tokens_found):
-            # We might skip single-letter tokens or do more filtering:
-            # if len(tok) == 1:
-            #     continue
-            local_completions.append(CodeEditor._LocalCompletion(tok))
-
-        return local_completions
+        return self._local_completions_cache
 
     BINDINGS = [
         Binding("ctrl+n", "new_file", "New File", show=True),
-        Binding("tab", "indent", "Indent", show=False),
+        Binding("tab", "indent_or_complete", "Indent/Complete", show=False),
         Binding("shift+tab", "unindent", "Unindent", show=False),
         Binding("ctrl+]", "indent", "Indent", show=False),
         Binding("ctrl+[", "unindent", "Unindent", show=False),
         Binding("ctrl+s", "save_file", "Save File", show=True),
         Binding("escape", "enter_normal_mode", "Enter Normal Mode", show=False),
         Binding("i", "enter_insert_mode", "Enter Insert Mode", show=False),
+        Binding("a", "enter_insert_mode_after", "Insert After", show=False),
+        Binding("A", "enter_insert_mode_end", "Insert at End", show=False),
+        Binding("o", "open_line_below", "Open Line Below", show=False),
+        Binding("O", "open_line_above", "Open Line Above", show=False),
         Binding("h", "move_left", "Move Left", show=False),
         Binding("l", "move_right", "Move Right", show=False),
         Binding("j", "move_down", "Move Down", show=False),
         Binding("k", "move_up", "Move Up", show=False),
         Binding("w", "move_word_forward", "Move Word Forward", show=False),
         Binding("b", "move_word_backward", "Move Word Backward", show=False),
+        Binding("e", "move_word_end", "Move to Word End", show=False),
         Binding("0", "move_line_start", "Move to Line Start", show=False),
+        Binding("^", "move_line_first_char", "Move to First Non-blank", show=False),
         Binding("$", "move_line_end", "Move to Line End", show=False),
+        Binding("g", "vim_g_commands", "G Commands", show=False),
         Binding("shift+left", "focus_tree", "Focus Tree", show=True),
         Binding("u", "undo", "Undo", show=False),
         Binding("ctrl+r", "redo", "Redo", show=False),
-        Binding(":w", "write", "Write", show=False),
-        Binding(":wq", "write_quit", "Write and Quit", show=False),
-        Binding(":q", "quit", "Quit", show=False),
-        Binding(":q!", "force_quit", "Force Quit", show=False),
-        Binding("%d", "clear_editor", "Clear Editor", show=False),
+        Binding("x", "delete_char", "Delete Character", show=False),
+        Binding("d", "vim_delete", "Delete", show=False),
+        Binding("c", "vim_change", "Change", show=False),
+        Binding("y", "vim_yank", "Yank", show=False),
+        Binding("p", "vim_paste", "Paste", show=False),
+        Binding("v", "enter_visual_mode", "Visual Mode", show=False),
+        Binding("shift+v", "enter_visual_line_mode", "Visual Line Mode", show=False),
+        Binding(".", "repeat_last_action", "Repeat", show=False),
+        Binding("ctrl+space", "show_completions", "Show Completions", show=True),
         Binding("ctrl+z", "noop", ""),
         Binding("ctrl+y", "noop", ""),
-        Binding("ctrl+space", "show_completions", "Show Completions", show=True),
     ]
 
     class FileModified(Message):
@@ -739,9 +756,24 @@ class CodeEditor(TextArea):
         self._syntax = None
         self.language = None
         self.highlight_text = None
-        self.mode = "insert"
-        self._undo_stack = []
-        self._redo_stack = []
+        
+        # Vim state
+        self.mode = "normal"
+        self._vim_command = ""
+        self._vim_count = ""
+        self._pending_operator = ""
+        self._visual_start = None
+        self._visual_mode = None  # None, 'char', 'line'
+        self._last_action = None
+        self._registers = {}  # Vim registers
+        
+        # Completion state
+        self._completion_popup = None
+        self._completion_debounce_timer = None
+        self._local_completions_cache = []
+        self._text_changed_since_cache = True
+        
+        # Editor state
         self._last_text = ""
         self._is_undoing = False
         self.command = ""
@@ -751,21 +783,10 @@ class CodeEditor(TextArea):
         self.status_bar.update_mode("NORMAL")
         self.tabs = []
         self.active_tab_index = -1
-        self._last_scroll_position = (0, 0)
-        self._last_cursor_position = (0, 0)
         self.autopairs = {"{": "}", "(": ")", "[": "]", '"': '"', "'": "'"}
-        self._last_action_time = time.time()
-        self._undo_batch = []
-        self._batch_timeout = (
-            0.3  # we can mess around with this for more or less granular state saving
-        )
-        self._completion_popup = None
         self._word_pattern = re.compile(r"[\w\.]")
-        # Store undo/redo state with positions
-        self._undo_state_stack = []
-        self._redo_state_stack = []
 
-        # Add missing definition for _builtins
+        # Built-in completions (cached)
         self._builtins = {
             "print": ("function", "Print objects to the text stream"),
             "len": ("function", "Return the length of an object"),
@@ -776,10 +797,24 @@ class CodeEditor(TextArea):
             "range": ("function", "Create a sequence of numbers"),
             "open": ("function", "Open a file"),
             "type": ("function", "Return the type of an object"),
-            # Add more builtins as needed
+            "input": ("function", "Read a string from standard input"),
+            "float": ("function", "Convert a number or string to a float"),
+            "bool": ("function", "Convert a value to a Boolean"),
+            "set": ("function", "Create a new set"),
+            "tuple": ("function", "Create a new tuple"),
+            "enumerate": ("function", "Return an enumerate object"),
+            "zip": ("function", "Aggregate elements from iterables"),
+            "max": ("function", "Return the largest item"),
+            "min": ("function", "Return the smallest item"),
+            "sum": ("function", "Sum values in an iterable"),
+            "sorted": ("function", "Return a sorted list"),
+            "reversed": ("function", "Return a reverse iterator"),
+            "any": ("function", "Return True if any element is true"),
+            "all": ("function", "Return True if all elements are true"),
+            "map": ("function", "Apply function to every item"),
+            "filter": ("function", "Filter elements from iterable"),
         }
 
-        # Add missing definition for _common_patterns
         self._common_patterns = {
             "if ": ("keyword", "Start an if statement"),
             "for ": ("keyword", "Start a for loop"),
@@ -791,9 +826,13 @@ class CodeEditor(TextArea):
             "return ": ("keyword", "Return from a function"),
             "try": ("keyword", "Start a try-except block"),
             "with ": ("keyword", "Context manager statement"),
+            "elif ": ("keyword", "Else if condition"),
+            "except ": ("keyword", "Exception handler"),
+            "finally": ("keyword", "Finally block"),
+            "async def ": ("keyword", "Define async function"),
+            "await ": ("keyword", "Await async operation"),
         }
 
-        # Add missing definition for _common_imports
         self._common_imports = {
             "os": "Operating system interface",
             "sys": "System-specific parameters and functions",
@@ -805,6 +844,13 @@ class CodeEditor(TextArea):
             "typing": "Support for type hints",
             "collections": "Container datatypes",
             "re": "Regular expression operations",
+            "itertools": "Functions creating iterators",
+            "functools": "Higher-order functions and operations",
+            "subprocess": "Subprocess management",
+            "urllib": "URL handling modules",
+            "requests": "HTTP library",
+            "pandas": "Data analysis library",
+            "numpy": "Numerical computing",
         }
 
     def _save_positions(self) -> None:
@@ -814,11 +860,6 @@ class CodeEditor(TextArea):
     def _restore_positions(self) -> None:
         self.scroll_to(self._last_scroll_position[0], self._last_scroll_position[1])
         self.move_cursor(self._last_cursor_position)
-
-    """def on_focus(self) -> None:
-        current_scroll = self.scroll_offset
-        super().on_focus()
-        self.scroll_to(current_scroll[0], current_scroll[1], animate=False)"""
 
     def compose(self) -> ComposeResult:
         yield self.status_bar
@@ -832,15 +873,253 @@ class CodeEditor(TextArea):
         if self.tabs:
             file_info.append(f"[{self.active_tab_index + 1}/{len(self.tabs)}]")
         if self.current_file:
-            file_info.append(os.path.basename(self.current_file))
+            file_info.append(os.path.basename(str(self.current_file)))
         if self._modified:
-            file_info.append("[red][+][/]")
+            file_info.append("[bold red][+][/]")
         if self.text:
             lines = len(self.text.split("\n"))
             chars = len(self.text)
             file_info.append(f"{lines}L, {chars}B")
 
+        # Show vim command if any
+        command_info = ""
+        if self._vim_count:
+            command_info += self._vim_count
+        if self._pending_operator:
+            command_info += self._pending_operator
+        if self._vim_command:
+            command_info += self._vim_command
+        
+        if command_info:
+            file_info.append(f"[bold cyan]{command_info}[/]")
+
         self.status_bar.update_file_info(" ".join(file_info))
+
+    def _get_current_undo_stack(self) -> list:
+        """Get the undo stack for the current buffer."""
+        if self.tabs and self.active_tab_index >= 0:
+            return self.tabs[self.active_tab_index].undo_stack
+        return []
+    
+    def _get_current_redo_stack(self) -> list:
+        """Get the redo stack for the current buffer."""
+        if self.tabs and self.active_tab_index >= 0:
+            return self.tabs[self.active_tab_index].redo_stack
+        return []
+    
+    def _save_buffer_state(self) -> None:
+        """Save current cursor and scroll position to the active buffer."""
+        if self.tabs and self.active_tab_index >= 0:
+            tab = self.tabs[self.active_tab_index]
+            tab.cursor_position = self.cursor_location
+            tab.scroll_position = self.scroll_offset
+            tab.content = self.text
+            tab.modified = self._modified
+    
+    def _restore_buffer_state(self) -> None:
+        """Restore cursor and scroll position from the active buffer."""
+        if self.tabs and self.active_tab_index >= 0:
+            tab = self.tabs[self.active_tab_index]
+            self.move_cursor(tab.cursor_position)
+            self.scroll_to(tab.scroll_position[0], tab.scroll_position[1], animate=False)
+
+    def _save_undo_state(self, text: str = None) -> None:
+        """Save state to undo stack of the current buffer."""
+        if not self._is_undoing and self.tabs and self.active_tab_index >= 0:
+            tab = self.tabs[self.active_tab_index]
+            
+            # Use provided text or current text
+            state_text = text if text is not None else self.text
+            
+            # Don't save if this is the same as the last undo state
+            if tab.undo_stack and tab.undo_stack[-1]["text"] == state_text:
+                return
+            
+            # Create undo state
+            undo_state = {
+                "text": state_text,
+                "cursor": self.cursor_location,
+                "scroll": self.scroll_offset,
+            }
+            
+            # Add to this buffer's undo stack
+            tab.undo_stack.append(undo_state)
+            
+            # Limit undo stack size to prevent memory issues
+            if len(tab.undo_stack) > 100:
+                tab.undo_stack.pop(0)
+            
+            # Clear redo stack when new change is made
+            tab.redo_stack.clear()
+
+    def _move_cursor_preserve_scroll(self, position: tuple[int, int]) -> None:
+        """Move cursor while preserving scroll position to prevent viewport jumps."""
+        current_scroll = self.scroll_offset
+        self.move_cursor(position)
+        # Always restore scroll position to prevent viewport jumping
+        self.scroll_to(current_scroll[0], current_scroll[1], animate=False)
+
+    def _trigger_completions(self) -> None:
+        """Trigger completion popup if appropriate."""
+        try:
+            current_word, _ = self._get_current_word()
+            
+            # Get completions
+            completions = self._get_completions()
+            
+            if completions:
+                # Show popup
+                if not self._completion_popup:
+                    row, col = self.cursor_location
+                    popup = AutoCompletePopup()
+                    popup.populate(completions)
+                    popup.styles.offset = (col, row + 1)
+                    self._completion_popup = popup
+                    self.mount(popup)
+                else:
+                    self._completion_popup.populate(completions)
+            else:
+                # Hide popup if no completions
+                if self._completion_popup:
+                    self.hide_completions()
+        except Exception as e:
+            self.notify(f"Completion error: {str(e)}", severity="error", timeout=2)
+
+    def _debounced_completion_update(self) -> None:
+        """Update completions immediately - removed debouncing as it was causing issues."""
+        if self.mode == "insert" and self._completion_popup:
+            completions = self._get_completions()
+            if completions:
+                self._completion_popup.populate(completions)
+            else:
+                self.hide_completions()
+
+    def _vim_execute_motion(self, motion: str, count: int = 1) -> tuple[int, int]:
+        """Execute a vim motion and return the new cursor position."""
+        current_row, current_col = self.cursor_location
+        lines = self.text.split("\n")
+        
+        for _ in range(count):
+            if motion == "h":
+                if current_col > 0:
+                    current_col -= 1
+            elif motion == "l":
+                if current_row < len(lines) and current_col < len(lines[current_row]):
+                    current_col += 1
+            elif motion == "j":
+                if current_row < len(lines) - 1:
+                    current_row += 1
+                    current_col = min(current_col, len(lines[current_row]))
+            elif motion == "k":
+                if current_row > 0:
+                    current_row -= 1
+                    current_col = min(current_col, len(lines[current_row]))
+            elif motion == "w":
+                # Move to start of next word
+                if current_row < len(lines):
+                    line = lines[current_row]
+                    while current_col < len(line) and not line[current_col].isalnum() and line[current_col] != "_":
+                        current_col += 1
+                    while current_col < len(line) and (line[current_col].isalnum() or line[current_col] == "_"):
+                        current_col += 1
+                    if current_col >= len(line) and current_row < len(lines) - 1:
+                        current_row += 1
+                        current_col = 0
+            elif motion == "b":
+                # Move to start of previous word
+                if current_col > 0:
+                    current_col -= 1
+                    line = lines[current_row]
+                    while current_col > 0 and not (line[current_col].isalnum() or line[current_col] == "_"):
+                        current_col -= 1
+                    while current_col > 0 and (line[current_col - 1].isalnum() or line[current_col - 1] == "_"):
+                        current_col -= 1
+                elif current_row > 0:
+                    current_row -= 1
+                    current_col = len(lines[current_row])
+            elif motion == "e":
+                # Move to end of current/next word
+                if current_row < len(lines):
+                    line = lines[current_row]
+                    if current_col < len(line) and (line[current_col].isalnum() or line[current_col] == "_"):
+                        while current_col < len(line) - 1 and (line[current_col + 1].isalnum() or line[current_col + 1] == "_"):
+                            current_col += 1
+                    else:
+                        while current_col < len(line) and not (line[current_col].isalnum() or line[current_col] == "_"):
+                            current_col += 1
+                        while current_col < len(line) - 1 and (line[current_col + 1].isalnum() or line[current_col + 1] == "_"):
+                            current_col += 1
+            elif motion == "0":
+                current_col = 0
+            elif motion == "^":
+                line = lines[current_row] if current_row < len(lines) else ""
+                current_col = 0
+                while current_col < len(line) and line[current_col].isspace():
+                    current_col += 1
+            elif motion == "$":
+                if current_row < len(lines):
+                    current_col = len(lines[current_row])
+            elif motion == "gg":
+                current_row = 0
+                current_col = 0
+            elif motion == "G":
+                current_row = len(lines) - 1
+                current_col = 0
+                
+        return current_row, current_col
+
+    def _vim_get_text_range(self, start_pos: tuple[int, int], end_pos: tuple[int, int]) -> str:
+        """Get text between two positions."""
+        start_row, start_col = start_pos
+        end_row, end_col = end_pos
+        
+        if start_row == end_row:
+            line = self.text.split("\n")[start_row]
+            return line[start_col:end_col]
+        
+        lines = self.text.split("\n")
+        result = []
+        
+        # First line
+        result.append(lines[start_row][start_col:])
+        
+        # Middle lines
+        for row in range(start_row + 1, end_row):
+            result.append(lines[row])
+        
+        # Last line
+        if end_row < len(lines):
+            result.append(lines[end_row][:end_col])
+        
+        return "\n".join(result)
+
+    def _vim_delete_range(self, start_pos: tuple[int, int], end_pos: tuple[int, int]) -> str:
+        """Delete text between two positions and return the deleted text."""
+        # Save current scroll position
+        current_scroll = self.scroll_offset
+        
+        deleted_text = self._vim_get_text_range(start_pos, end_pos)
+        
+        start_row, start_col = start_pos
+        end_row, end_col = end_pos
+        
+        lines = self.text.split("\n")
+        
+        if start_row == end_row:
+            lines[start_row] = lines[start_row][:start_col] + lines[start_row][end_col:]
+        else:
+            # Combine first and last line
+            lines[start_row] = lines[start_row][:start_col] + (lines[end_row][end_col:] if end_row < len(lines) else "")
+            # Remove lines in between
+            for _ in range(end_row - start_row):
+                if start_row + 1 < len(lines):
+                    lines.pop(start_row + 1)
+        
+        self.text = "\n".join(lines)
+        self.move_cursor(start_pos)
+        # Restore scroll position to keep viewport stable
+        self.scroll_to(current_scroll[0], current_scroll[1], animate=False)
+        return deleted_text
 
     def get_current_indent(self) -> str:
         lines = self.text.split("\n")
@@ -901,7 +1180,7 @@ class CodeEditor(TextArea):
             if prev_char in bracket_pairs and next_char == bracket_pairs[prev_char]:
                 indent_level = current_indent + " " * self.tab_size
                 self.insert(f"\n{indent_level}\n{current_indent}")
-                self.move_cursor((self.cursor_location[0] - 1, len(indent_level)))
+                self._move_cursor_preserve_scroll((self.cursor_location[0] - 1, len(indent_level)))
                 return
 
         if not current_indent and not self.text:
@@ -938,13 +1217,11 @@ class CodeEditor(TextArea):
                     cur_col < len(current_line)
                     and current_line[cur_col] == self.autopairs[prev_char]
                 ):
-                    current_scroll = self.scroll_offset
                     lines[cur_row] = (
                         current_line[: cur_col - 1] + current_line[cur_col + 1 :]
                     )
                     self.text = "\n".join(lines)
-                    self.move_cursor((cur_row, cur_col - 1))
-                    self.scroll_to(current_scroll[0], current_scroll[1], animate=False)
+                    self._move_cursor_preserve_scroll((cur_row, cur_col - 1))
                     return
 
         if cur_col == 0 and cur_row > 0:
@@ -960,215 +1237,652 @@ class CodeEditor(TextArea):
             self.action_delete_left()
 
     def on_key(self, event) -> None:
-        if event.key == "tab" and self.mode == "insert":
-            if self._completion_popup and self._completion_popup.row_count > 0:
-                selected_row = self._completion_popup.cursor_row or 0
-                value = self._completion_popup.get_cell_at(Coordinate(selected_row, 0))
-                value = value.split(" ", 1)[1] if " " in value else value
+        # Handle completion popup navigation first
+        if self._completion_popup and event.key in ["up", "down", "tab", "enter", "escape"]:
+            if event.key == "tab":
+                # Only tab selects completion - enter just closes popup
+                if self._completion_popup.row_count > 0:
+                    selected_row = self._completion_popup.cursor_row or 0
+                    value = self._completion_popup.get_cell_at(Coordinate(selected_row, 0))
+                    value = value.split(" ", 1)[1] if " " in value else value
 
-                current_scroll = self.scroll_offset
-
-                lines = self.text.split("\n")
-                row, col = self.cursor_location
-                current_word, word_start = self._get_current_word()
-                line = lines[row]
-                lines[row] = line[:word_start] + value + line[col:]
-                self.text = "\n".join(lines)
-                self.move_cursor((row, word_start + len(value)))
-
-                self.scroll_to(current_scroll[0], current_scroll[1], animate=False)
-
+                    lines = self.text.split("\n")
+                    row, col = self.cursor_location
+                    current_word, word_start = self._get_current_word()
+                    line = lines[row]
+                    lines[row] = line[:word_start] + value + line[col:]
+                    self.text = "\n".join(lines)
+                    self._move_cursor_preserve_scroll((row, word_start + len(value)))
                 self.hide_completions()
                 event.prevent_default()
                 event.stop()
-                return
-            else:
-                self.action_indent()
-                event.prevent_default()
-                event.stop()
-                return
-
-        if (
-            self.mode == "insert"
-            and self._completion_popup
-            and event.key in ["up", "down"]
-        ):
-            self._completion_popup.focus()
-            event.prevent_default()
-            event.stop()
-            return
-
-        if (
-            self.mode == "insert"
-            and self._completion_popup
-            and event.key in ["left", "right"]
-        ):
-            self.hide_completions()
-
-        if self._completion_popup:
-            if event.key == "escape":
-                self.hide_completions()
-                if self.mode == "insert":
-                    event.prevent_default()
-                    event.stop()
                 return
             elif event.key == "enter":
+                # Enter just closes the popup without selecting
+                self.hide_completions()
+                # Let the enter key continue to normal handling
+            elif event.key == "escape":
+                self.hide_completions()
+                if self.mode != "normal":
+                    return
+            elif event.key in ["up", "down"]:
+                self._completion_popup.focus()
+                event.prevent_default()
+                event.stop()
                 return
 
-        if (
-            self.mode == "insert"
-            and event.is_printable
-            and self._word_pattern.match(event.character)
-        ):
-            if self._completion_popup:
-                completions = self._get_completions()
-                if completions:
-                    self._completion_popup.populate(completions)
-                else:
-                    self.hide_completions()
-            else:
-                completions = self._get_completions()
-                if completions:
-                    row, col = self.cursor_location
-                    popup = AutoCompletePopup()
-                    popup.populate(completions)
-                    popup.styles.offset = (col, row + 1)
-                    self._completion_popup = popup
-                    self.mount(popup)
-
-        elif (
-            self.mode == "insert"
-            and event.is_printable
-            and not self._word_pattern.match(event.character)
-        ):
-            self.hide_completions()
-
+        # Command mode handling
         if self.in_command_mode:
             if event.key == "enter":
                 self.execute_command()
                 self.in_command_mode = False
                 self.command = ""
-                self.refresh()
-                event.prevent_default()
-                event.stop()
+                self.status_bar.update_mode(self.mode.upper())
+                self.status_bar.update_command("")
             elif event.key == "escape":
                 self.in_command_mode = False
                 self.command = ""
-                self.refresh()
-                event.prevent_default()
-                event.stop()
+                self.status_bar.update_mode(self.mode.upper())
+                self.status_bar.update_command("")
+            elif event.key == "backspace":
+                if len(self.command) > 1:
+                    self.command = self.command[:-1]
+                else:
+                    self.in_command_mode = False
+                    self.command = ""
+                self.status_bar.update_command(self.command)
             elif event.is_printable:
                 self.command += event.character
-                self.refresh()
-                event.prevent_default()
-                event.stop()
-            elif event.key == "backspace":
-                self._save_undo_state()
-                self.handle_backspace()
-                self._modified = True
-                self.post_message(self.FileModified(True))
-                event.prevent_default()
-                event.stop()
-            self.status_bar.update_mode("COMMAND")
-            self.status_bar.update_command(self.command)
-        else:
-            if self.mode == "insert":
-                if event.key == "enter":
-                    self.cursor_type = "line"
-                    self._save_undo_state()
-                    self.handle_indent()
-                    self._modified = True
-                    self.post_message(self.FileModified(True))
-                    event.prevent_default()
-                    event.stop()
-                elif event.is_printable:
-                    self.cursor_type = "line"
-                    self._save_undo_state()
-                    if event.character in self.autopairs:
-                        cur_pos = self.cursor_location
-                        self.insert(event.character + self.autopairs[event.character])
-                        self.move_cursor((cur_pos[0], cur_pos[1] + 1))
+                self.status_bar.update_command(self.command)
+            event.prevent_default()
+            event.stop()
+            return
 
-                    else:
-                        self.insert(event.character)
-                    self._modified = True
-                    self.post_message(self.FileModified(True))
+        # Mode-specific handling
+        if self.mode == "insert":
+            self._handle_insert_mode(event)
+        elif self.mode == "normal":
+            self._handle_normal_mode(event)
+        elif self.mode == "visual":
+            self._handle_visual_mode(event)
+
+    def _handle_insert_mode(self, event) -> None:
+        if event.key == "escape":
+            self.action_enter_normal_mode()
+            event.prevent_default()
+            event.stop()
+        elif event.key == "enter":
+            self._save_undo_state(self.text)  # Save state before change
+            self.handle_indent()
+            self._modified = True
+            self.post_message(self.FileModified(True))
+            event.prevent_default()
+            event.stop()
+        elif event.key == "tab":
+            # If we get here, there's no completion popup visible, so do normal indentation
+            self._save_undo_state(self.text)  # Save state before change
+            self.action_indent()
+            event.prevent_default()
+            event.stop()
+        elif event.key == "backspace":
+            self._save_undo_state(self.text)  # Save state before change
+            self.handle_backspace()
+            self._modified = True
+            self.post_message(self.FileModified(True))
+            event.prevent_default()
+            event.stop()
+        elif event.is_printable:
+            self._save_undo_state(self.text)  # Save state before change
+            
+            # Handle autopairs
+            if event.character in self.autopairs:
+                cur_pos = self.cursor_location
+                self.insert(event.character + self.autopairs[event.character])
+                self._move_cursor_preserve_scroll((cur_pos[0], cur_pos[1] + 1))
+            else:
+                self.insert(event.character)
+            
+            self._modified = True
+            self._text_changed_since_cache = True
+            self.post_message(self.FileModified(True))
+            
+            # Always trigger completion check when typing
+            self._trigger_completions()
+            
+            event.prevent_default()
+            event.stop()
+
+    def _handle_normal_mode(self, event) -> None:
+        char = event.character if event.is_printable else event.key
+
+        # Handle number prefixes for counts
+        if char.isdigit() and (self._vim_count or char != "0"):
+            self._vim_count += char
+            self._update_status_info()
+            event.prevent_default()
+            event.stop()
+            return
+
+        count = int(self._vim_count) if self._vim_count else 1
+
+        # Handle operators
+        if self._pending_operator:
+            if char in ["d", "c", "y"]:  # dd, cc, yy
+                if char == self._pending_operator:
+                    self._vim_execute_operator_line(self._pending_operator, count)
+                    self._clear_vim_state()
                     event.prevent_default()
                     event.stop()
-                elif event.key == "backspace":
-                    self._save_undo_state()
-                    self.handle_backspace()
-                    self._modified = True
-                    self.post_message(self.FileModified(True))
-                    event.prevent_default()
-                    event.stop()
-                elif event.key in ["left", "right", "up", "down"]:
                     return
-            elif self.mode == "normal":
-                if event.key == "backspace":
-                    self._save_undo_state()
-                    self.handle_backspace()
-                    self._modified = True
-                    self.post_message(self.FileModified(True))
+            else:
+                # Motion after operator
+                if self._vim_execute_operator_motion(self._pending_operator, char, count):
+                    self._clear_vim_state()
                     event.prevent_default()
                     event.stop()
-                elif event.key == "u":
-                    self.action_undo()
-                    event.prevent_default()
-                    event.stop()
-                elif event.key == "ctrl+r":
-                    self.action_redo()
-                    event.prevent_default()
-                    event.stop()
-                motion_map = {
-                    "h": self.action_move_left,
-                    "l": self.action_move_right,
-                    "j": self.action_move_down,
-                    "k": self.action_move_up,
-                    "w": self.action_move_word_forward,
-                    "b": self.action_move_word_backward,
-                    "0": self.action_move_line_start,
-                    "$": self.action_move_line_end,
-                    "x": self.action_delete_char,
-                    "dd": self.action_delete_line,
-                    "de": self.action_delete_to_end,
-                }
-
-                if self.pending_command and event.character:
-                    combined_command = self.pending_command + event.character
-                    if combined_command in motion_map:
-                        motion_map[combined_command]()
-                        self.pending_command = ""
-                    else:
-                        self.pending_command = ""
-                    event.prevent_default()
-                    event.stop()
-                elif event.character == "d":
-                    self.pending_command = "d"
-                    event.prevent_default()
-                    event.stop()
-                elif event.character in motion_map:
-                    motion_map[event.character]()
-                    event.prevent_default()
-                    event.stop()
-                elif event.character == "i":
-                    self.mode = "insert"
-                    self.status_bar.update_mode("INSERT")
-                    self.cursor_blink = True
-                    event.prevent_default()
-                    event.stop()
-                elif event.character == ":":
-                    self.in_command_mode = True
-                    self.command = ":"
-                    self.refresh()
-                    event.prevent_default()
-                    event.stop()
-                elif event.key in ["left", "right", "up", "down"]:
                     return
                 else:
-                    if event.is_printable:
-                        event.prevent_default()
-                        event.stop()
+                    self._clear_vim_state()
+
+        # Basic motions
+        elif char in ["h", "j", "k", "l", "w", "b", "e", "0", "^", "$"]:
+            new_pos = self._vim_execute_motion(char, count)
+            self._move_cursor_preserve_scroll(new_pos)
+            self._clear_vim_state()
+            event.prevent_default()
+            event.stop()
+        
+        # Special motions
+        elif char == "g":
+            if self._vim_command == "g":
+                # gg - go to top (preserve scroll unless explicitly going to top)
+                if count == 1:
+                    # Normal gg - go to top and reset scroll to show beginning
+                    self.move_cursor((0, 0))
+                    self.scroll_to(0, 0, animate=False)
+                else:
+                    # Line number - preserve scroll position
+                    line_num = min(count - 1, len(self.text.split("\n")) - 1)
+                    self._move_cursor_preserve_scroll((line_num, 0))
+                self._clear_vim_state()
+            else:
+                self._vim_command = "g"
+                self._update_status_info()
+            event.prevent_default()
+            event.stop()
+            
+        elif char == "G":
+            lines = self.text.split("\n")
+            if self._vim_count:
+                line_num = min(count - 1, len(lines) - 1)
+                self._move_cursor_preserve_scroll((line_num, 0))
+            else:
+                # Go to end - show end of file
+                self.move_cursor((len(lines) - 1, 0))
+                # Scroll to show the end
+                self.scroll_to(max(0, len(lines) - 20), 0, animate=False)
+            self._clear_vim_state()
+            event.prevent_default()
+            event.stop()
+
+        # Insert mode entries
+        elif char == "i":
+            self.action_enter_insert_mode()
+            self._clear_vim_state()
+            event.prevent_default()
+            event.stop()
+        elif char == "a":
+            self.action_enter_insert_mode_after()
+            self._clear_vim_state()
+            event.prevent_default()
+            event.stop()
+        elif char == "A":
+            self.action_enter_insert_mode_end()
+            self._clear_vim_state()
+            event.prevent_default()
+            event.stop()
+        elif char == "o":
+            self.action_open_line_below()
+            self._clear_vim_state()
+            event.prevent_default()
+            event.stop()
+        elif char == "O":
+            self.action_open_line_above()
+            self._clear_vim_state()
+            event.prevent_default()
+            event.stop()
+
+        # Operators
+        elif char in ["d", "c", "y"]:
+            self._pending_operator = char
+            self._update_status_info()
+            event.prevent_default()
+            event.stop()
+
+        # Simple actions
+        elif char == "x":
+            self._vim_delete_char(count)
+            self._clear_vim_state()
+            event.prevent_default()
+            event.stop()
+        elif char == "p":
+            self._vim_paste_after()
+            self._clear_vim_state()
+            event.prevent_default()
+            event.stop()
+        elif char == "P":
+            self._vim_paste_before()
+            self._clear_vim_state()
+            event.prevent_default()
+            event.stop()
+
+        # Visual mode
+        elif char == "v":
+            self.action_enter_visual_mode()
+            self._clear_vim_state()
+            event.prevent_default()
+            event.stop()
+        elif char == "V":
+            self.action_enter_visual_line_mode()
+            self._clear_vim_state()
+            event.prevent_default()
+            event.stop()
+
+        # Other commands
+        elif char == "u":
+            self.action_undo()
+            self._clear_vim_state()
+            event.prevent_default()
+            event.stop()
+        elif event.key == "ctrl+r":
+            self.action_redo()
+            self._clear_vim_state()
+            event.prevent_default()
+            event.stop()
+        elif char == ".":
+            self._vim_repeat_last_action()
+            self._clear_vim_state()
+            event.prevent_default()
+            event.stop()
+        elif char == ":":
+            self.in_command_mode = True
+            self.command = ":"
+            self.status_bar.update_mode("COMMAND")
+            self.status_bar.update_command(self.command)
+            self._clear_vim_state()
+            event.prevent_default()
+            event.stop()
+        elif event.key == "ctrl+space":
+            self.action_show_completions()
+            self._clear_vim_state()
+            event.prevent_default()
+            event.stop()
+        else:
+            self._clear_vim_state()
+
+    def _handle_visual_mode(self, event) -> None:
+        char = event.character if event.is_printable else event.key
+        count = int(self._vim_count) if self._vim_count else 1
+
+        # Handle number prefixes for counts in visual mode
+        if char and char.isdigit() and (self._vim_count or char != "0"):
+            self._vim_count += char
+            self._update_status_info()
+            event.prevent_default()
+            event.stop()
+            return
+
+        if char == "escape" or event.key == "escape":
+            self.action_enter_normal_mode()
+            event.prevent_default()
+            event.stop()
+        elif char in ["d", "x"]:
+            try:
+                self._vim_visual_delete()
+                self.action_enter_normal_mode()
+            except Exception as e:
+                self.notify(f"Delete error: {str(e)}", severity="error")
+                self.action_enter_normal_mode()
+            event.prevent_default()
+            event.stop()
+        elif char == "y":
+            try:
+                self._vim_visual_yank()
+                self.action_enter_normal_mode()
+            except Exception as e:
+                self.notify(f"Yank error: {str(e)}", severity="error")
+                self.action_enter_normal_mode()
+            event.prevent_default()
+            event.stop()
+        elif char == "c":
+            try:
+                self._vim_visual_change()
+            except Exception as e:
+                self.notify(f"Change error: {str(e)}", severity="error")
+                self.action_enter_normal_mode()
+            event.prevent_default()
+            event.stop()
+        elif char in ["h", "j", "k", "l", "w", "b", "e", "0", "^", "$"]:
+            try:
+                new_pos = self._vim_execute_motion(char, count)
+                self._move_cursor_preserve_scroll(new_pos)
+                self._update_visual_selection()
+                self._clear_vim_state()  # Clear count after motion
+            except Exception as e:
+                self.notify(f"Motion error: {str(e)}", severity="error")
+                self.action_enter_normal_mode()
+            event.prevent_default()
+            event.stop()
+        else:
+            # For unhandled keys, clear the count and ignore
+            self._vim_count = ""
+            self._update_status_info()
+            event.prevent_default()
+            event.stop()
+
+    def _clear_vim_state(self) -> None:
+        self._vim_count = ""
+        self._vim_command = ""
+        self._pending_operator = ""
+        self._update_status_info()
+
+    # Vim action methods
+    def action_enter_insert_mode_after(self) -> None:
+        """Enter insert mode after cursor (a command)."""
+        row, col = self.cursor_location
+        lines = self.text.split("\n")
+        if row < len(lines) and col < len(lines[row]):
+            self._move_cursor_preserve_scroll((row, col + 1))
+        self.action_enter_insert_mode()
+
+    def action_enter_insert_mode_end(self) -> None:
+        """Enter insert mode at end of line (A command)."""
+        row, col = self.cursor_location
+        lines = self.text.split("\n")
+        if row < len(lines):
+            self._move_cursor_preserve_scroll((row, len(lines[row])))
+        self.action_enter_insert_mode()
+
+    def action_open_line_below(self) -> None:
+        """Open new line below cursor (o command)."""
+        # Save undo state before making changes
+        self._save_undo_state(self.text)
+        
+        row, col = self.cursor_location
+        lines = self.text.split("\n")
+        indent = self.get_current_indent()
+        lines.insert(row + 1, indent)
+        self.text = "\n".join(lines)
+        self._move_cursor_preserve_scroll((row + 1, len(indent)))
+        self.action_enter_insert_mode()
+
+    def action_open_line_above(self) -> None:
+        """Open new line above cursor (O command)."""
+        # Save undo state before making changes
+        self._save_undo_state(self.text)
+        
+        row, col = self.cursor_location
+        lines = self.text.split("\n")
+        indent = self.get_current_indent()
+        lines.insert(row, indent)
+        self.text = "\n".join(lines)
+        self._move_cursor_preserve_scroll((row, len(indent)))
+        self.action_enter_insert_mode()
+
+    def action_enter_visual_mode(self) -> None:
+        """Enter visual character mode."""
+        self.mode = "visual"
+        self._visual_start = self.cursor_location
+        self._visual_mode = "char"
+        self.status_bar.update_mode("VISUAL")
+
+    def action_enter_visual_line_mode(self) -> None:
+        """Enter visual line mode."""
+        self.mode = "visual"  # Use same mode as regular visual
+        self._visual_start = self.cursor_location
+        self._visual_mode = "line"
+        self.status_bar.update_mode("VISUAL LINE")
+
+    def _update_visual_selection(self) -> None:
+        """Update visual selection highlighting."""
+        # This would need to be implemented with textual's highlighting system
+        pass
+
+    def _vim_execute_operator_line(self, operator: str, count: int) -> None:
+        """Execute operator on whole lines (dd, cc, yy)."""
+        # Save undo state before making changes
+        if operator in ["d", "c"]:  # Only for destructive operations
+            self._save_undo_state(self.text)
+        
+        # Save current scroll position
+        current_scroll = self.scroll_offset
+        row, col = self.cursor_location
+        lines = self.text.split("\n")
+        
+        start_row = row
+        end_row = min(row + count, len(lines))
+        
+        # Get text to operate on
+        deleted_lines = lines[start_row:end_row]
+        deleted_text = "\n".join(deleted_lines)
+        
+        if operator == "d":  # Delete lines
+            self._registers["\""] = deleted_text + "\n"
+            for _ in range(count):
+                if start_row < len(lines):
+                    lines.pop(start_row)
+            if start_row >= len(lines) and lines:
+                start_row = len(lines) - 1
+            self.text = "\n".join(lines)
+            self.move_cursor((start_row, 0))
+            # Restore scroll position to keep viewport stable
+            self.scroll_to(current_scroll[0], current_scroll[1], animate=False)
+            
+        elif operator == "y":  # Yank lines
+            self._registers["\""] = deleted_text + "\n"
+            # Keep cursor and scroll position for yank
+            
+        elif operator == "c":  # Change lines
+            self._registers["\""] = deleted_text + "\n"
+            indent = self.get_current_indent()
+            for _ in range(count):
+                if start_row < len(lines):
+                    lines.pop(start_row)
+            lines.insert(start_row, indent)
+            self.text = "\n".join(lines)
+            self.move_cursor((start_row, len(indent)))
+            # Restore scroll position before entering insert mode
+            self.scroll_to(current_scroll[0], current_scroll[1], animate=False)
+            self.action_enter_insert_mode()
+
+        self._last_action = ("operator_line", operator, count)
+
+    def _vim_execute_operator_motion(self, operator: str, motion: str, count: int) -> bool:
+        """Execute operator with motion (dw, c$, etc)."""
+        # Save undo state before making changes
+        if operator in ["d", "c"]:  # Only for destructive operations
+            self._save_undo_state(self.text)
+        
+        start_pos = self.cursor_location
+        end_pos = self._vim_execute_motion(motion, count)
+        
+        if start_pos == end_pos:
+            return False
+        
+        # Ensure start is before end
+        if start_pos > end_pos:
+            start_pos, end_pos = end_pos, start_pos
+        
+        if operator == "d":  # Delete
+            deleted_text = self._vim_delete_range(start_pos, end_pos)
+            self._registers["\""] = deleted_text
+            
+        elif operator == "y":  # Yank
+            yanked_text = self._vim_get_text_range(start_pos, end_pos)
+            self._registers["\""] = yanked_text
+            
+        elif operator == "c":  # Change
+            deleted_text = self._vim_delete_range(start_pos, end_pos)
+            self._registers["\""] = deleted_text
+            self.action_enter_insert_mode()
+
+        self._last_action = ("operator_motion", operator, motion, count)
+        return True
+
+    def _vim_delete_char(self, count: int) -> None:
+        """Delete character(s) under cursor (x command)."""
+        # Save undo state before making changes
+        self._save_undo_state(self.text)
+        
+        # Save current scroll position
+        current_scroll = self.scroll_offset
+        
+        row, col = self.cursor_location
+        lines = self.text.split("\n")
+        
+        if row < len(lines):
+            line = lines[row]
+            end_col = min(col + count, len(line))
+            deleted = line[col:end_col]
+            lines[row] = line[:col] + line[end_col:]
+            self.text = "\n".join(lines)
+            self._registers["\""] = deleted
+            # Restore scroll position to keep viewport stable
+            self.scroll_to(current_scroll[0], current_scroll[1], animate=False)
+
+        self._last_action = ("delete_char", count)
+
+    def _vim_paste_after(self) -> None:
+        """Paste after cursor (p command)."""
+        if "\"" not in self._registers:
+            return
+        
+        # Save undo state before making changes
+        self._save_undo_state(self.text)
+            
+        text_to_paste = self._registers["\""]
+        row, col = self.cursor_location
+        
+        if text_to_paste.endswith("\n"):  # Line paste
+            lines = self.text.split("\n")
+            paste_lines = text_to_paste.rstrip("\n").split("\n")
+            for i, line in enumerate(paste_lines):
+                lines.insert(row + 1 + i, line)
+            self.text = "\n".join(lines)
+            self.move_cursor((row + 1, 0))
+        else:  # Character paste
+            lines = self.text.split("\n")
+            if row < len(lines):
+                line = lines[row]
+                insert_pos = min(col + 1, len(line))
+                lines[row] = line[:insert_pos] + text_to_paste + line[insert_pos:]
+                self.text = "\n".join(lines)
+                self.move_cursor((row, insert_pos + len(text_to_paste) - 1))
+
+    def _vim_paste_before(self) -> None:
+        """Paste before cursor (P command)."""
+        if "\"" not in self._registers:
+            return
+        
+        # Save undo state before making changes
+        self._save_undo_state(self.text)
+            
+        text_to_paste = self._registers["\""]
+        row, col = self.cursor_location
+        
+        if text_to_paste.endswith("\n"):  # Line paste
+            lines = self.text.split("\n")
+            paste_lines = text_to_paste.rstrip("\n").split("\n")
+            for i, line in enumerate(paste_lines):
+                lines.insert(row + i, line)
+            self.text = "\n".join(lines)
+            self.move_cursor((row, 0))
+        else:  # Character paste
+            lines = self.text.split("\n")
+            if row < len(lines):
+                line = lines[row]
+                lines[row] = line[:col] + text_to_paste + line[col:]
+                self.text = "\n".join(lines)
+                self.move_cursor((row, col + len(text_to_paste) - 1))
+
+    def _vim_visual_delete(self) -> None:
+        """Delete visual selection."""
+        if self._visual_start is None:
+            return
+        
+        # Save undo state before making changes
+        self._save_undo_state(self.text)
+            
+        start_pos = self._visual_start
+        end_pos = self.cursor_location
+        
+        if start_pos > end_pos:
+            start_pos, end_pos = end_pos, start_pos
+            
+        if self._visual_mode == "line":
+            # Delete whole lines
+            start_row, _ = start_pos
+            end_row, _ = end_pos
+            self._vim_execute_operator_line("d", end_row - start_row + 1)
+        else:
+            # Delete character range
+            deleted_text = self._vim_delete_range(start_pos, (end_pos[0], end_pos[1] + 1))
+            self._registers["\""] = deleted_text
+
+    def _vim_visual_yank(self) -> None:
+        """Yank visual selection."""
+        if self._visual_start is None:
+            return
+            
+        start_pos = self._visual_start
+        end_pos = self.cursor_location
+        
+        if start_pos > end_pos:
+            start_pos, end_pos = end_pos, start_pos
+            
+        if self._visual_mode == "line":
+            # Yank whole lines
+            start_row, _ = start_pos
+            end_row, _ = end_pos
+            lines = self.text.split("\n")
+            yanked_lines = lines[start_row:end_row + 1]
+            self._registers["\""] = "\n".join(yanked_lines) + "\n"
+        else:
+            # Yank character range
+            yanked_text = self._vim_get_text_range(start_pos, (end_pos[0], end_pos[1] + 1))
+            self._registers["\""] = yanked_text
+
+    def _vim_visual_change(self) -> None:
+        """Change visual selection."""
+        # Use visual delete which already handles undo state
+        self._vim_visual_delete()
+        self.action_enter_insert_mode()
+
+    def _vim_repeat_last_action(self) -> None:
+        """Repeat last action (. command)."""
+        if not self._last_action:
+            return
+            
+        # Save undo state before repeating action
+        self._save_undo_state(self.text)
+            
+        action_type = self._last_action[0]
+        
+        if action_type == "operator_line":
+            _, operator, count = self._last_action
+            self._vim_execute_operator_line(operator, count)
+        elif action_type == "operator_motion":
+            _, operator, motion, count = self._last_action
+            self._vim_execute_operator_motion(operator, motion, count)
+        elif action_type == "delete_char":
+            _, count = self._last_action
+            self._vim_delete_char(count)
+
+    def action_indent_or_complete(self) -> None:
+        """Smart tab: complete if popup open, otherwise indent."""
+        # This action is now handled directly in the on_key method
+        # Keeping for backward compatibility but delegating to indent
+        self.action_indent()
 
     def _get_current_word(self) -> tuple[str, int]:
         row, col = self.cursor_location
@@ -1197,9 +1911,22 @@ class CodeEditor(TextArea):
     def _get_completions(self) -> list:
         try:
             current_word, _ = self._get_current_word()
+            
             suggestions = []
             seen = set()
 
+            # If no word typed yet, show common keywords and builtins
+            if len(current_word) == 0:
+                # Show Python keywords
+                keywords = ["print", "len", "str", "int", "list", "dict", "if", "for", "while", "def", "class", "import", "from", "return"]
+                for keyword in keywords:
+                    comp = self._create_completion(keyword, "keyword", f"Python keyword/builtin: {keyword}")
+                    comp.score = 1000
+                    suggestions.append(comp)
+                    seen.add(keyword)
+                return suggestions[:10]
+
+            # Builtins - most relevant
             for name, (type_, desc) in self._builtins.items():
                 if name.startswith(current_word):
                     comp = self._create_completion(name, "builtin", desc)
@@ -1207,41 +1934,46 @@ class CodeEditor(TextArea):
                     suggestions.append(comp)
                     seen.add(name)
 
+            # Context suggestions - keywords, patterns
             context_suggestions = self._get_context_suggestions()
             for suggestion in context_suggestions:
-                if suggestion.name not in seen and suggestion.name.startswith(
-                    current_word
-                ):
+                if suggestion.name not in seen and suggestion.name.startswith(current_word):
                     suggestion.score = 800
                     suggestions.append(suggestion)
                     seen.add(suggestion.name)
 
-            if self.current_file:
+            # Jedi completions - only for Python files and if not too many characters
+            if self.current_file and str(self.current_file).endswith('.py') and len(self.text) < 50000:
                 try:
-                    script = Script(code=self.text, path=self.current_file)
+                    script = Script(code=self.text, path=str(self.current_file))
                     row, column = self.cursor_location
                     jedi_completions = script.complete(row + 1, column)
-                    for comp in jedi_completions:
-                        if comp.name not in seen:
+                    
+                    # Limit jedi results to avoid performance issues
+                    for comp in jedi_completions[:20]:  # Max 20 jedi completions
+                        if comp.name not in seen and comp.name.startswith(current_word):
                             comp.score = 500
                             suggestions.append(comp)
                             seen.add(comp.name)
                 except Exception:
+                    # Silently fail for jedi - it's not critical
                     pass
 
+            # Local completions - cached and filtered
             local_completions = self._get_local_completions()
             for comp in local_completions:
-                if comp.name not in seen:
+                if comp.name not in seen and comp.name.startswith(current_word):
                     comp.score = 100
                     suggestions.append(comp)
                     seen.add(comp.name)
 
-            return sorted(
-                suggestions, key=lambda x: (-getattr(x, "score", 0), x.name.lower())
-            )
+            # Sort by score and limit results
+            suggestions.sort(key=lambda x: (-getattr(x, "score", 0), x.name.lower()))
+            return suggestions[:15]  # Limit to 15 total suggestions
 
         except Exception as e:
-            self.notify(f"Completion error: {str(e)}", severity="error")
+            # For debugging - show the error temporarily
+            self.notify(f"Completion error: {str(e)}", severity="error", timeout=2)
             return []
 
     def _score_suggestion(self, suggestion, current_word: str) -> float:
@@ -1293,28 +2025,30 @@ class CodeEditor(TextArea):
         suggestions = []
 
         current_word, _ = self._get_current_word()
+        
+        # Decorators
         if current_word.startswith("@"):
             decorators = [
                 ("@classmethod", "decorator", "Class method decorator"),
                 ("@staticmethod", "decorator", "Static method decorator"),
                 ("@property", "decorator", "Property decorator"),
-                # More common decorators should be added here
+                ("@dataclass", "decorator", "Data class decorator"),
             ]
             for name, type_, desc in decorators:
                 suggestions.append(self._create_completion(name, type_, desc))
             return suggestions
 
+        # Import context
         if line_before_cursor.strip().startswith(("import", "from")):
             for module, desc in self._common_imports.items():
                 suggestions.append(self._create_completion(module, "module", desc))
             return suggestions
 
-        if line_before_cursor.strip() == "":
+        # Add common patterns if at start of line or after indentation
+        stripped_line = line_before_cursor.strip()
+        if stripped_line == "" or stripped_line.isspace():
             for pattern, (type_, desc) in self._common_patterns.items():
                 suggestions.append(self._create_completion(pattern, type_, desc))
-
-        for name, (type_, desc) in self._builtins.items():
-            suggestions.append(self._create_completion(name, type_, desc))
 
         return suggestions
 
@@ -1329,7 +2063,12 @@ class CodeEditor(TextArea):
     def action_show_completions(self) -> None:
         completions = self._get_completions()
         if not completions:
+            self.notify("No completions available", severity="info", timeout=1)
             return
+
+        # Hide existing popup if any
+        if self._completion_popup:
+            self.hide_completions()
 
         popup = AutoCompletePopup()
         popup.populate(completions)
@@ -1350,8 +2089,6 @@ class CodeEditor(TextArea):
     def on_auto_complete_popup_selected(
         self, message: AutoCompletePopup.Selected
     ) -> None:
-        current_scroll = self.scroll_offset
-
         if message.value:
             lines = self.text.split("\n")
             row, col = self.cursor_location
@@ -1360,26 +2097,31 @@ class CodeEditor(TextArea):
             lines[row] = line[:word_start] + message.value + line[col:]
             self.text = "\n".join(lines)
             new_cursor_col = word_start + len(message.value)
-            self.move_cursor((row, new_cursor_col))
+            self._move_cursor_preserve_scroll((row, new_cursor_col))
 
         self.hide_completions()
-
-        self.scroll_to(current_scroll[0], current_scroll[1], animate=False)
-
         self.focus()
-        self.mode = "insert"
-        self.status_bar.update_mode("INSERT")
-        self.cursor_blink = True
+        
+        # Ensure we stay in insert mode if we were already there
+        if self.mode == "insert":
+            self.status_bar.update_mode("INSERT")
+            self.cursor_blink = True
 
     def execute_command(self) -> None:
         command = self.command[1:].strip()
 
+        # Handle line number jumps (e.g., :42)
+        if command.isdigit():
+            line_num = int(command) - 1  # Convert to 0-based
+            lines = self.text.split("\n")
+            if 0 <= line_num < len(lines):
+                self._move_cursor_preserve_scroll((line_num, 0))
+            else:
+                self.notify(f"Line {command} out of range", severity="warning")
+            return
+
         if command == "w":
-            self.action_write()
-            self.status_bar.update_mode("NORMAL")
-            self.in_command_mode = False
-            self.command = ""
-            self.refresh()
+            self.action_save_file()
         elif command == "wq":
             if not self.current_file:
                 self.notify("No file name", severity="error")
@@ -1394,12 +2136,7 @@ class CodeEditor(TextArea):
                 self.notify(
                     "No write since last change (add ! to override)", severity="warning"
                 )
-                self.status_bar.update_mode("NORMAL")
-                self.in_command_mode = False
-                self.command = ""
-                self.refresh()
                 return
-
             if self.tabs:
                 self.close_current_tab()
             else:
@@ -1409,36 +2146,68 @@ class CodeEditor(TextArea):
                 self.close_current_tab()
             else:
                 self.clear_editor()
+        elif command == "x" or command == "wq":
+            # Save and quit
+            if self._modified and self.current_file:
+                self.action_save_file()
+            if self.tabs:
+                self.close_current_tab()
+            else:
+                self.clear_editor()
         elif command == "%d":
             self.clear_editor()
-        elif command == "n" or command == "bn":
+        elif command in ["n", "bn"]:
             if self.tabs:
+                # Save current buffer state before switching
+                self._save_buffer_state()
+                
                 self.active_tab_index = (self.active_tab_index + 1) % len(self.tabs)
                 tab = self.tabs[self.active_tab_index]
                 self.load_text(tab.content)
                 self.current_file = tab.path
-                self.set_language_from_file(
-                    tab.path
-                )  # update language to match each buffer respectively
+                self._modified = tab.modified
+                self.set_language_from_file(str(tab.path))
+                
+                # Restore buffer state
+                self._restore_buffer_state()
                 self._update_status_info()
-        elif command == "p" or command == "bp":
+        elif command in ["p", "bp", "prev"]:
             if self.tabs:
+                # Save current buffer state before switching
+                self._save_buffer_state()
+                
                 self.active_tab_index = (self.active_tab_index - 1) % len(self.tabs)
                 tab = self.tabs[self.active_tab_index]
                 self.load_text(tab.content)
                 self.current_file = tab.path
-                self.set_language_from_file(tab.path)  # same here
+                self._modified = tab.modified
+                self.set_language_from_file(str(tab.path))
+                
+                # Restore buffer state
+                self._restore_buffer_state()
                 self._update_status_info()
-        elif command == "ls":
+        elif command in ["ls", "buffers"]:
             buffer_list = []
             for i, tab in enumerate(self.tabs):
                 marker = "%" if i == self.active_tab_index else " "
                 modified = "+" if tab.modified else " "
                 name = os.path.basename(tab.path)
                 buffer_list.append(f"{i + 1}{marker}{modified} {name}")
-            self.notify("\n".join(buffer_list))
+            self.notify("\n".join(buffer_list) if buffer_list else "No buffers")
+        elif command.startswith("e "):
+            # Edit file - :e filename
+            filename = command[2:].strip()
+            if filename:
+                try:
+                    self.open_file(filename)
+                except Exception as e:
+                    self.notify(f"Cannot edit {filename}: {str(e)}", severity="error")
+        elif command == "set number" or command == "set nu":
+            self.show_line_numbers = True
+        elif command == "set nonumber" or command == "set nonu":
+            self.show_line_numbers = False
         else:
-            self.notify(f"Unknown command: {command}", severity="warning")
+            self.notify(f"Unknown command: :{command}", severity="warning")
 
     def close_current_tab(self) -> None:
         if not self.tabs:
@@ -1452,10 +2221,15 @@ class CodeEditor(TextArea):
             tab = self.tabs[self.active_tab_index]
             self.load_text(tab.content)
             self.current_file = tab.path
+            self._modified = tab.modified
+            
+            # Restore buffer state
+            self._restore_buffer_state()
         else:
             self.active_tab_index = -1
             self.load_text("")
             self.current_file = None
+            self._modified = False
         self._update_status_info()
 
     def render(self) -> str:
@@ -1568,13 +2342,13 @@ class CodeEditor(TextArea):
     def action_save_file(self) -> None:
         if self.current_file:
             try:
-                with open(self.current_file, "w", encoding="utf-8") as file:
+                with open(str(self.current_file), "w", encoding="utf-8") as file:
                     file.write(self.text)
                 self._modified = False
                 self.post_message(self.FileModified(False))
-                saved_size = os.path.getsize(self.current_file)
+                saved_size = os.path.getsize(str(self.current_file))
                 self.notify(
-                    f"Wrote {saved_size} bytes to {os.path.basename(self.current_file)}"
+                    f"Wrote {saved_size} bytes to {os.path.basename(str(self.current_file))}"
                 )
                 self._update_status_info()
             except (IOError, OSError) as e:
@@ -1582,23 +2356,24 @@ class CodeEditor(TextArea):
 
     def watch_text(self, old_text: str, new_text: str) -> None:
         if old_text != new_text:
+            # Invalidate completion cache when text changes
+            self._text_changed_since_cache = True
+            
+            # Save undo state for the current buffer (only if not undoing/redoing)
             if not self._is_undoing:
-                # Save the current state including text, cursor, and scroll positions
-                self._undo_state_stack.append(
-                    {
-                        "text": old_text,
-                        "cursor": self.cursor_location,
-                        "scroll": self.scroll_offset,
-                    }
-                )
-                self._redo_state_stack.clear()
+                self._save_undo_state(old_text)
 
             self._modified = True
             self.post_message(self.FileModified(True))
 
+            # Update current tab content and state
             if self.tabs and self.active_tab_index >= 0:
-                self.tabs[self.active_tab_index].content = new_text
-                self.tabs[self.active_tab_index].modified = True
+                tab = self.tabs[self.active_tab_index]
+                tab.content = new_text
+                tab.modified = True
+                # Update saved position
+                tab.cursor_position = self.cursor_location
+                tab.scroll_position = self.scroll_offset
 
             if self._syntax:
                 self.update_syntax_highlighting()
@@ -1606,14 +2381,17 @@ class CodeEditor(TextArea):
 
     def action_enter_normal_mode(self) -> None:
         self.mode = "normal"
+        self._visual_start = None
+        self._visual_mode = None
+        self._clear_vim_state()
         self.status_bar.update_mode("NORMAL")
         self.cursor_blink = False
+        self.hide_completions()
 
     def action_enter_insert_mode(self) -> None:
         self.mode = "insert"
         self.status_bar.update_mode("INSERT")
         self.cursor_blink = True
-        self.cursor_style = "underline"
 
     def action_move_left(self) -> None:
         if self.mode == "normal":
@@ -1664,55 +2442,80 @@ class CodeEditor(TextArea):
             self.scroll_to(current_scroll[0], current_scroll[1], animate=False)
 
     def action_undo(self) -> None:
-        if self.mode == "normal" and self._undo_state_stack:
+        """Undo the last change in the current buffer."""
+        if self.mode == "normal" and self.tabs and self.active_tab_index >= 0:
+            tab = self.tabs[self.active_tab_index]
+            
+            if not tab.undo_stack:
+                self.notify("Already at oldest change", severity="info")
+                return
+                
             self._is_undoing = True
 
             # Save current state to redo stack
-            self._redo_state_stack.append(
-                {
-                    "text": self.text,
-                    "cursor": self.cursor_location,
-                    "scroll": self.scroll_offset,
-                }
-            )
+            current_state = {
+                "text": self.text,
+                "cursor": self.cursor_location,
+                "scroll": self.scroll_offset,
+            }
+            tab.redo_stack.append(current_state)
 
             # Get state from undo stack
-            state = self._undo_state_stack.pop()
+            state = tab.undo_stack.pop()
 
             # Restore text
             self.text = state["text"]
+            tab.content = state["text"]
+            tab.modified = True
 
             # Restore cursor position and scroll offset
             self.move_cursor(state["cursor"])
             self.scroll_to(state["scroll"][0], state["scroll"][1], animate=False)
+            
+            # Update tab's saved position
+            tab.cursor_position = state["cursor"]
+            tab.scroll_position = state["scroll"]
 
-            self._undo_batch = []
             self._is_undoing = False
+            self._update_status_info()
 
     def action_redo(self) -> None:
-        if self.mode == "normal" and self._redo_state_stack:
+        """Redo the last undone change in the current buffer."""
+        if self.mode == "normal" and self.tabs and self.active_tab_index >= 0:
+            tab = self.tabs[self.active_tab_index]
+            
+            if not tab.redo_stack:
+                self.notify("Already at newest change", severity="info")
+                return
+                
             self._is_undoing = True
 
             # Save current state to undo stack
-            self._undo_state_stack.append(
-                {
-                    "text": self.text,
-                    "cursor": self.cursor_location,
-                    "scroll": self.scroll_offset,
-                }
-            )
+            current_state = {
+                "text": self.text,
+                "cursor": self.cursor_location,
+                "scroll": self.scroll_offset,
+            }
+            tab.undo_stack.append(current_state)
 
             # Get state from redo stack
-            state = self._redo_state_stack.pop()
+            state = tab.redo_stack.pop()
 
             # Restore text
             self.text = state["text"]
+            tab.content = state["text"]
+            tab.modified = True
 
             # Restore cursor position and scroll offset
             self.move_cursor(state["cursor"])
             self.scroll_to(state["scroll"][0], state["scroll"][1], animate=False)
+            
+            # Update tab's saved position
+            tab.cursor_position = state["cursor"]
+            tab.scroll_position = state["scroll"]
 
             self._is_undoing = False
+            self._update_status_info()
 
     def action_move_line_end(self) -> None:
         if self.mode == "normal":
@@ -1724,31 +2527,23 @@ class CodeEditor(TextArea):
                 self.move_cursor((cur_row, line_length))
             self.scroll_to(current_scroll[0], current_scroll[1], animate=False)
 
-    def _save_undo_state(self) -> None:
-        if not self._is_undoing:
-            current_time = time.time()
-            if current_time - self._last_action_time > self._batch_timeout:
-                if self._undo_batch:
-                    self._undo_state_stack.append(
-                        {
-                            "text": self._undo_batch[-1],
-                            "cursor": self.cursor_location,
-                            "scroll": self.scroll_offset,
-                        }
-                    )
-                    self._undo_batch = []
-                else:
-                    self._undo_state_stack.append(
-                        {
-                            "text": self.text,
-                            "cursor": self.cursor_location,
-                            "scroll": self.scroll_offset,
-                        }
-                    )
-                self._redo_state_stack.clear()
-            else:
-                self._undo_batch = [self.text]
-            self._last_action_time = current_time
+    def action_move_line_first_char(self) -> None:
+        """Move to first non-blank character of line (^ command)."""
+        current_scroll = self.scroll_offset
+        lines = self.text.split("\n")
+        cur_row = self.cursor_location[0]
+        if cur_row < len(lines):
+            line = lines[cur_row]
+            col = 0
+            while col < len(line) and line[col].isspace():
+                col += 1
+            self.move_cursor((cur_row, col))
+        self.scroll_to(current_scroll[0], current_scroll[1], animate=False)
+
+    def action_vim_g_commands(self) -> None:
+        """Handle g-prefix commands in vim."""
+        # This is handled in the key handler - g followed by g
+        pass
 
     async def action_new_file(self) -> None:
         try:
@@ -1762,15 +2557,25 @@ class CodeEditor(TextArea):
 
     def open_file(self, filepath: str) -> None:
         try:
+            # Save current buffer state before switching
+            if self.tabs and self.active_tab_index >= 0:
+                self._save_buffer_state()
+            
+            # Check if file is already open
             for i, tab in enumerate(self.tabs):
                 if tab.path == filepath:
                     self.active_tab_index = i
                     self.load_text(tab.content)
                     self.current_file = tab.path
-                    self.set_language_from_file(filepath)
+                    self._modified = tab.modified
+                    self.set_language_from_file(str(filepath))
+                    
+                    # Restore buffer state
+                    self._restore_buffer_state()
                     self._update_status_info()
                     return
 
+            # Open new file
             with open(filepath, "r", encoding="utf-8") as file:
                 content = file.read()
                 new_tab = EditorTab(filepath, content)
@@ -1779,11 +2584,16 @@ class CodeEditor(TextArea):
 
                 self.load_text(content)
                 self.current_file = filepath
-                self.set_language_from_file(filepath)
+                self.set_language_from_file(str(filepath))
                 self._modified = False
                 self.mode = "normal"
                 self.status_bar.update_mode("NORMAL")
                 self.cursor_blink = False
+                
+                # Reset cursor and scroll for new file
+                self.move_cursor((0, 0))
+                self.scroll_to(0, 0, animate=False)
+                
                 self.focus()
                 self._update_status_info()
         except Exception as e:
@@ -2131,25 +2941,29 @@ class ContextMenu(ModalScreen):
     def on_mount(self) -> None:
         menu = self.query_one(".context-menu-container")
 
+        # Get the tree widget to position the menu relative to it
         try:
             tree = self.app.query_one("#main_tree", FilterableDirectoryTree)
+            tree_region = tree.region
         except Exception:
-            tree = None
+            tree_region = None
 
-        if tree:
-            for row in range(tree.row_count):
-                node = tree.get_node_at_line(row)
-                if node and node.data.path == self.path:
-                    tree_offset = tree.screen_relative
-                    menu_x = tree_offset.x + min(
-                        tree.scrollable_content_region.width - 20,
-                        tree.scrollable_content_region.width * 0.7,
-                    )
-                    menu_y = tree_offset.y + (
-                        row * tree.get_content_height() / tree.row_count
-                    )
-                    menu.styles.offset = (menu_x, menu_y)
-                    break
+        if hasattr(self, 'pos_x') and hasattr(self, 'pos_y'):
+            # For right-click events, position near the click but ensure it's within the tree area
+            menu_x = self.pos_x
+            menu_y = self.pos_y
+            
+            if tree_region:
+                # Ensure the menu appears within or near the tree sidebar
+                # Add a small offset so it doesn't cover the clicked item
+                menu_x = max(tree_region.x + 5, min(menu_x + 5, tree_region.x + tree_region.width - 160))
+                menu_y = max(tree_region.y + 5, min(menu_y, tree_region.y + tree_region.height - 200))
+            else:
+                # Fallback bounds checking
+                menu_x = max(5, min(menu_x + 5, self.app.screen.size.width - 160))
+                menu_y = max(5, min(menu_y, self.app.screen.size.height - 200))
+                
+            menu.styles.offset = (menu_x, menu_y)
 
         if self.items:
             buttons = self.query(Button)

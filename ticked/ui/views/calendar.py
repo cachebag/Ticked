@@ -36,9 +36,11 @@ class NavBar(Horizontal):
     def compose(self) -> ComposeResult:
         prev_btn = Button("PREV", id="prev_month", classes="calendar-nav-left")
         next_btn = Button("NEXT", id="next_month", classes="calendar-nav-right")
+        toggle_btn = Button("Toggle View", id="toggle-view", classes="view-toggle")
         header = CalendarHeader(self.current_date)
 
         yield prev_btn
+        yield toggle_btn
         yield header
         yield next_btn
 
@@ -187,7 +189,8 @@ class WeekView(Grid):
     def __init__(self, current_date: datetime | None = None):
         super().__init__()
         self.current_date = current_date or datetime.now()
-        self.styles.height = "85%"
+        self.styles.height = "auto"
+        self.styles.max_height = "30"
         self.styles.width = "100%"
         self.styles.grid_size_rows = 1
         self.styles.grid_size_columns = 7
@@ -680,7 +683,6 @@ class CalendarView(Container):
     def compose(self) -> ComposeResult:
         self.current_date = datetime.now()
         yield NavBar(self.current_date)
-        yield Button("Toggle View", id="toggle-view", classes="view-toggle")
         yield WeekView(self.current_date)
         yield CalendarGrid(self.current_date)
 
@@ -693,9 +695,11 @@ class CalendarView(Container):
         if self.is_month_view:
             week_view.styles.display = "none"
             month_view.styles.display = "block"
+            self.add_class("month-view-mode")
         else:
             month_view.styles.display = "none"
             week_view.styles.display = "block"
+            self.add_class("week-view-mode")
 
         self.call_later(self.focus_current_day)
 
@@ -776,9 +780,13 @@ class CalendarView(Container):
         if self.is_month_view:
             week_view.styles.display = "none"
             month_view.styles.display = "block"
+            self.add_class("month-view-mode")
+            self.remove_class("week-view-mode")
         else:
             week_view.styles.display = "block"
             month_view.styles.display = "none"
+            self.add_class("week-view-mode")
+            self.remove_class("month-view-mode")
 
         self.app.db.save_calendar_view_preference(self.is_month_view)
 
