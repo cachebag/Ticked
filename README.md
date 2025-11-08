@@ -7,6 +7,8 @@
 <br>
 [![Python Tests](https://github.com/cachebag/Ticked/actions/workflows/pytest.yml/badge.svg)](https://github.com/cachebag/Ticked/actions/workflows/pytest.yml/badge.svg)
 
+# THIS PROJECT IS NO LONGE BEING MAINTAINED!
+  - It still works fine, but will no longer be supported and will soon be archived. 
 # 📟 **Ticked** is a Terminal based task and productivity manager built in Python over the Textual framework.
 
 <div align="center">
